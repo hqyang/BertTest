@@ -20,6 +20,96 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
 logger = logging.getLogger(__name__)
 
 
+class InputExample(object):
+    """A single training/test example for simple sequence classification."""
+
+    def __init__(self, guid, text_a, text_b=None, label=None):
+        """Constructs a InputExample.
+
+        Args:
+            guid: Unique id for the example.
+            text_a: string. The untokenized text of the first sequence. For single
+            sequence tasks, only this sequence must be specified.
+            text_b: (Optional) string. The untokenized text of the second sequence.
+            Only must be specified for sequence pair tasks.
+            label: (Optional) string. The label of the example. This should be
+            specified for train and dev examples, but not for test examples.
+        """
+        self.guid = guid
+        self.text_a = text_a
+        self.text_b = text_b
+        self.label = label
+
+
+class InputFeatures(object):
+    """A single set of features of data."""
+
+    def __init__(self, input_ids, input_mask, segment_ids, label_id):
+        self.input_ids = input_ids
+        self.input_mask = input_mask
+        self.segment_ids = segment_ids
+        self.label_id = label_id
+
+
+class DataProcessor(object):
+    """Base class for data converters for sequence classification data sets."""
+
+    def get_train_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the train set."""
+        raise NotImplementedError()
+
+    def get_dev_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the dev set."""
+        raise NotImplementedError()
+
+    def get_labels(self):
+        """Gets the list of labels for this data set."""
+        raise NotImplementedError()
+
+    @classmethod
+    def _read_tsv(cls, input_file, quotechar=None):
+        """Reads a tab separated value file."""
+        with open(input_file, "r") as f:
+            reader = csv.reader(f, delimiter="\t", quotechar=quotechar)
+            lines = []
+            for line in reader:
+                lines.append(line)
+            return lines
+
+class OntoNotesCWSProcessor(DataProcessor):
+    """Processor OntoNotes CWS data set."""
+    def construct_data(self, param, mode):
+        return ontonotes_cws(param, mode)
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.tsv")))
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+
+    def get_labels(self):
+        """See base class."""
+        return ["0", "1"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        examples = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            guid = "%s-%s" % (set_type, i)
+            text_a = line[3]
+            text_b = line[4]
+            label = line[0]
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
+
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
 
@@ -235,9 +325,9 @@ def main():
     args = parser.parse_args()
 
     processors = {
-        "ontonote_CWS": OntoNoteCWSProcessor,
-        "ontonote_NER": OntoNoteNERProcessor,
-        "ontonote_Chunk": OntoNoteChunkProcessor
+        "ontonotes_CWS": OntoNotesCWSProcessor,
+        "ontonotes_NER": OntoNotesNERProcessor,
+        "ontonotes_Chunk": OntoNotesChunkProcessor
     }
 
     if args.visible_device is not None:
@@ -285,6 +375,7 @@ def main():
         raise ValueError("Task not found: %s" % (task_name))
 
     processor = processors[task_name]()
+    data_list = processor.construct_data(args, 'train')
     label_list = processor.get_labels()
 
     tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
@@ -297,7 +388,7 @@ def main():
             len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs)
 
     # Prepare model
-    model = BertForSequenceClassification.from_pretrained(args.bert_model,
+    model = Bert_CRF.from_pretrained(args.bert_model,
                 cache_dir=PYTORCH_PRETRAINED_BERT_CACHE / 'distributed_{}'.format(args.local_rank))
     if args.fp16:
         model.half()
