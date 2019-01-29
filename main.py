@@ -17,7 +17,6 @@ import torch
 import numpy as np
 from src.data_preprocessing.ontonote_data import *
 import csv
-from src.params import *
 
 from src.BERT.tokenization import BertTokenizer, FullTokenizer
 from src.BERT.modeling import BertCRF, PreTrainedBertModel
@@ -502,7 +501,7 @@ def main():
                             default='/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert-base-chinese-vocab.txt',
                             help='vocab_file'
                             )
-    params = Params()
+    args = parser.parse_args()
 
     processors = {
         "ontonotes_cws": OntoNotesCWSProcessor,
