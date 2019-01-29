@@ -13,6 +13,22 @@ import logging
 import argparse
 import random
 from tqdm import tqdm, trange
+import torch
+import numpy as np
+from src.data_preprocessing.ontonote_data import *
+import csv
+from src.params import *
+
+from src.BERT.tokenization import BertTokenizer, FullTokenizer
+from src.BERT.modeling import BertCRF, PreTrainedBertModel
+#from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
+
+from pytorch_pretrained_bert.optimization import BertAdam
+
+from pathlib import Path
+PYTORCH_PRETRAINED_BERT_CACHE = Path(os.getenv('PYTORCH_PRETRAINED_BERT_CACHE',
+                           '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models'))
+
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -76,16 +92,22 @@ class DataProcessor(object):
                 lines.append(line)
             return lines
 
-class OntoNotesCWSProcessor(DataProcessor):
+class OntoNotesNERProcessor(DataProcessor):
+    """Processor OntoNotes NER data set."""
+
+class OntoNotesChunkProcessor(DataProcessor):
+    """Processor OntoNotes Chunk data set."""
+
+
+class OntoNotesCWSProcessor_old(DataProcessor):
     """Processor OntoNotes CWS data set."""
-    def construct_data(self, param, mode):
-        return ontonotes_cws(param, mode)
+    def __init__(self, param, mode):
+        self.problem = 'ontonotes_cws'
+        self._data = ontonotes_cws(param, mode)
 
     def get_train_examples(self, data_dir):
         """See base class."""
-        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.tsv")))
-        return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+        return self._data[input_ids]
 
     def get_dev_examples(self, data_dir):
         """See base class."""
@@ -94,7 +116,7 @@ class OntoNotesCWSProcessor(DataProcessor):
 
     def get_labels(self):
         """See base class."""
-        return ["0", "1"]
+        return self._data[self.problem+'s_label_ids']
 
     def _create_examples(self, lines, set_type):
         """Creates examples for the training and dev sets."""
@@ -109,6 +131,46 @@ class OntoNotesCWSProcessor(DataProcessor):
             examples.append(
                 InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
         return examples
+
+
+class OntoNotesCWSProcessor(DataProcessor):
+    """Processor the OntoNotes CWS data set."""
+    # full_pos,ner,seg,text
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.data.tsv")))
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "train.data.tsv")), "train")
+
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.data.tsv")), "dev")
+
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "test.data.tsv")), "test")
+
+    def get_labels(self):
+        """See base class."""
+        return ["B", "M", "E", "O"]
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        examples = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                continue
+            #guid = "%s-%s" % (set_type, i)
+            guid = None
+            text_a = line[3]
+            text_b = None
+            label = line[2]
+            examples.append(
+                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+        return examples
+
 
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """Loads a data file into a list of `InputBatch`s."""
@@ -222,112 +284,230 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
         else:
             tokens_b.pop()
 
+PARSER_FLAG = False
+
 def main():
-    parser = argparse.ArgumentParser()
+    if PARSER_FLAG:
+        parser = argparse.ArgumentParser()
 
-    ## Required parameters
-    parser.add_argument("--data_dir",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--bert_model", default=None, type=str, required=True,
-                        help="Bert pre-trained model selected in the list: bert-base-uncased, "
-                             "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
-    parser.add_argument("--task_name",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The name of the task to train.")
-    parser.add_argument("--output_dir",
-                        default=None,
-                        type=str,
-                        required=True,
-                        help="The output directory where the model checkpoints will be written.")
+        ## Required parameters
+        parser.add_argument("--data_dir",
+                            default=None,
+                            type=str,
+                            required=True,
+                            help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
+        parser.add_argument("--bert_model", default=None, type=str, required=True,
+                            help="Bert pre-trained model selected in the list: bert-base-uncased, "
+                                 "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
+        parser.add_argument("--task_name",
+                            default=None,
+                            type=str,
+                            required=True,
+                            help="The name of the task to train.")
+        parser.add_argument("--output_dir",
+                            default=None,
+                            type=str,
+                            required=True,
+                            help="The output directory where the model checkpoints will be written.")
+        parser.add_argument("--ckpt_dir",
+                            default=None,
+                            type=str,
+                            required=True,
+                            help="The ckpt directory where the model checkpoints will be written.")
 
-    ## Other parameters
-    parser.add_argument("--max_seq_length",
-                        default=128,
-                        type=int,
-                        help="The maximum total input sequence length after WordPiece tokenization. \n"
-                             "Sequences longer than this will be truncated, and sequences shorter \n"
-                             "than this will be padded.")
-    parser.add_argument("--do_train",
-                        default=False,
-                        action='store_true',
-                        help="Whether to run training.")
-    parser.add_argument("--do_eval",
-                        default=False,
-                        action='store_true',
-                        help="Whether to run eval on the dev set.")
-    parser.add_argument("--do_testcase",
-                        default=False,
-                        action='store_true',
-                        help="Whether to run eval on a test case.")
-    parser.add_argument("--do_lower_case",
-                        default=False,
-                        action='store_true',
-                        help="Set this flag if you are using an uncased model.")
-    parser.add_argument("--train_batch_size",
-                        default=32,
-                        type=int,
-                        help="Total batch size for training.")
-    parser.add_argument("--eval_batch_size",
-                        default=8,
-                        type=int,
-                        help="Total batch size for eval.")
-    parser.add_argument("--learning_rate",
-                        default=5e-5,
-                        type=float,
-                        help="The initial learning rate for Adam.")
-    parser.add_argument("--num_train_epochs",
-                        default=3.0,
-                        type=float,
-                        help="Total number of training epochs to perform.")
-    parser.add_argument("--warmup_proportion",
-                        default=0.1,
-                        type=float,
-                        help="Proportion of training to perform linear learning rate warmup for. "
-                             "E.g., 0.1 = 10%% of training.")
-    parser.add_argument("--no_cuda",
-                        default=False,
-                        action='store_true',
-                        help="Whether not to use CUDA when available")
-    parser.add_argument("--local_rank",
-                        type=int,
-                        default=-1,
-                        help="local_rank for distributed training on gpus")
-    parser.add_argument('--seed',
-                        type=int,
-                        default=42,
-                        help="random seed for initialization")
-    parser.add_argument('--gradient_accumulation_steps',
-                        type=int,
-                        default=1,
-                        help="Number of updates steps to accumulate before performing a backward/update pass.")
-    parser.add_argument('--optimize_on_cpu',
-                        default=False,
-                        action='store_true',
-                        help="Whether to perform optimization and keep the optimizer averages on CPU")
-    parser.add_argument('--fp16',
-                        default=False,
-                        action='store_true',
-                        help="Whether to use 16-bit float precision instead of 32-bit")
-    parser.add_argument('--loss_scale',
-                        type=float, default=128,
-                        help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
-    parser.add_argument('--visible_device',
-                        type=int,
-                        default=1,
-                        help='Visible devices'
-                        )
+        ## Other parameters
+        parser.add_argument("--max_seq_length",
+                            default=128,
+                            type=int,
+                            help="The maximum total input sequence length after WordPiece tokenization. \n"
+                                 "Sequences longer than this will be truncated, and sequences shorter \n"
+                                 "than this will be padded.")
+        parser.add_argument("--do_train",
+                            default=False,
+                            action='store_true',
+                            help="Whether to run training.")
+        parser.add_argument("--do_eval",
+                            default=False,
+                            action='store_true',
+                            help="Whether to run eval on the dev set.")
+        parser.add_argument("--do_testcase",
+                            default=False,
+                            action='store_true',
+                            help="Whether to run eval on a test case.")
+        parser.add_argument("--do_lower_case",
+                            default=False,
+                            action='store_true',
+                            help="Set this flag if you are using an uncased model.")
+        parser.add_argument("--train_batch_size",
+                            default=32,
+                            type=int,
+                            help="Total batch size for training.")
+        parser.add_argument("--eval_batch_size",
+                            default=8,
+                            type=int,
+                            help="Total batch size for eval.")
+        parser.add_argument("--learning_rate",
+                            default=5e-5,
+                            type=float,
+                            help="The initial learning rate for Adam.")
+        parser.add_argument("--num_train_epochs",
+                            default=3.0,
+                            type=float,
+                            help="Total number of training epochs to perform.")
+        parser.add_argument("--warmup_proportion",
+                            default=0.1,
+                            type=float,
+                            help="Proportion of training to perform linear learning rate warmup for. "
+                                 "E.g., 0.1 = 10%% of training.")
+        parser.add_argument("--no_cuda",
+                            default=False,
+                            action='store_true',
+                            help="Whether not to use CUDA when available")
+        parser.add_argument("--local_rank",
+                            type=int,
+                            default=-1,
+                            help="local_rank for distributed training on gpus")
+        parser.add_argument('--seed',
+                            type=int,
+                            default=42,
+                            help="random seed for initialization")
+        parser.add_argument('--gradient_accumulation_steps',
+                            type=int,
+                            default=1,
+                            help="Number of updates steps to accumulate before performing a backward/update pass.")
+        parser.add_argument('--optimize_on_cpu',
+                            default=False,
+                            action='store_true',
+                            help="Whether to perform optimization and keep the optimizer averages on CPU")
+        parser.add_argument('--fp16',
+                            default=False,
+                            action='store_true',
+                            help="Whether to use 16-bit float precision instead of 32-bit")
+        parser.add_argument('--loss_scale',
+                            type=float, default=128,
+                            help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
+        parser.add_argument('--visible_device',
+                            type=int,
+                            default=1,
+                            help='Visible devices'
+                            )
+        parser.add_argument('--vocab_file',
+                            type=str,
+                            default=None,
+                            help='vocab_file'
+                            )
 
-    args = parser.parse_args()
+    else:
+        parser = argparse.ArgumentParser()
+
+        parser.add_argument("--data_dir",
+                            default="/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/",
+                            type=str,
+                            help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
+        parser.add_argument("--bert_model",
+                            default="/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese.tar.gz", type=str,
+                            help="Bert pre-trained model selected in the list: bert-base-uncased, "
+                                 "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
+        parser.add_argument("--task_name",
+                            default="ontonotes_CWS",
+                            type=str,
+                            help="The name of the task to train.")
+        parser.add_argument("--output_dir",
+                            default="/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/fuse-tree2/tmp_train/out",
+                            type=str,
+                            help="The output directory where the model checkpoints will be written.")
+        parser.add_argument("--ckpt_dir",
+                            default="/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/fuse-tree2/tmp_train/out",
+                            type=str,
+                            help="The ckpt directory where the model checkpoints will be written.")
+
+        ## Other parameters
+        parser.add_argument("--max_seq_length",
+                            default=128,
+                            type=int,
+                            help="The maximum total input sequence length after WordPiece tokenization. \n"
+                                 "Sequences longer than this will be truncated, and sequences shorter \n"
+                                 "than this will be padded.")
+        parser.add_argument("--do_train",
+                            default=True,
+                            action='store_true',
+                            help="Whether to run training.")
+        parser.add_argument("--do_eval",
+                            default=False,
+                            action='store_true',
+                            help="Whether to run eval on the dev set.")
+        parser.add_argument("--do_testcase",
+                            default=False,
+                            action='store_true',
+                            help="Whether to run eval on a test case.")
+        parser.add_argument("--do_lower_case",
+                            default=True,
+                            action='store_true',
+                            help="Set this flag if you are using an uncased model.")
+        parser.add_argument("--train_batch_size",
+                            default=32,
+                            type=int,
+                            help="Total batch size for training.")
+        parser.add_argument("--eval_batch_size",
+                            default=8,
+                            type=int,
+                            help="Total batch size for eval.")
+        parser.add_argument("--learning_rate",
+                            default=2e-5,
+                            type=float,
+                            help="The initial learning rate for Adam.")
+        parser.add_argument("--num_train_epochs",
+                            default=3.0,
+                            type=float,
+                            help="Total number of training epochs to perform.")
+        parser.add_argument("--warmup_proportion",
+                            default=0.1,
+                            type=float,
+                            help="Proportion of training to perform linear learning rate warmup for. "
+                                 "E.g., 0.1 = 10%% of training.")
+        parser.add_argument("--no_cuda",
+                            default=False,
+                            action='store_true',
+                            help="Whether not to use CUDA when available")
+        parser.add_argument("--local_rank",
+                            type=int,
+                            default=-1,
+                            help="local_rank for distributed training on gpus")
+        parser.add_argument('--seed',
+                            type=int,
+                            default=42,
+                            help="random seed for initialization")
+        parser.add_argument('--gradient_accumulation_steps',
+                            type=int,
+                            default=1,
+                            help="Number of updates steps to accumulate before performing a backward/update pass.")
+        parser.add_argument('--optimize_on_cpu',
+                            default=False,
+                            action='store_true',
+                            help="Whether to perform optimization and keep the optimizer averages on CPU")
+        parser.add_argument('--fp16',
+                            default=False,
+                            action='store_true',
+                            help="Whether to use 16-bit float precision instead of 32-bit")
+        parser.add_argument('--loss_scale',
+                            type=float, default=128,
+                            help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
+        parser.add_argument('--visible_device',
+                            type=int,
+                            default=1,
+                            help='Visible devices'
+                            )
+        parser.add_argument('--vocab_file',
+                            type=str,
+                            default='/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert-base-chinese-vocab.txt',
+                            help='vocab_file'
+                            )
+    params = Params()
 
     processors = {
-        "ontonotes_CWS": OntoNotesCWSProcessor,
-        "ontonotes_NER": OntoNotesNERProcessor,
-        "ontonotes_Chunk": OntoNotesChunkProcessor
+        "ontonotes_cws": OntoNotesCWSProcessor,
+        "ontonotes_ner": OntoNotesNERProcessor,
+        "ontonotes_chunk": OntoNotesChunkProcessor
     }
 
     if args.visible_device is not None:
@@ -374,22 +554,27 @@ def main():
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
-    processor = processors[task_name]()
-    data_list = processor.construct_data(args, 'train')
-    label_list = processor.get_labels()
+    #tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
 
-    tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
+    processor = processors[task_name]()
+    #data_list = processor.construct_data(args, 'train')
+    label_list = processor.get_labels()
 
     train_examples = None
     num_train_steps = None
     if args.do_train:
-        train_examples = processor.get_train_examples(args.data_dir)
+        train_examples = processor.get_train_examples(args.data_dir) #
         num_train_steps = int(
             len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs)
 
     # Prepare model
-    model = Bert_CRF.from_pretrained(args.bert_model,
-                cache_dir=PYTORCH_PRETRAINED_BERT_CACHE / 'distributed_{}'.format(args.local_rank))
+    #model = BertCRF.from_pretrained(args.bert_model,
+    #            cache_dir=PYTORCH_PRETRAINED_BERT_CACHE) #  / 'distributed_{}'.format(args.local_rank)
+    pre_model = PreTrainedBertModel.from_pretrained(args.bert_model, cache_dir=PYTORCH_PRETRAINED_BERT_CACHE)
+    model = BertCRF(pre_model.config, pre_model, len(label_list))
+
+    tokenizer = FullTokenizer(args.vocab_file, do_lower_case=args.do_lower_case)
+
     if args.fp16:
         model.half()
     model.to(device)
@@ -547,6 +732,6 @@ def main():
 
 
 if __name__ == "__main__":
-    import fire
-    fire.Fire(main)
+    #import fire
+    #fire.Fire(main)
     main()
