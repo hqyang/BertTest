@@ -8,27 +8,44 @@ Feature:
 
 Scenario: 
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 import logging
-import argparse
 import random
+from collections import OrderedDict
 from tqdm import tqdm, trange
-import torch
+from glob import glob
+
 import numpy as np
-from src.data_preprocessing.ontonote_data import *
-import csv
-from src.params import *
+import torch
 
-from src.BERT.tokenization import BertTokenizer, FullTokenizer
-from src.BERT.modeling import BertCRF, PreTrainedBertModel
-#from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
+'''
+import tokenization
+import time
+import argparse
+import itertools
+import pandas as pd
+from torchnet.meter import APMeter
+import .src.customize_modeling
+'''
 
-from pytorch_pretrained_bert.optimization import BertAdam
+from src.BERT.modeling import BertConfig, BertForMaskedLM
+from src.customize_modeling import BertCRF
+# ModuleNotFoundError: No module named '__main__.src'; '__main__' is not a package
+#, BertForSequenceClassification
+#from .src.BERT.modeling import BertForSequenceMultilabelClassification
+#from .src.BERT.modeling import BertForSequenceMultiTaskClassification
+from src.BERT.optimization import BertAdam
 
-from pathlib import Path
-PYTORCH_PRETRAINED_BERT_CACHE = Path(os.getenv('PYTORCH_PRETRAINED_BERT_CACHE',
-                           '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models'))
+from src.preprocess import MeituDataset, dataset_to_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO
+from src.config import args
+from src.tokenization import FullTokenizer
 
+CONFIG_NAME = 'bert_config.json'
+WEIGHTS_NAME = 'pytorch_model.bin'
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -36,480 +53,15 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
 logger = logging.getLogger(__name__)
 
 
-class InputExample(object):
-    """A single training/test example for simple sequence classification."""
-
-    def __init__(self, guid, text_a, text_b=None, label=None):
-        """Constructs a InputExample.
-
-        Args:
-            guid: Unique id for the example.
-            text_a: string. The untokenized text of the first sequence. For single
-            sequence tasks, only this sequence must be specified.
-            text_b: (Optional) string. The untokenized text of the second sequence.
-            Only must be specified for sequence pair tasks.
-            label: (Optional) string. The label of the example. This should be
-            specified for train and dev examples, but not for test examples.
-        """
-        self.guid = guid
-        self.text_a = text_a
-        self.text_b = text_b
-        self.label = label
+def get_dataset_and_dataloader(processor, args, training=True):
+    dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
+                                 args.max_seq_length, training=training)
+    dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
+                                       args.local_rank, training=training)
+    return dataset, dataloader
 
 
-class InputFeatures(object):
-    """A single set of features of data."""
-
-    def __init__(self, input_ids, input_mask, segment_ids, label_id):
-        self.input_ids = input_ids
-        self.input_mask = input_mask
-        self.segment_ids = segment_ids
-        self.label_id = label_id
-
-
-class DataProcessor(object):
-    """Base class for data converters for sequence classification data sets."""
-
-    def get_train_examples(self, data_dir):
-        """Gets a collection of `InputExample`s for the train set."""
-        raise NotImplementedError()
-
-    def get_dev_examples(self, data_dir):
-        """Gets a collection of `InputExample`s for the dev set."""
-        raise NotImplementedError()
-
-    def get_labels(self):
-        """Gets the list of labels for this data set."""
-        raise NotImplementedError()
-
-    @classmethod
-    def _read_tsv(cls, input_file, quotechar=None):
-        """Reads a tab separated value file."""
-        with open(input_file, "r") as f:
-            reader = csv.reader(f, delimiter="\t", quotechar=quotechar)
-            lines = []
-            for line in reader:
-                lines.append(line)
-            return lines
-
-class OntoNotesNERProcessor(DataProcessor):
-    """Processor OntoNotes NER data set."""
-
-class OntoNotesChunkProcessor(DataProcessor):
-    """Processor OntoNotes Chunk data set."""
-
-
-class OntoNotesCWSProcessor_old(DataProcessor):
-    """Processor OntoNotes CWS data set."""
-    def __init__(self, param, mode):
-        self.problem = 'ontonotes_cws'
-        self._data = ontonotes_cws(param, mode)
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        return self._data[input_ids]
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
-
-    def get_labels(self):
-        """See base class."""
-        return self._data[self.problem+'s_label_ids']
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-            if i == 0:
-                continue
-            guid = "%s-%s" % (set_type, i)
-            text_a = line[3]
-            text_b = line[4]
-            label = line[0]
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-
-class OntoNotesCWSProcessor(DataProcessor):
-    """Processor the OntoNotes CWS data set."""
-    # full_pos,ner,seg,text
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        logger.info("LOOKING AT {}".format(os.path.join(data_dir, "train.data.tsv")))
-        return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "train.data.tsv")), "train")
-
-    def get_dev_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "dev.data.tsv")), "dev")
-
-    def get_test_examples(self, data_dir):
-        """See base class."""
-        return self._create_examples(
-            self._read_tsv(os.path.join(data_dir, "test.data.tsv")), "test")
-
-    def get_labels(self):
-        """See base class."""
-        return ["B", "M", "E", "O"]
-
-    def _create_examples(self, lines, set_type):
-        """Creates examples for the training and dev sets."""
-        examples = []
-        for (i, line) in enumerate(lines):
-            if i == 0:
-                continue
-            #guid = "%s-%s" % (set_type, i)
-            guid = None
-            text_a = line[3]
-            text_b = None
-            label = line[2]
-            examples.append(
-                InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
-        return examples
-
-
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
-    """Loads a data file into a list of `InputBatch`s."""
-
-    label_map = {}
-    for (i, label) in enumerate(label_list):
-        label_map[label] = i
-
-    features = []
-    for (ex_index, example) in enumerate(examples):
-        tokens_a = tokenizer.tokenize(example.text_a)
-
-        tokens_b = None
-        if example.text_b:
-            tokens_b = tokenizer.tokenize(example.text_b)
-
-        if tokens_b:
-            # Modifies `tokens_a` and `tokens_b` in place so that the total
-            # length is less than the specified length.
-            # Account for [CLS], [SEP], [SEP] with "- 3"
-            _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - 3)
-        else:
-            # Account for [CLS] and [SEP] with "- 2"
-            if len(tokens_a) > max_seq_length - 2:
-                tokens_a = tokens_a[0:(max_seq_length - 2)]
-
-        # The convention in BERT is:
-        # (a) For sequence pairs:
-        #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
-        #  type_ids: 0   0  0    0    0     0       0 0    1  1  1  1   1 1
-        # (b) For single sequences:
-        #  tokens:   [CLS] the dog is hairy . [SEP]
-        #  type_ids: 0   0   0   0  0     0 0
-        #
-        # Where "type_ids" are used to indicate whether this is the first
-        # sequence or the second sequence. The embedding vectors for `type=0` and
-        # `type=1` were learned during pre-training and are added to the wordpiece
-        # embedding vector (and position vector). This is not *strictly* necessary
-        # since the [SEP] token unambigiously separates the sequences, but it makes
-        # it easier for the model to learn the concept of sequences.
-        #
-        # For classification tasks, the first vector (corresponding to [CLS]) is
-        # used as as the "sentence vector". Note that this only makes sense because
-        # the entire model is fine-tuned.
-        tokens = []
-        segment_ids = []
-        tokens.append("[CLS]")
-        segment_ids.append(0)
-        for token in tokens_a:
-            tokens.append(token)
-            segment_ids.append(0)
-        tokens.append("[SEP]")
-        segment_ids.append(0)
-
-        if tokens_b:
-            for token in tokens_b:
-                tokens.append(token)
-                segment_ids.append(1)
-            tokens.append("[SEP]")
-            segment_ids.append(1)
-
-        input_ids = tokenizer.convert_tokens_to_ids(tokens)
-
-        # The mask has 1 for real tokens and 0 for padding tokens. Only real
-        # tokens are attended to.
-        input_mask = [1] * len(input_ids)
-
-        # Zero-pad up to the sequence length.
-        while len(input_ids) < max_seq_length:
-            input_ids.append(0)
-            input_mask.append(0)
-            segment_ids.append(0)
-
-        assert len(input_ids) == max_seq_length
-        assert len(input_mask) == max_seq_length
-        assert len(segment_ids) == max_seq_length
-
-        label_id = label_map[example.label]
-        if ex_index < 5:
-            logger.info("*** Example ***")
-            logger.info("guid: %s" % (example.guid))
-            logger.info("tokens: %s" % " ".join(
-                    [str(x) for x in tokens]))
-            logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            logger.info(
-                    "segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-            logger.info("label: %s (id = %d)" % (example.label, label_id))
-
-        features.append(
-                InputFeatures(input_ids=input_ids,
-                              input_mask=input_mask,
-                              segment_ids=segment_ids,
-                              label_id=label_id))
-    return features
-
-
-def _truncate_seq_pair(tokens_a, tokens_b, max_length):
-    """Truncates a sequence pair in place to the maximum length."""
-
-    # This is a simple heuristic which will always truncate the longer sequence
-    # one token at a time. This makes more sense than truncating an equal percent
-    # of tokens from each, since if one sequence is very short then each token
-    # that's truncated likely contains more information than a longer sequence.
-    while True:
-        total_length = len(tokens_a) + len(tokens_b)
-        if total_length <= max_length:
-            break
-        if len(tokens_a) > len(tokens_b):
-            tokens_a.pop()
-        else:
-            tokens_b.pop()
-
-PARSER_FLAG = False
-
-def main():
-    if PARSER_FLAG:
-        parser = argparse.ArgumentParser()
-
-        ## Required parameters
-        parser.add_argument("--data_dir",
-                            default=None,
-                            type=str,
-                            required=True,
-                            help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-        parser.add_argument("--bert_model", default=None, type=str, required=True,
-                            help="Bert pre-trained model selected in the list: bert-base-uncased, "
-                                 "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
-        parser.add_argument("--task_name",
-                            default=None,
-                            type=str,
-                            required=True,
-                            help="The name of the task to train.")
-        parser.add_argument("--output_dir",
-                            default=None,
-                            type=str,
-                            required=True,
-                            help="The output directory where the model checkpoints will be written.")
-        parser.add_argument("--ckpt_dir",
-                            default=None,
-                            type=str,
-                            required=True,
-                            help="The ckpt directory where the model checkpoints will be written.")
-
-        ## Other parameters
-        parser.add_argument("--max_seq_length",
-                            default=128,
-                            type=int,
-                            help="The maximum total input sequence length after WordPiece tokenization. \n"
-                                 "Sequences longer than this will be truncated, and sequences shorter \n"
-                                 "than this will be padded.")
-        parser.add_argument("--do_train",
-                            default=False,
-                            action='store_true',
-                            help="Whether to run training.")
-        parser.add_argument("--do_eval",
-                            default=False,
-                            action='store_true',
-                            help="Whether to run eval on the dev set.")
-        parser.add_argument("--do_testcase",
-                            default=False,
-                            action='store_true',
-                            help="Whether to run eval on a test case.")
-        parser.add_argument("--do_lower_case",
-                            default=False,
-                            action='store_true',
-                            help="Set this flag if you are using an uncased model.")
-        parser.add_argument("--train_batch_size",
-                            default=32,
-                            type=int,
-                            help="Total batch size for training.")
-        parser.add_argument("--eval_batch_size",
-                            default=8,
-                            type=int,
-                            help="Total batch size for eval.")
-        parser.add_argument("--learning_rate",
-                            default=5e-5,
-                            type=float,
-                            help="The initial learning rate for Adam.")
-        parser.add_argument("--num_train_epochs",
-                            default=3.0,
-                            type=float,
-                            help="Total number of training epochs to perform.")
-        parser.add_argument("--warmup_proportion",
-                            default=0.1,
-                            type=float,
-                            help="Proportion of training to perform linear learning rate warmup for. "
-                                 "E.g., 0.1 = 10%% of training.")
-        parser.add_argument("--no_cuda",
-                            default=False,
-                            action='store_true',
-                            help="Whether not to use CUDA when available")
-        parser.add_argument("--local_rank",
-                            type=int,
-                            default=-1,
-                            help="local_rank for distributed training on gpus")
-        parser.add_argument('--seed',
-                            type=int,
-                            default=42,
-                            help="random seed for initialization")
-        parser.add_argument('--gradient_accumulation_steps',
-                            type=int,
-                            default=1,
-                            help="Number of updates steps to accumulate before performing a backward/update pass.")
-        parser.add_argument('--optimize_on_cpu',
-                            default=False,
-                            action='store_true',
-                            help="Whether to perform optimization and keep the optimizer averages on CPU")
-        parser.add_argument('--fp16',
-                            default=False,
-                            action='store_true',
-                            help="Whether to use 16-bit float precision instead of 32-bit")
-        parser.add_argument('--loss_scale',
-                            type=float, default=128,
-                            help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
-        parser.add_argument('--visible_device',
-                            type=int,
-                            default=1,
-                            help='Visible devices'
-                            )
-        parser.add_argument('--vocab_file',
-                            type=str,
-                            default=None,
-                            help='vocab_file'
-                            )
-
-    else:
-        parser = argparse.ArgumentParser()
-
-        parser.add_argument("--data_dir",
-                            default="/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/",
-                            type=str,
-                            help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-        parser.add_argument("--bert_model",
-                            default="/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese.tar.gz", type=str,
-                            help="Bert pre-trained model selected in the list: bert-base-uncased, "
-                                 "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
-        parser.add_argument("--task_name",
-                            default="ontonotes_CWS",
-                            type=str,
-                            help="The name of the task to train.")
-        parser.add_argument("--output_dir",
-                            default="/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/fuse-tree2/tmp_train/out",
-                            type=str,
-                            help="The output directory where the model checkpoints will be written.")
-        parser.add_argument("--ckpt_dir",
-                            default="/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/fuse-tree2/tmp_train/out",
-                            type=str,
-                            help="The ckpt directory where the model checkpoints will be written.")
-
-        ## Other parameters
-        parser.add_argument("--max_seq_length",
-                            default=128,
-                            type=int,
-                            help="The maximum total input sequence length after WordPiece tokenization. \n"
-                                 "Sequences longer than this will be truncated, and sequences shorter \n"
-                                 "than this will be padded.")
-        parser.add_argument("--do_train",
-                            default=True,
-                            action='store_true',
-                            help="Whether to run training.")
-        parser.add_argument("--do_eval",
-                            default=False,
-                            action='store_true',
-                            help="Whether to run eval on the dev set.")
-        parser.add_argument("--do_testcase",
-                            default=False,
-                            action='store_true',
-                            help="Whether to run eval on a test case.")
-        parser.add_argument("--do_lower_case",
-                            default=True,
-                            action='store_true',
-                            help="Set this flag if you are using an uncased model.")
-        parser.add_argument("--train_batch_size",
-                            default=32,
-                            type=int,
-                            help="Total batch size for training.")
-        parser.add_argument("--eval_batch_size",
-                            default=8,
-                            type=int,
-                            help="Total batch size for eval.")
-        parser.add_argument("--learning_rate",
-                            default=2e-5,
-                            type=float,
-                            help="The initial learning rate for Adam.")
-        parser.add_argument("--num_train_epochs",
-                            default=3.0,
-                            type=float,
-                            help="Total number of training epochs to perform.")
-        parser.add_argument("--warmup_proportion",
-                            default=0.1,
-                            type=float,
-                            help="Proportion of training to perform linear learning rate warmup for. "
-                                 "E.g., 0.1 = 10%% of training.")
-        parser.add_argument("--no_cuda",
-                            default=False,
-                            action='store_true',
-                            help="Whether not to use CUDA when available")
-        parser.add_argument("--local_rank",
-                            type=int,
-                            default=-1,
-                            help="local_rank for distributed training on gpus")
-        parser.add_argument('--seed',
-                            type=int,
-                            default=42,
-                            help="random seed for initialization")
-        parser.add_argument('--gradient_accumulation_steps',
-                            type=int,
-                            default=1,
-                            help="Number of updates steps to accumulate before performing a backward/update pass.")
-        parser.add_argument('--optimize_on_cpu',
-                            default=False,
-                            action='store_true',
-                            help="Whether to perform optimization and keep the optimizer averages on CPU")
-        parser.add_argument('--fp16',
-                            default=False,
-                            action='store_true',
-                            help="Whether to use 16-bit float precision instead of 32-bit")
-        parser.add_argument('--loss_scale',
-                            type=float, default=128,
-                            help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
-        parser.add_argument('--visible_device',
-                            type=int,
-                            default=1,
-                            help='Visible devices'
-                            )
-        parser.add_argument('--vocab_file',
-                            type=str,
-                            default='/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert-base-chinese-vocab.txt',
-                            help='vocab_file'
-                            )
-    params = Params()
-
-    processors = {
-        "ontonotes_cws": OntoNotesCWSProcessor,
-        "ontonotes_ner": OntoNotesNERProcessor,
-        "ontonotes_chunk": OntoNotesChunkProcessor
-    }
-
+def load_model(label_list, tokenizer, args):
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
             args.visible_device = str(args.visible_device)
@@ -545,44 +97,289 @@ def main():
     if not args.do_train and not args.do_eval:
         raise ValueError("At least one of `do_train` or `do_eval` must be True.")
 
+    if args.bert_model_dir is not None:
+        config_file = os.path.join(args.bert_model_dir, CONFIG_NAME)
+        bert_config = BertConfig.from_json_file(config_file)
+    else:
+        bert_config = BertConfig.from_json_file(args.bert_config_file)
+
+    if args.max_seq_length > bert_config.max_position_embeddings:
+        raise ValueError(
+            "Cannot use sequence length {} because the BERT model was only trained up to sequence length {}".format(
+            args.max_seq_length, bert_config.max_position_embeddings))
+
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
-        raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-    os.makedirs(args.output_dir, exist_ok=True)
+        if not args.override_output:
+            raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        else:
+            os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    task_name = args.task_name.lower()
+    model = None
+    model_type = {
+        "pre_training": lambda: BertForMaskedLM(bert_config),
+        #"multilabel": lambda: BertForSequenceMultilabelClassification(bert_config, len(label_list)),
+        #"multitask": lambda: BertForSequenceMultiTaskClassification(bert_config, [len(_) for _ in label_list]),
+        #"sequenceclassification": lambda: BertForSequenceClassification(bert_config, len(label_list))
+        "sequencelabeling": lambda: BertCRF(bert_config, len(label_list))
+    }
 
-    if task_name not in processors:
-        raise ValueError("Task not found: %s" % (task_name))
+    model = model_type[args.model_type]()
 
-    #tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
+    '''
+    if args.pretraining:
+        model = BertForMaskedLM(bert_config)
+    else:
+        if args.multilabel:
+            model = BertForSequenceMultilabelClassification(bert_config, len(label_list))
+        elif args.multitask:
+            model = BertForSequenceMultiTaskClassification(bert_config, [len(_) for _ in label_list])
+        elif args.classification:
+            model = BertForSequenceClassification(bert_config, len(label_list))
+        else:
+            model = BertCRF(bert_config, len(label_list))
+    '''
 
-    processor = processors[task_name]()
-    #data_list = processor.construct_data(args, 'train')
-    label_list = processor.get_labels()
+    if args.init_checkpoint is not None:
+        if os.path.isdir(args.init_checkpoint):
+            assert (not args.do_train and args.do_eval)
+        else: # main code copy from modeling.py line after 506
+            weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
+            state_dict = torch.load(weights_path)
 
-    train_examples = None
-    num_train_steps = None
-    if args.do_train:
-        train_examples = processor.get_train_examples(args.data_dir) #
-        num_train_steps = int(
-            len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs)
+            missing_keys = []
+            unexpected_keys = []
+            error_msgs = []
+            # copy state_dict so _load_from_state_dict can modify it
+            metadata = getattr(state_dict, '_metadata', None)
+            state_dict = state_dict.copy()
+            if metadata is not None:
+                state_dict._metadata = metadata
 
-    # Prepare model
-    #model = BertCRF.from_pretrained(args.bert_model,
-    #            cache_dir=PYTORCH_PRETRAINED_BERT_CACHE) #  / 'distributed_{}'.format(args.local_rank)
-    pre_model = PreTrainedBertModel.from_pretrained(args.bert_model, cache_dir=PYTORCH_PRETRAINED_BERT_CACHE)
-    model = BertCRF(pre_model.config, pre_model, len(label_list))
-
-    tokenizer = FullTokenizer(args.vocab_file, do_lower_case=args.do_lower_case)
-
+            def load(module, prefix=''):
+                local_metadata = {} if metadata is None else metadata.get(prefix[:-1], {})
+                module._load_from_state_dict(
+                    state_dict, prefix, local_metadata, True, missing_keys, unexpected_keys, error_msgs)
+                for name, child in module._modules.items():
+                    if child is not None:
+                        load(child, prefix + name + '.')
+            load(model, prefix='' if hasattr(model, 'bert') else 'bert.')
+            if len(missing_keys) > 0:
+                logger.info("Weights of {} not initialized from pretrained model: {}".format(
+                    model.__class__.__name__, missing_keys))
+            if len(unexpected_keys) > 0:
+                logger.info("Weights from pretrained model not used in {}: {}".format(
+                    model.__class__.__name__, unexpected_keys))
+            '''
+            weights = torch.load(args.init_checkpoint, map_location='cpu')
+            try:
+                model.bert.load_state_dict(weights, strict=True)
+            except RuntimeError:
+                logger.info("Try loading self-pretrained weights(strict=True) instead of the google's one")
+                weights = OrderedDict({k:v for k,v in weights.items()})
+                try:
+                    model.load_state_dict(weights, strict=True)
+                except RuntimeError:
+                    logger.info('Load self-pretrained weights(strict=True) failed...')
+                    logger.info('Loading self-pretrained weights(strict=False)')
+                    model.load_state_dict(weights, strict=False)
+            '''
     if args.fp16:
         model.half()
+    if args.modification:
+        modify_func = getattr(customize_modeling, args.modification)
+        model = modify_func(model)
     model.to(device)
     if args.local_rank != -1:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
                                                           output_device=args.local_rank)
     elif n_gpu > 1:
         model = torch.nn.DataParallel(model)
+    return model, device
+
+
+def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, eval_dataloader=None):
+    global_step = 0
+
+    if args.tensorboardWriter:
+        loss_all = []
+
+    for ep in trange(int(args.num_train_epochs), desc="Epoch"):
+        tr_loss = 0
+        nb_tr_examples, nb_tr_steps = 0, 0
+        for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
+            batch = tuple(t.to(device) for t in batch)
+            input_ids, segment_ids, input_mask = batch[:3]
+            if args.pretraining:
+                input_ids, label_ids = randomly_mask_input(input_ids, train_dataloader.dataset.tokenizer)
+                input_ids = input_ids.to(device)
+                label_ids = label_ids.to(device)
+            else:
+                label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
+            loss = model(input_ids, segment_ids, input_mask, label_ids)
+            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+
+            n_gpu = torch.cuda.device_count()
+            if n_gpu > 1: # or loss.shape[0] > 1:
+                loss = loss.mean() # mean() to average on multi-gpu or multitask.
+            if args.fp16 and args.loss_scale != 1.0:
+                # rescale loss for fp16 training
+                # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
+                loss = loss * args.loss_scale
+            if args.gradient_accumulation_steps > 1:
+                loss = loss / args.gradient_accumulation_steps
+            loss.backward()
+            tr_loss += loss.item()
+            nb_tr_examples += input_ids.size(0)
+            nb_tr_steps += 1
+            if (step + 1) % args.gradient_accumulation_steps == 0:
+                if args.fp16 or args.optimize_on_cpu:
+                    if args.fp16 and args.loss_scale != 1.0:
+                        # scale down gradients for fp16 training
+                        for param in model.parameters():
+                            param.grad.data = param.grad.data / args.loss_scale
+                    is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
+                    if is_nan:
+                        logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
+                        args.loss_scale = args.loss_scale / 2
+                        model.zero_grad()
+                        continue
+                    optimizer.step()
+                    copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                else:
+                    optimizer.step()
+                model.zero_grad()
+                global_step += 1
+
+            if args.tensorboardWriter:
+                loss_all.append(loss)
+
+        output_weight_file = os.path.join(args.output_dir, 'weights_epoch%02d.pt'%ep)
+
+        state_dict = model.state_dict()
+        if isinstance(model, torch.nn.DataParallel):
+            #The model is in a DataParallel container.
+            #Its state dict keys are all start with a "module."
+            state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
+        torch.save(state_dict, output_weight_file)
+        # logger.info(tr_loss/step)
+        tr_loss = tr_loss / step
+        if (args.do_eval) and (not args.pretraining):
+            do_eval(model, eval_dataloader, device, tr_loss, global_step, args)
+
+        if args.tensorboardWriter:
+            len_loss_all = len(loss_all)
+            labels = ["%d" % (i) for i in range(len_loss_all)]
+
+            with SummaryWriter() as writer:
+                for i in range():
+                    writer.add_embedding(
+                        mat=loss_all[i],
+                        metadata = labels,
+                        tag = "train_loss",
+                        global_step=i)
+
+def do_eval(model, eval_dataloader, device, tr_loss, global_step, args):
+    st = time.time()
+    model.eval()
+    all_label_ids = []
+    all_losses = []
+    all_logits = []
+    label_list = eval_dataloader.dataset.label_list
+    for batch in tqdm(eval_dataloader, desc="TestIter"):
+        batch = tuple(t.to(device) for t in batch)
+        input_ids, segment_ids, input_mask = batch[:3]
+        label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
+        with torch.no_grad():
+            tmp_eval_loss, logits = model(input_ids, segment_ids, input_mask, label_ids)
+        all_label_ids.append(label_ids)
+        all_losses.append(tmp_eval_loss)
+        all_logits.append(logits)
+    if args.multitask:
+        all_label_ids = [torch.cat(_).detach().cpu().numpy() for _ in zip(*all_label_ids)]
+        all_losses = [torch.stack(_).detach().cpu().numpy() for _ in zip(*all_losses)]
+        all_logits = [torch.cat(_).detach().cpu().numpy() for _ in zip(*all_logits)]
+    else:
+        all_label_ids = torch.cat(all_label_ids).detach().cpu().numpy()
+        all_losses = torch.stack(all_losses).detach().cpu().numpy()
+        all_logits = torch.cat(all_logits).detach().cpu().numpy()
+    results = eval_by_metrics(all_label_ids, all_losses, all_logits, label_list,
+                              tr_loss, global_step, args.multilabel)
+
+    model.train()
+    eval_time = (time.time() - st) / 60
+    logger.info('Eval time: %.2fmin' % eval_time)
+    output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
+
+    for result in results:
+        with open(output_eval_file, "a+") as writer:
+            logger.info("***** Eval results *****")
+            for key in sorted(result.keys()):
+                logger.info("  %s = %s", key, str(result[key]))
+                writer.write("%s = %s\n" % (key, str(result[key])))
+            writer.write("\n")
+    return results
+
+def set_test_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data',
+            'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'output_dir': '/Users/haiqinyang/Downloads/tmp/ontonotes',
+            'do_train': True,
+            'do_eval': True,
+            'do_lower_case': True,
+            'train_batch_size': 1,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/pytorch_model.bin',
+            'override_output': True,
+            'tensorboardWriter': True
+            }
+            #'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
+            #'visible_device': 2,
+
+'''
+def set_test_param(args):
+    args.task_name = 'ontonotes_CWS'
+    args.data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data'
+    args.bert_config_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json'
+    args.vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt'
+    args.output_dir = '/Users/haiqinyang/Downloads/tmp/ontonotes'
+    args.do_train = True
+    args.init_checkpoint = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese.tar.gz'
+    args.visible_device = 2
+
+    return args
+'''
+
+HQ_FLAG = True
+
+def main(**kwargs):
+    kwargs = set_test_param()
+    args._parse(kwargs)
+
+
+    if HQ_FLAG:
+        if args.multilabel and args.multitask:
+            raise NotImplementedError
+
+    processors = {
+        "ontonotes_cws": lambda: CWS_BMEO(nopunc=args.nopunc),
+    }
+
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    task_name = args.task_name.lower()
+    if task_name not in processors:
+        raise ValueError("Task not found: %s" % (task_name))
+
+    # Prepare model
+    processor = processors[task_name]()
+    tokenizer = FullTokenizer(
+        vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
+    label_list = processor.get_labels() # get_labels
+
+    model, device = load_model(label_list, tokenizer, args)
+    processor.save_labelidmap(args.output_dir)
 
     # Prepare optimizer
     if args.fp16:
@@ -595,143 +392,47 @@ def main():
         param_optimizer = list(model.named_parameters())
     no_decay = ['bias', 'gamma', 'beta']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.01},
-        {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.0}
+        {'params': [p for n, p in param_optimizer if n not in no_decay], 'weight_decay_rate': 0.01},
+        {'params': [p for n, p in param_optimizer if n in no_decay], 'weight_decay_rate': 0.0}
         ]
-    t_total = num_train_steps
-    if args.local_rank != -1:
-        t_total = t_total // torch.distributed.get_world_size()
-    optimizer = BertAdam(optimizer_grouped_parameters,
-                         lr=args.learning_rate,
-                         warmup=args.warmup_proportion,
-                         t_total=t_total)
 
-    global_step = 0
+    #do train
+    train_dataset = None
+    num_train_steps = None
     if args.do_train:
-        train_features = convert_examples_to_features(
-            train_examples, label_list, args.max_seq_length, tokenizer)
-        logger.info("***** Running training *****")
-        logger.info("  Num examples = %d", len(train_examples))
-        logger.info("  Batch size = %d", args.train_batch_size)
-        logger.info("  Num steps = %d", num_train_steps)
-        all_input_ids = torch.tensor([f.input_ids for f in train_features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in train_features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in train_features], dtype=torch.long)
-        all_label_ids = torch.tensor([f.label_id for f in train_features], dtype=torch.long)
-        train_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-        if args.local_rank == -1:
-            train_sampler = RandomSampler(train_data)
+        train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True)
+        train_dataset._tokenize()
+        num_train_steps = int(
+            len(train_dataset) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs)
+        optimizer = BertAdam(optimizer_grouped_parameters,
+                             lr=args.learning_rate,
+                             warmup=args.warmup_proportion,
+                             t_total=num_train_steps)
+        eval_dataloader = None
+        if args.do_eval:
+            eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False)
+            eval_dataset._tokenize()
+        do_train(model, train_dataloader, optimizer, param_optimizer,
+                 device, args, eval_dataloader=eval_dataloader)
+
+    if (args.do_eval) and not (args.do_train):
+        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False)
+        global_step = 0
+        eval_fc = do_eval_pretraining if args.pretraining else do_eval
+        if args.init_checkpoint is None:
+            raise RuntimeError('Evaluating a random initialized model is not supported...!')
+        elif os.path.isdir(args.init_checkpoint):
+            ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
+            for ckpt_file in ckpt_files:
+                weights = torch.load(ckpt_file, map_location='cpu')
+                try:
+                    model.load_state_dict(weights)
+                except RuntimeError:
+                    model.module.load_state_dict(weights)
+                eval_fc(model, eval_dataloader, device, 0., global_step, args)
         else:
-            train_sampler = DistributedSampler(train_data)
-        train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
-
-        model.train()
-        for _ in trange(int(args.num_train_epochs), desc="Epoch"):
-            tr_loss = 0
-            nb_tr_examples, nb_tr_steps = 0, 0
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
-                batch = tuple(t.to(device) for t in batch)
-                input_ids, input_mask, segment_ids, label_ids = batch
-                loss = model(input_ids, segment_ids, input_mask, label_ids)
-                if n_gpu > 1:
-                    loss = loss.mean() # mean() to average on multi-gpu.
-                if args.fp16 and args.loss_scale != 1.0:
-                    # rescale loss for fp16 training
-                    # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
-                    loss = loss * args.loss_scale
-                if args.gradient_accumulation_steps > 1:
-                    loss = loss / args.gradient_accumulation_steps
-                loss.backward()
-                tr_loss += loss.item()
-                nb_tr_examples += input_ids.size(0)
-                nb_tr_steps += 1
-                if (step + 1) % args.gradient_accumulation_steps == 0:
-                    if args.fp16 or args.optimize_on_cpu:
-                        if args.fp16 and args.loss_scale != 1.0:
-                            # scale down gradients for fp16 training
-                            for param in model.parameters():
-                                if param.grad is not None:
-                                    param.grad.data = param.grad.data / args.loss_scale
-                        is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
-                        if is_nan:
-                            logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
-                            args.loss_scale = args.loss_scale / 2
-                            model.zero_grad()
-                            continue
-                        optimizer.step()
-                        copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
-                    else:
-                        optimizer.step()
-                    model.zero_grad()
-                    global_step += 1
-
-    if args.do_eval and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
-        eval_examples = processor.get_dev_examples(args.data_dir)
-        eval_features = convert_examples_to_features(
-            eval_examples, label_list, args.max_seq_length, tokenizer)
-        logger.info("***** Running evaluation *****")
-        logger.info("  Num examples = %d", len(eval_examples))
-        logger.info("  Batch size = %d", args.eval_batch_size)
-        all_input_ids = torch.tensor([f.input_ids for f in eval_features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in eval_features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in eval_features], dtype=torch.long)
-        all_label_ids = torch.tensor([f.label_id for f in eval_features], dtype=torch.long)
-        eval_data = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-        # Run prediction for full data
-        eval_sampler = SequentialSampler(eval_data)
-        eval_dataloader = DataLoader(eval_data, sampler=eval_sampler, batch_size=args.eval_batch_size)
-
-        model.eval()
-        eval_loss, eval_accuracy = 0, 0
-        nb_eval_steps, nb_eval_examples = 0, 0
-        for input_ids, input_mask, segment_ids, label_ids in eval_dataloader:
-            input_ids = input_ids.to(device)
-            input_mask = input_mask.to(device)
-            segment_ids = segment_ids.to(device)
-            label_ids = label_ids.to(device)
-
-            with torch.no_grad():
-                tmp_eval_loss = model(input_ids, segment_ids, input_mask, label_ids)
-                logits = model(input_ids, segment_ids, input_mask)
-
-            logits = logits.detach().cpu().numpy()
-            label_ids = label_ids.to('cpu').numpy()
-            tmp_eval_accuracy = accuracy(logits, label_ids)
-
-            eval_loss += tmp_eval_loss.mean().item()
-            eval_accuracy += tmp_eval_accuracy
-
-            nb_eval_examples += input_ids.size(0)
-            nb_eval_steps += 1
-
-        eval_loss = eval_loss / nb_eval_steps
-        eval_accuracy = eval_accuracy / nb_eval_examples
-
-        result = {'eval_loss': eval_loss,
-                  'eval_accuracy': eval_accuracy,
-                  'global_step': global_step,
-                  'loss': tr_loss/nb_tr_steps}
-
-        output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
-        with open(output_eval_file, "w") as writer:
-            logger.info("***** Eval results *****")
-            for key in sorted(result.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
-
-    if args.do_testcase and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
-        def input_fn(): return predict_input_fn(
-            ['''兰心餐厅\n作为一个无辣不欢的妹子，对上海菜的偏清淡偏甜真的是各种吃不惯。
-            每次出门和闺蜜越饭局都是避开本帮菜。后来听很多朋友说上海有几家特别正宗味道做
-            的很好的餐厅于是这周末和闺蜜们准备一起去尝一尝正宗的本帮菜。\n进贤路是我在上
-            海比较喜欢的一条街啦，这家餐厅就开在这条路上。已经开了三十多年的老餐厅了，地
-            方很小，就五六张桌子。但是翻桌率比较快。二楼之前的居民间也改成了餐厅，但是在
-            上海的名气却非常大。烧的就是家常菜，普通到和家里烧的一样，生意非常好，外面排
-            队的比里面吃的人还要多。'''], params, mode='predict')
-
-
+            eval_fc(model, eval_dataloader, device, 0., global_step, args)
 
 if __name__ == "__main__":
-    #import fire
-    #fire.Fire(main)
-    main()
+    import fire
+    fire.Fire(main)
