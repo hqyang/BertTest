@@ -375,25 +375,26 @@ def set_optimizer_params_grad(named_params_optimizer, named_params_model, test_n
 def main():
     parser = argparse.ArgumentParser()
 
-    ## Required parameters
     parser.add_argument("--data_dir",
-                        default=None,
+                        default="/Users/haiqinyang/Downloads/datasets/GLUE-baselines/glue_data/MRPC",
                         type=str,
-                        required=True,
                         help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
-    parser.add_argument("--bert_model", default=None, type=str, required=True,
+    parser.add_argument("--bert_model",
+                        default="bert-base-chinese", type=str,
                         help="BertTest pre-trained model selected in the list: bert-base-uncased, "
                              "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
     parser.add_argument("--task_name",
-                        default=None,
+                        default="MRPC",
                         type=str,
-                        required=True,
                         help="The name of the task to train.")
     parser.add_argument("--output_dir",
-                        default=None,
+                        default="/Users/haiqinyang/Downloads/tmp/MRPC",
                         type=str,
-                        required=True,
                         help="The output directory where the model checkpoints will be written.")
+    parser.add_argument("--ckpt_dir",
+                        default="/Users/haiqinyang/Downloads/tmp/MRPC",
+                        type=str,
+                        help="The ckpt directory where the model checkpoints will be written.")
 
     ## Other parameters
     parser.add_argument("--max_seq_length",
@@ -403,15 +404,19 @@ def main():
                              "Sequences longer than this will be truncated, and sequences shorter \n"
                              "than this will be padded.")
     parser.add_argument("--do_train",
-                        default=False,
+                        default=True,
                         action='store_true',
                         help="Whether to run training.")
     parser.add_argument("--do_eval",
                         default=False,
                         action='store_true',
                         help="Whether to run eval on the dev set.")
-    parser.add_argument("--do_lower_case",
+    parser.add_argument("--do_testcase",
                         default=False,
+                        action='store_true',
+                        help="Whether to run eval on a test case.")
+    parser.add_argument("--do_lower_case",
+                        default=True,
                         action='store_true',
                         help="Set this flag if you are using an uncased model.")
     parser.add_argument("--train_batch_size",
@@ -423,7 +428,7 @@ def main():
                         type=int,
                         help="Total batch size for eval.")
     parser.add_argument("--learning_rate",
-                        default=5e-5,
+                        default=2e-5,
                         type=float,
                         help="The initial learning rate for Adam.")
     parser.add_argument("--num_train_epochs",
@@ -443,14 +448,14 @@ def main():
                         type=int,
                         default=-1,
                         help="local_rank for distributed training on gpus")
-    parser.add_argument('--seed', 
-                        type=int, 
+    parser.add_argument('--seed',
+                        type=int,
                         default=42,
                         help="random seed for initialization")
     parser.add_argument('--gradient_accumulation_steps',
                         type=int,
                         default=1,
-                        help="Number of updates steps to accumulate before performing a backward/update pass.")                       
+                        help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument('--optimize_on_cpu',
                         default=False,
                         action='store_true',
@@ -463,10 +468,17 @@ def main():
                         type=float, default=128,
                         help='Loss scaling, positive power of 2 values can improve fp16 convergence.')
     parser.add_argument('--visible_device',
-                        type=int, 
+                        type=int,
                         default=1,
                         help='Visible devices'
                         )
+    '''
+    parser.add_argument('--vocab_file',
+                        type=str,
+                        default='/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert-base-chinese-vocab.txt',
+                        help='vocab_file'
+                        )
+    '''
 
     args = parser.parse_args()
 
