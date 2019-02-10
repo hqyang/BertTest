@@ -17,10 +17,12 @@ import logging
 import random
 from collections import OrderedDict
 from tqdm import tqdm, trange
+from src.metrics import outputFscoreUsedBIO
 
 import numpy as np
 import torch
 
+import time
 '''
 import tokenization
 import time
@@ -50,6 +52,14 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
                     datefmt = '%m/%d/%Y %H:%M:%S',
                     level = logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def get_dataset_and_dataloader(processor, args, training=True):
+    dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
+                                 args.max_seq_length, training=training)
+    dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
+                                       args.local_rank, training=training)
+    return dataset, dataloader
 
 
 def load_model(label_list, tokenizer, args):
@@ -206,8 +216,10 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 label_ids = label_ids.to(device)
             else:
                 label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
-            loss = model(input_ids, segment_ids, input_mask, label_ids)
+            loss, decode_rs = model(input_ids, segment_ids, input_mask, label_ids)
+            #s1 = outputFscoreUsedBIO(list(label_ids.data.numpy()), decode_rs, list(input_mask.data.numpy()))
             logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+            #logger.info("Training F1, Precision, Recall: {:d}: {:+.2f}, {:+.2f}, {:+.2f}".format(ep, s1))
 
             n_gpu = torch.cuda.device_count()
             if n_gpu > 1: # or loss.shape[0] > 1:
@@ -281,18 +293,12 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args):
         input_ids, segment_ids, input_mask = batch[:3]
         label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
         with torch.no_grad():
-            tmp_eval_loss, logits = model(input_ids, segment_ids, input_mask, label_ids)
+            tmp_eval_loss, tmp_decode_rs = model(input_ids, segment_ids, input_mask, label_ids)
+            score = outputFscoreUsedBIO(list(label_ids.data.numpy()), tmp_decode_rs, list(input_mask.data.numpy()))
+            logger.info('Test F1, Precision, Recall: {:d}: {:+.2f}, {:+.2f}, {:+.2f}'.format(ep, s1))
+            #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
         all_label_ids.append(label_ids)
         all_losses.append(tmp_eval_loss)
-        all_logits.append(logits)
-    if args.multitask:
-        all_label_ids = [torch.cat(_).detach().cpu().numpy() for _ in zip(*all_label_ids)]
-        all_losses = [torch.stack(_).detach().cpu().numpy() for _ in zip(*all_losses)]
-        all_logits = [torch.cat(_).detach().cpu().numpy() for _ in zip(*all_logits)]
-    else:
-        all_label_ids = torch.cat(all_label_ids).detach().cpu().numpy()
-        all_losses = torch.stack(all_losses).detach().cpu().numpy()
-        all_logits = torch.cat(all_logits).detach().cpu().numpy()
     results = eval_by_metrics(all_label_ids, all_losses, all_logits, label_list,
                               tr_loss, global_step, args.multilabel)
 
@@ -310,6 +316,71 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args):
             writer.write("\n")
     return results
 
+def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step, multilabel=False):
+    if not isinstance(logits, list):
+        infos = [labels], [losses], [logits], [label_lists]
+    else:
+        infos = [labels, losses, logits, label_lists]
+    results = []
+    for task_id, info in enumerate(zip(*infos)):
+        label, loss, logit, label_list = info
+        if multilabel:
+            acc_count = accuracy_multilabel(logit, label)
+            output = predict_at_least_one(logit)
+            acc = acc_count / logit.shape[0]
+        else:
+            acc = accuracy(logit, label, ignore_index=0, reduce=True)
+            score = np.exp(logit) / np.exp(logit).sum(axis=1, keepdims=True)
+            output, label = map_score_to_multilabel(label_list, score, label)
+
+        apmeter_by_class = APMeter()
+        apmeter_by_sample = APMeter()
+        apmeter_by_class.add(output, label)
+        apmeter_by_sample.add(output.T, label.T)
+        eval_loss = loss.mean()
+        result = {'eval_loss': eval_loss,
+                  'eval_accuracy': acc,
+                  'mAP_class': apmeter_by_class.value().mean().item(),
+                  'mAP_sample': apmeter_by_sample.value().mean().item(),
+                  'global_step': global_step,
+                  'loss': train_loss,
+                  'task': task_id}
+        results.append(result)
+    return results
+'''
+def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step, multilabel=False):
+    if not isinstance(logits, list):
+        infos = [labels], [losses], [logits], [label_lists]
+    else:
+        infos = [labels, losses, logits, label_lists]
+    results = []
+    for task_id, info in enumerate(zip(*infos)):
+        label, loss, logit, label_list = info
+        if multilabel:
+            acc_count = accuracy_multilabel(logit, label)
+            output = predict_at_least_one(logit)
+            acc = acc_count / logit.shape[0]
+        else:
+            acc = accuracy(logit, label, ignore_index=0, reduce=True)
+            score = np.exp(logit) / np.exp(logit).sum(axis=1, keepdims=True)
+            output, label = map_score_to_multilabel(label_list, score, label)
+
+        apmeter_by_class = APMeter()
+        apmeter_by_sample = APMeter()
+        apmeter_by_class.add(output, label)
+        apmeter_by_sample.add(output.T, label.T)
+        eval_loss = loss.mean()
+        result = {'eval_loss': eval_loss,
+                  'eval_accuracy': acc,
+                  'mAP_class': apmeter_by_class.value().mean().item(),
+                  'mAP_sample': apmeter_by_sample.value().mean().item(),
+                  'global_step': global_step,
+                  'loss': train_loss,
+                  'task': task_id}
+        results.append(result)
+    return results
+'''
+
 def set_test_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
@@ -320,7 +391,7 @@ def set_test_param():
             'do_train': True,
             'do_eval': True,
             'do_lower_case': True,
-            'train_batch_size': 1,
+            'train_batch_size': 32,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/pytorch_model.bin',
             'override_output': True,
             'tensorboardWriter': True
@@ -328,6 +399,24 @@ def set_test_param():
             #'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
             #'visible_device': 2,
 
+
+def set_server_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '../ontonote_data/',
+            'bert_model_dir': '../models/bert-base-chinese/',
+            'vocab_file': '../models/bert-base-chinese/vocab.txt',
+            'output_dir': './tmp/ontonotes',
+            'do_train': True,
+            'do_eval': True,
+            'do_lower_case': True,
+            'train_batch_size': 32,
+            'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
+            'override_output': True,
+            'tensorboardWriter': True
+            }
+            #'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
+            #'visible_device': 2,
 '''
 def set_test_param(args):
     args.task_name = 'ontonotes_CWS'

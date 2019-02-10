@@ -63,5 +63,10 @@ class Config:
         return {k: getattr(self, k) for k, _ in Config.__dict__.items() \
                 if not k.startswith('_')}
 
-
 args = Config()
+
+class SegType:
+    BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+    BIO_idx_to_label_map = {0: 'B', 1: 'I', 2: 'O', 3: '[START]', 4: '[END]'}
+
+segType = SegType()

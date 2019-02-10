@@ -239,7 +239,8 @@ class CWS_BMEO(MeituProcessor):
         #self.label_map = None
         self.nopunc = nopunc
         self.label_list = ['B', 'M', 'E', 'O', '[START]', '[END]']
-        self.label_map = {'B': 0, 'M': 1, 'E': 2, 'O': 3, '[START]': 4, '[END]': 5}
+        self.label_map = {'B': 0, 'M': 1, 'E': 2, 'S': 3, '[START]': 4, '[END]': 5}
+        self.idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
 
     def get_train_examples(self, data_dir):
         """See base class."""

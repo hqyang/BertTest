@@ -267,9 +267,11 @@ class BertCRF(PreTrainedBertModel):
         sequence_output = self.dropout(sequence_output)
         bert_feats = self.hidden2tag(sequence_output)
 
+        mask = attention_mask.byte()
         if labels is not None:
-            loss = self.classifier(bert_feats, labels, attention_mask.byte())
-            return loss
+            loss = self.classifier(bert_feats, labels, mask)
+            decode_result = self.classifier.decode(bert_feats, mask)
+            return loss, decode_result
 
 
 

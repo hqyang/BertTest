@@ -33,7 +33,6 @@ from torch.nn import CrossEntropyLoss
 
 from .file_utils import cached_path
 
-
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', 
                     datefmt = '%m/%d/%Y %H:%M:%S',
                     level = logging.INFO)
@@ -462,7 +461,7 @@ class PreTrainedBertModel(nn.Module):
                 - a path or url to a pretrained model archive containing:
                     . `bert_config.json` a configuration file for the model
                     . `pytorch_model.bin` a PyTorch dump of a BertForPreTraining instance
-            *inputs, **kwargs: additional input for the specific BertTest class
+            *inputs, **kwargs: additional input for the specific Bert class
                 (ex: num_labels for BertForSequenceClassification)
         """
         if pretrained_model_name in PRETRAINED_MODEL_ARCHIVE_MAP:
