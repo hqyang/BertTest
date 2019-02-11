@@ -41,7 +41,7 @@ from src.customize_modeling import BertCRF
 #from .src.BERT.modeling import BertForSequenceMultiTaskClassification
 from src.BERT.optimization import BertAdam
 
-from src.preprocess import MeituDataset, dataset_to_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO
+from src.preprocess import dataset_to_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO
 from src.config import args
 from src.tokenization import FullTokenizer
 
@@ -64,12 +64,12 @@ def set_server_param():
             'output_dir': './tmp/ontonotes',
             'do_train': True,
             'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
-            'do_eval': False,
+            'do_eval': True,
             'do_lower_case': True,
             'train_batch_size': 32,
             'override_output': True,
             'tensorboardWriter': True,
-            'visible_device': 4,
+            'visible_device': 3,
             'max_seq_length': 128
             }
 
@@ -316,7 +316,15 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args):
         label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
         with torch.no_grad():
             tmp_eval_loss, tmp_decode_rs = model(input_ids, segment_ids, input_mask, label_ids)
-            score = outputFscoreUsedBIO(list(label_ids.data.numpy()), tmp_decode_rs, list(input_mask.data.numpy()))
+
+            if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
+                label_array = label_ids.data
+                mask_array = input_mask.data
+            else:
+                label_array = label_ids.data.cpu()
+                mask_array = input_mask.data.cpu()
+            score = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
+
             logger.info('Test F1, Precision, Recall: {:d}: {:+.2f}, {:+.2f}, {:+.2f}'.format(ep, s1))
             #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
         all_label_ids.append(label_ids)
