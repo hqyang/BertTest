@@ -2,19 +2,11 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="2061897f-6a8f-485e-998d-81c590a7d328" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/metrics.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/pkuseg/config.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/pkuseg/metrics.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/utilis.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Test_codes.py" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Test_codes.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/BERT/modeling.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/BERT/modeling.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/config.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/customize_modeling.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/customize_modeling.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/metric.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/preprocess.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/preprocess.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -30,8 +22,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-168">
-              <caret line="413" column="34" selection-start-line="413" selection-start-column="34" selection-end-line="413" selection-end-column="34" />
+            <state relative-caret-position="255">
+              <caret line="165" column="39" selection-start-line="165" selection-start-column="20" selection-end-line="165" selection-end-column="39" />
               <folding>
                 <element signature="e#149#187#0" expanded="true" />
               </folding>
@@ -40,10 +32,22 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file:///anaconda3/envs/haiqin370/lib/python3.7/site-packages/fire/core.py">
+        <entry file="file://$PROJECT_DIR$/src/pkuseg/config.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="101">
-              <caret line="126" selection-start-line="126" selection-end-line="126" />
+            <state relative-caret-position="164">
+              <caret line="15" column="6" selection-start-line="15" selection-start-column="6" selection-end-line="15" selection-end-column="6" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/customize_modeling.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="291">
+              <caret line="324" column="25" lean-forward="true" selection-start-line="324" selection-start-column="25" selection-end-line="324" selection-end-column="25" />
+              <folding>
+                <element signature="e#0#12#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -56,7 +60,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/metrics.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="281">
+            <state relative-caret-position="6105">
               <caret line="407" column="20" selection-start-line="407" selection-start-column="11" selection-end-line="407" selection-end-column="20" />
               <folding>
                 <element signature="e#0#16#0" expanded="true" />
@@ -65,11 +69,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/pkuseg/metrics.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="210">
-              <caret line="14" column="11" selection-start-line="14" selection-start-column="11" selection-end-line="14" selection-end-column="11" />
+            <state relative-caret-position="795">
+              <caret line="53" column="34" selection-start-line="53" selection-start-column="25" selection-end-line="53" selection-end-column="34" />
               <folding>
                 <element signature="e#240#276#0" expanded="true" />
               </folding>
@@ -77,11 +81,23 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/config.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="309">
-              <caret line="71" column="19" lean-forward="true" selection-start-line="67" selection-end-line="71" selection-end-column="19" />
+            <state relative-caret-position="407">
+              <caret line="50" column="30" selection-start-line="50" selection-start-column="30" selection-end-line="50" selection-end-column="30" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/BERT/modeling.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="204">
+              <caret line="580" column="8" selection-start-line="580" selection-start-column="8" selection-end-line="580" selection-end-column="8" />
+              <folding>
+                <element signature="e#671#709#0" expanded="true" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -89,8 +105,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/preprocess.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-577">
-              <caret line="333" column="8" selection-start-line="333" selection-start-column="8" selection-end-line="333" selection-end-column="8" />
+            <state relative-caret-position="1827">
+              <caret line="355" column="52" selection-start-line="355" selection-start-column="52" selection-end-line="355" selection-end-column="52" />
               <folding>
                 <element signature="e#0#19#0" expanded="true" />
               </folding>
@@ -99,21 +115,9 @@
         </entry>
       </file>
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/utilis.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="81">
-              <caret line="193" column="40" selection-start-line="193" selection-start-column="40" selection-end-line="193" selection-end-column="40" />
-              <folding>
-                <element signature="e#148#188#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/Test/Test_codes.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="175">
+            <state relative-caret-position="2145">
               <caret line="143" lean-forward="true" selection-start-line="137" selection-end-line="143" />
             </state>
           </provider>
@@ -130,15 +134,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>set_</find>
-      <find>set_test</find>
-      <find>learning_rate</find>
-      <find>loss =</find>
-      <find>dataset</find>
-      <find>class</find>
-      <find>_viterbi_decode</find>
-      <find>decode</find>
-      <find>dropout</find>
       <find>.dropout</find>
       <find>bert</find>
       <find>config</find>
@@ -147,7 +142,6 @@
       <find>get_train_e</find>
       <find>convert_tokens_to_ids</find>
       <find>train_dataloader</find>
-      <find>eval_dataloader</find>
       <find>convert</find>
       <find>convert_ids</find>
       <find>getFscore</find>
@@ -158,8 +152,18 @@
       <find>s1 =</find>
       <find>loss</find>
       <find>decode_rs</find>
-      <find>set_t</find>
       <find>getF</find>
+      <find>set_t</find>
+      <find>do_train(</find>
+      <find>load_model(</find>
+      <find>.save</find>
+      <find>main(</find>
+      <find>get_dataset_and_dataloader</find>
+      <find>init_checkpoint</find>
+      <find>bert_model_dir</find>
+      <find>.load</find>
+      <find>eval_dataloader</find>
+      <find>.init</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -183,23 +187,24 @@
         <option value="$PROJECT_DIR$/src/__init__.py" />
         <option value="$PROJECT_DIR$/src/TorchCRF.py" />
         <option value="$PROJECT_DIR$/src/BERT/modeling.py" />
-        <option value="$PROJECT_DIR$/src/customize_modeling.py" />
         <option value="$PROJECT_DIR$/src/metric.py" />
         <option value="$PROJECT_DIR$/src/pkuseg_config.py" />
         <option value="$PROJECT_DIR$/Test/Test_codes.py" />
         <option value="$PROJECT_DIR$/src/utilis.py" />
         <option value="$PROJECT_DIR$/src/preprocess.py" />
-        <option value="$PROJECT_DIR$/src/config.py" />
         <option value="$PROJECT_DIR$/src/metrics.py" />
-        <option value="$PROJECT_DIR$/main.py" />
-        <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/src/pkuseg/metrics.py" />
+        <option value="$PROJECT_DIR$/src/customize_modeling.py" />
+        <option value="$PROJECT_DIR$/main.py" />
+        <option value="$PROJECT_DIR$/main.py" />
+        <option value="$PROJECT_DIR$/src/config.py" />
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
+  <component name="ProjectFrameBounds">
+    <option name="y" value="23" />
     <option name="width" value="1280" />
-    <option name="height" value="800" />
+    <option name="height" value="725" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true">
     <ConfirmationsSetting value="2" id="Add" />
@@ -287,6 +292,9 @@
       <module name="BertTest" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
       <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/Test" />
       <option name="IS_MODULE_SDK" value="true" />
@@ -458,7 +466,7 @@
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49919224" weight="0.3298153" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.30257186" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.30257186" />
       <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.72374797" weight="0.4689864" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -521,7 +529,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>422</line>
+          <line>445</line>
           <option name="timeStamp" value="36" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -571,7 +579,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/main.py</url>
-          <line>219</line>
+          <line>241</line>
           <option name="timeStamp" value="102" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -695,16 +703,6 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/__init__.py" />
-    <entry file="file://$PROJECT_DIR$/src/BERT/tokenization.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="175">
-          <caret line="33" column="105" selection-start-line="33" selection-start-column="26" selection-end-line="33" selection-end-column="105" />
-          <folding>
-            <element signature="e#673#711#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file:///anaconda3/envs/haiqin370/lib/python3.7/posixpath.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="114">
@@ -769,16 +767,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/BERT/modeling.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="13020">
-          <caret line="868" column="36" selection-start-line="868" selection-start-column="28" selection-end-line="868" selection-end-column="36" />
-          <folding>
-            <element signature="e#671#709#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file:///anaconda3/envs/haiqin370/lib/python3.7/site-packages/torch/nn/modules/dropout.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="140">
@@ -821,26 +809,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="71">
           <caret line="14" lean-forward="true" selection-start-line="14" selection-end-line="14" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/pkuseg/config.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="164">
-          <caret line="15" column="6" selection-start-line="15" selection-start-column="6" selection-end-line="15" selection-end-column="6" />
-          <folding>
-            <element signature="e#149#158#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/customize_modeling.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="246">
-          <caret line="260" column="27" selection-start-line="260" selection-start-column="27" selection-end-line="260" selection-end-column="27" />
-          <folding>
-            <element signature="e#0#12#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -892,33 +860,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/Test/Test_codes.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="175">
-          <caret line="143" lean-forward="true" selection-start-line="137" selection-end-line="143" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/preprocess.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-577">
-          <caret line="333" column="8" selection-start-line="333" selection-start-column="8" selection-end-line="333" selection-end-column="8" />
-          <folding>
-            <element signature="e#0#19#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/README.md">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file:///anaconda3/envs/haiqin370/lib/python3.7/site-packages/fire/core.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="101">
-          <caret line="126" selection-start-line="126" selection-end-line="126" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file:///anaconda3/envs/haiqin370/lib/python3.7/codecs.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="107">
@@ -926,26 +867,29 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/config.py">
+    <entry file="file:///anaconda3/envs/haiqin370/lib/python3.7/site-packages/fire/core.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="309">
-          <caret line="71" column="19" lean-forward="true" selection-start-line="67" selection-end-line="71" selection-end-column="19" />
+        <state relative-caret-position="1605">
+          <caret line="126" selection-start-line="126" selection-end-line="126" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/src/BERT/tokenization.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-168">
-          <caret line="413" column="34" selection-start-line="413" selection-start-column="34" selection-end-line="413" selection-end-column="34" />
+        <state relative-caret-position="585">
+          <caret line="39" column="105" selection-start-line="39" selection-start-column="26" selection-end-line="39" selection-end-column="105" />
           <folding>
-            <element signature="e#149#187#0" expanded="true" />
+            <element signature="e#673#711#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/README.md">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/metrics.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="281">
+        <state relative-caret-position="6105">
           <caret line="407" column="20" selection-start-line="407" selection-start-column="11" selection-end-line="407" selection-end-column="20" />
           <folding>
             <element signature="e#0#16#0" expanded="true" />
@@ -955,11 +899,72 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/pkuseg/metrics.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="210">
-          <caret line="14" column="11" selection-start-line="14" selection-start-column="11" selection-end-line="14" selection-end-column="11" />
+        <state relative-caret-position="795">
+          <caret line="53" column="34" selection-start-line="53" selection-start-column="25" selection-end-line="53" selection-end-column="34" />
           <folding>
             <element signature="e#240#276#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/Test/Test_codes.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2145">
+          <caret line="143" lean-forward="true" selection-start-line="137" selection-end-line="143" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/customize_modeling.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="291">
+          <caret line="324" column="25" lean-forward="true" selection-start-line="324" selection-start-column="25" selection-end-line="324" selection-end-column="25" />
+          <folding>
+            <element signature="e#0#12#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/BERT/modeling.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="204">
+          <caret line="580" column="8" selection-start-line="580" selection-start-column="8" selection-end-line="580" selection-end-column="8" />
+          <folding>
+            <element signature="e#671#709#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/pkuseg/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="164">
+          <caret line="15" column="6" selection-start-line="15" selection-start-column="6" selection-end-line="15" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/preprocess.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1827">
+          <caret line="355" column="52" selection-start-line="355" selection-start-column="52" selection-end-line="355" selection-end-column="52" />
+          <folding>
+            <element signature="e#0#19#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/main.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="255">
+          <caret line="165" column="39" selection-start-line="165" selection-start-column="20" selection-end-line="165" selection-end-column="39" />
+          <folding>
+            <element signature="e#149#187#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="407">
+          <caret line="50" column="30" selection-start-line="50" selection-start-column="30" selection-end-line="50" selection-end-column="30" />
         </state>
       </provider>
     </entry>

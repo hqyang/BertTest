@@ -47,12 +47,31 @@ from src.tokenization import FullTokenizer
 
 CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
+WEIGHTS_NAME = 'pytorch_model.bin'
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',
                     level = logging.INFO)
 logger = logging.getLogger(__name__)
 
+
+def set_server_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '../data/ontonotes5/',
+            'bert_model_dir': '../models/bert-base-chinese/',
+            'vocab_file': '../models/bert-base-chinese/vocab.txt',
+            'output_dir': './tmp/ontonotes',
+            'do_train': True,
+            'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
+            'do_eval': False,
+            'do_lower_case': True,
+            'train_batch_size': 32,
+            'override_output': True,
+            'tensorboardWriter': True,
+            'visible_device': 4,
+            'max_seq_length': 128
+            }
 
 def get_dataset_and_dataloader(processor, args, training=True):
     dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
@@ -144,7 +163,10 @@ def load_model(label_list, tokenizer, args):
         if os.path.isdir(args.init_checkpoint):
             assert (not args.do_train and args.do_eval)
         else: # main code copy from modeling.py line after 506
-            weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
+            if args.retrained_model_dir not None:
+                weights_path = os.path.join(args.retrained_model_dir, WEIGHTS_NAME)
+            else:
+                weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
             state_dict = torch.load(weights_path)
 
             missing_keys = []
@@ -403,7 +425,7 @@ def set_test_param():
 def set_server_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
-            'data_dir': '../ontonote_data/',
+            'data_dir': '../data/ontonotes5/',
             'bert_model_dir': '../models/bert-base-chinese/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'output_dir': './tmp/ontonotes',
@@ -413,7 +435,8 @@ def set_server_param():
             'train_batch_size': 32,
             'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
             'override_output': True,
-            'tensorboardWriter': True
+            'tensorboardWriter': True,
+            'visible_device': 1
             }
             #'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
             #'visible_device': 2,
@@ -434,7 +457,8 @@ def set_test_param(args):
 HQ_FLAG = True
 
 def main(**kwargs):
-    kwargs = set_test_param()
+    #kwargs = set_test_param()
+    kwargs = set_server_param()
     args._parse(kwargs)
 
 

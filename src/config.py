@@ -47,6 +47,9 @@ class Config:
     model_type = None
     tensorboardWriter = False
 
+    #6.Pre-trained options
+    retrained_model_dir = None
+
     def _parse(self, kwargs, verbose=True):
         state_dict = self._state_dict()
         for k, v in kwargs.items():
