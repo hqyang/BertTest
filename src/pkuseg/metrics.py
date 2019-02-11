@@ -12,7 +12,6 @@ Scenario:
 # Copy from https://github.com/lancopku/pkuseg-python/blob/master/pkuseg/scorer.py
 '''
 from src.pkuseg.config import Config
-import math
 
 def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
     # input are string list, e.g.,
@@ -51,7 +50,7 @@ def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
             if im in goldChunkSet:
                 correct_chunk += 1
 
-    pre = -1 if math.abs(res_chunk) < 1e-6 else correct_chunk / res_chunk * 100
+    pre = -1 if abs(res_chunk) < 1e-6 else correct_chunk / res_chunk * 100
     rec = correct_chunk / gold_chunk * 100
     f1 = 0 if correct_chunk == 0 else 2 * pre * rec / (pre + rec)
     scoreList.append(f1)
