@@ -421,25 +421,6 @@ def set_test_param():
             #'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
             #'visible_device': 2,
 
-
-def set_server_param():
-    return {'task_name': 'ontonotes_CWS',
-            'model_type': 'sequencelabeling',
-            'data_dir': '../data/ontonotes5/',
-            'bert_model_dir': '../models/bert-base-chinese/',
-            'vocab_file': '../models/bert-base-chinese/vocab.txt',
-            'output_dir': './tmp/ontonotes',
-            'do_train': True,
-            'do_eval': True,
-            'do_lower_case': True,
-            'train_batch_size': 32,
-            'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
-            'override_output': True,
-            'tensorboardWriter': True,
-            'visible_device': 1
-            }
-            #'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
-            #'visible_device': 2,
 '''
 def set_test_param(args):
     args.task_name = 'ontonotes_CWS'
