@@ -163,7 +163,7 @@ def load_model(label_list, tokenizer, args):
         if os.path.isdir(args.init_checkpoint):
             assert (not args.do_train and args.do_eval)
         else: # main code copy from modeling.py line after 506
-            if args.retrained_model_dir not None:
+            if args.retrained_model_dir is not None:
                 weights_path = os.path.join(args.retrained_model_dir, WEIGHTS_NAME)
             else:
                 weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
