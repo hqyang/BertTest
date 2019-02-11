@@ -68,7 +68,7 @@ def set_server_param():
             'do_lower_case': True,
             'train_batch_size': 32,
             'override_output': True,
-            'tensorboardWriter': True,
+            'tensorboardWriter': False,
             'visible_device': 3,
             'max_seq_length': 128
             }
@@ -323,9 +323,9 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args):
             else:
                 label_array = label_ids.data.cpu()
                 mask_array = input_mask.data.cpu()
-            score = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
+            score, _ = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
 
-            logger.info('Test F1, Precision, Recall: {:d}: {:+.2f}, {:+.2f}, {:+.2f}'.format(ep, s1))
+            logger.info('Test F1, Precision, Recall: {:+.2f}, {:+.2f}, {:+.2f}'.format(score[0], score[1], score[2]))
             #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
         all_label_ids.append(label_ids)
         all_losses.append(tmp_eval_loss)

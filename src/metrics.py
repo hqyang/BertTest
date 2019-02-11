@@ -404,5 +404,6 @@ def outputFscoreUsedBIO(goldTagList, preTagList, input_mask=None, mode='BMES'):
     # 2. idx to tag for preTagList, no need for input_mask
     preTagList = process2BIOTagList(preTagList)
 
+    scoreList, infoList = getFscore(goldTagList, preTagList, segType.BIO_idx_to_label_map)
 
-    return getFscore(goldTagList, preTagList, segType.BIO_idx_to_label_map)
+    return scoreList, infoList
