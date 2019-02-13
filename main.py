@@ -70,7 +70,9 @@ def set_server_param():
             'override_output': True,
             'tensorboardWriter': False,
             'visible_device': 3,
-            'max_seq_length': 128
+            'num_train_epochs': 15,
+            'max_seq_length': 128,
+	    'num_hidden_layers': 3
             }
 
 def get_dataset_and_dataloader(processor, args, training=True):
@@ -122,6 +124,9 @@ def load_model(label_list, tokenizer, args):
         bert_config = BertConfig.from_json_file(config_file)
     else:
         bert_config = BertConfig.from_json_file(args.bert_config_file)
+    
+    if args.num_hidden_layers>0 and args.num_hidden_layers<bert_config.num_hidden_layers:
+        bert_config.num_hidden_layers = args.num_hidden_layers 
 
     if args.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(

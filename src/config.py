@@ -28,6 +28,7 @@ class Config:
     learning_rate = 2e-5
     num_train_epochs = 3.0
     warmup_proportion = 0.1
+    num_hidden_layers = 0
     
     ##4.Devices
     no_cuda = False
