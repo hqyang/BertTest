@@ -74,7 +74,7 @@ def set_server_param():
 	    'num_hidden_layers': 3
             }
 
-def set_server_param():
+def set_eval_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
             'data_dir': '../data/ontonotes5/',
