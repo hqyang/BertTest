@@ -66,7 +66,7 @@ def set_server_param():
             'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
             'do_eval': True,
             'do_lower_case': True,
-            'train_batch_size': 32,
+            'train_batch_size': 128,
             'override_output': True,
             'tensorboardWriter': False,
             'visible_device': 3,
