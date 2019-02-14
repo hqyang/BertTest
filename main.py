@@ -54,7 +54,6 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
                     level = logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 def set_server_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
@@ -64,6 +63,26 @@ def set_server_param():
             'output_dir': './tmp/ontonotes',
             'do_train': True,
             'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
+            'do_eval': True,
+            'do_lower_case': True,
+            'train_batch_size': 128,
+            'override_output': True,
+            'tensorboardWriter': False,
+            'visible_device': 3,
+            'num_train_epochs': 15,
+            'max_seq_length': 128,
+	    'num_hidden_layers': 3
+            }
+
+def set_server_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '../data/ontonotes5/',
+            'bert_model_dir': '../models/bert-base-chinese/',
+            'vocab_file': '../models/bert-base-chinese/vocab.txt',
+            'output_dir': './tmp/ontonotes',
+            'do_train': False,
+            'init_checkpoint': './tmp/ontonotes/weights_epoch14.pt',
             'do_eval': True,
             'do_lower_case': True,
             'train_batch_size': 128,
