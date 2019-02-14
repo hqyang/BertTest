@@ -1,0 +1,6 @@
+torch
+boto3
+tqdm
+requests
+pandas
+fire
