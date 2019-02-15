@@ -14,6 +14,7 @@ class Config:
     ##1.Basic tasks
     do_train = False
     do_eval = False
+    do_eval_train = False  # evaluate the performance of training data, work when do_eval = True
     
     ##2.Preprocessing
     do_lower_case = True
@@ -47,9 +48,6 @@ class Config:
     modification = None
     model_type = None
     tensorboardWriter = False
-
-    #6.Pre-trained options
-    retrained_model_dir = None
 
     def _parse(self, kwargs, verbose=True):
         state_dict = self._state_dict()

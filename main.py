@@ -23,6 +23,8 @@ import numpy as np
 import torch
 
 import time
+from glob import glob
+
 '''
 import tokenization
 import time
@@ -71,28 +73,9 @@ def set_server_param():
             'visible_device': 3,
             'num_train_epochs': 15,
             'max_seq_length': 128,
-	    'num_hidden_layers': 3
+	        'num_hidden_layers': 3
             }
 
-def set_eval_param():
-    return {'task_name': 'ontonotes_CWS',
-            'model_type': 'sequencelabeling',
-            'data_dir': '../data/ontonotes5/',
-            'bert_model_dir': '../models/bert-base-chinese/',
-            'vocab_file': '../models/bert-base-chinese/vocab.txt',
-            'output_dir': './tmp/ontonotes',
-            'do_train': False,
-            'init_checkpoint': './tmp/ontonotes/weights_epoch14.pt',
-            'do_eval': True,
-            'do_lower_case': True,
-            'train_batch_size': 128,
-            'override_output': True,
-            'tensorboardWriter': False,
-            'visible_device': 3,
-            'num_train_epochs': 15,
-            'max_seq_length': 128,
-	    'num_hidden_layers': 3
-            }
 
 def get_dataset_and_dataloader(processor, args, training=True):
     dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
@@ -169,28 +152,17 @@ def load_model(label_list, tokenizer, args):
 
     model = model_type[args.model_type]()
 
-    '''
-    if args.pretraining:
-        model = BertForMaskedLM(bert_config)
-    else:
-        if args.multilabel:
-            model = BertForSequenceMultilabelClassification(bert_config, len(label_list))
-        elif args.multitask:
-            model = BertForSequenceMultiTaskClassification(bert_config, [len(_) for _ in label_list])
-        elif args.classification:
-            model = BertForSequenceClassification(bert_config, len(label_list))
-        else:
-            model = BertCRF(bert_config, len(label_list))
-    '''
-
     if args.init_checkpoint is not None:
         if os.path.isdir(args.init_checkpoint):
             assert (not args.do_train and args.do_eval)
-        else: # main code copy from modeling.py line after 506
-            if args.retrained_model_dir is not None:
-                weights_path = os.path.join(args.retrained_model_dir, WEIGHTS_NAME)
-            else:
-                weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
+        else:
+            # retrained_model_dir is not needed
+            #if args.retrained_model_dir is not None:
+            #    weights_path = os.path.join(args.retrained_model_dir, WEIGHTS_NAME)
+            #else:
+            weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
+
+            # main code copy from modeling.py line after 506
             state_dict = torch.load(weights_path)
 
             missing_keys = []
@@ -327,7 +299,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                         tag = "train_loss",
                         global_step=i)
 
-def do_eval(model, eval_dataloader, device, tr_loss, global_step, args):
+def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='test'):
     st = time.time()
     model.eval()
     all_label_ids = []
@@ -359,7 +331,7 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args):
     model.train()
     eval_time = (time.time() - st) / 60
     logger.info('Eval time: %.2fmin' % eval_time)
-    output_eval_file = os.path.join(args.output_dir, "eval_results.txt")
+    output_eval_file = os.path.join(args.output_dir, test+"_eval_results.txt")
 
     for result in results:
         with open(output_eval_file, "a+") as writer:
@@ -453,31 +425,33 @@ def set_test_param():
             #'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
             #'visible_device': 2,
 
-'''
-def set_test_param(args):
-    args.task_name = 'ontonotes_CWS'
-    args.data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data'
-    args.bert_config_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json'
-    args.vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt'
-    args.output_dir = '/Users/haiqinyang/Downloads/tmp/ontonotes'
-    args.do_train = True
-    args.init_checkpoint = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese.tar.gz'
-    args.visible_device = 2
+def set_eval_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data',
+            'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'output_dir': '/Users/haiqinyang/Downloads/tmp/ontonotes/out',
+            'do_train': False,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/tmp/ontonotes/',
+            'do_eval': True,
+            'do_eval_train': True,
+            'do_lower_case': True,
+            'train_batch_size': 64,
+            'override_output': True,
+            'tensorboardWriter': False,
+            'visible_device': 3,
+            'num_train_epochs': 15,
+            'max_seq_length': 128,
+	        'num_hidden_layers': 3
+            }
 
-    return args
-'''
-
-HQ_FLAG = True
 
 def main(**kwargs):
     #kwargs = set_test_param()
-    kwargs = set_server_param()
+    #kwargs = set_server_param()
+    kwargs = set_eval_param()
     args._parse(kwargs)
-
-
-    if HQ_FLAG:
-        if args.multilabel and args.multitask:
-            raise NotImplementedError
 
     processors = {
         "ontonotes_cws": lambda: CWS_BMEO(nopunc=args.nopunc),
@@ -496,7 +470,9 @@ def main(**kwargs):
     label_list = processor.get_labels() # get_labels
 
     model, device = load_model(label_list, tokenizer, args)
-    processor.save_labelidmap(args.output_dir)
+
+    if args.do_train:
+        processor.save_labelidmap(args.output_dir)
 
     # Prepare optimizer
     if args.fp16:
@@ -547,6 +523,10 @@ def main(**kwargs):
                 except RuntimeError:
                     model.module.load_state_dict(weights)
                 eval_fc(model, eval_dataloader, device, 0., global_step, args)
+
+                if args.do_eval_train:
+                    eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args)
+                    eval_fc(model, eval_dataloader, device, 0., global_step, args)
         else:
             eval_fc(model, eval_dataloader, device, 0., global_step, args)
 
