@@ -24,7 +24,11 @@ import torch
 
 import time
 from glob import glob
+import pdb
 
+#import sys
+#import importlib
+#importlib.reload(sys)
 '''
 import tokenization
 import time
@@ -70,7 +74,8 @@ def set_server_param():
             'train_batch_size': 128,
             'override_output': True,
             'tensorboardWriter': False,
-            'visible_device': 3,
+            'visible_device': (0, 1, 2),
+            #'visible_device': 0,
             'num_train_epochs': 15,
             'max_seq_length': 128,
 	        'num_hidden_layers': 3
@@ -86,6 +91,7 @@ def get_dataset_and_dataloader(processor, args, training=True):
 
 
 def load_model(label_list, tokenizer, args):
+    #pdb.set_trace()
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
             args.visible_device = str(args.visible_device)
@@ -331,7 +337,7 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
     model.train()
     eval_time = (time.time() - st) / 60
     logger.info('Eval time: %.2fmin' % eval_time)
-    output_eval_file = os.path.join(args.output_dir, test+"_eval_results.txt")
+    output_eval_file = os.path.join(args.output_dir, type+"_eval_results.txt")
 
     for result in results:
         with open(output_eval_file, "a+") as writer:
@@ -449,8 +455,8 @@ def set_eval_param():
 
 def main(**kwargs):
     #kwargs = set_test_param()
-    #kwargs = set_server_param()
-    kwargs = set_eval_param()
+    kwargs = set_server_param()
+    #kwargs = set_eval_param()
     args._parse(kwargs)
 
     processors = {
