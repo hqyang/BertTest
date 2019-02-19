@@ -74,9 +74,9 @@ def set_server_param():
             'train_batch_size': 128,
             'override_output': True,
             'tensorboardWriter': False,
-            'visible_device': (0, 1, 2),
+            'visible_device': (0,1,2),
             #'visible_device': 0,
-            'num_train_epochs': 15,
+            'num_train_epochs': 1,
             'max_seq_length': 128,
 	        'num_hidden_layers': 3
             }
@@ -227,8 +227,10 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
     if args.tensorboardWriter:
         loss_all = []
-
+    
+    tr_times = []
     for ep in trange(int(args.num_train_epochs), desc="Epoch"):
+        st = time.time()
         tr_loss = 0
         nb_tr_examples, nb_tr_steps = 0, 0
         for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
@@ -240,11 +242,12 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 label_ids = label_ids.to(device)
             else:
                 label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
-            loss, decode_rs = model(input_ids, segment_ids, input_mask, label_ids)
+            #pdb.set_trace()
+            #loss, decode_rs = model(input_ids, segment_ids, input_mask, label_ids)
+            loss = model(input_ids, segment_ids, input_mask, label_ids)
             #s1 = outputFscoreUsedBIO(list(label_ids.data.numpy()), decode_rs, list(input_mask.data.numpy()))
-            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
-            #logger.info("Training F1, Precision, Recall: {:d}: {:+.2f}, {:+.2f}, {:+.2f}".format(ep, s1))
-
+            #pdb.set_trace()
+           
             n_gpu = torch.cuda.device_count()
             if n_gpu > 1: # or loss.shape[0] > 1:
                 loss = loss.mean() # mean() to average on multi-gpu or multitask.
@@ -254,6 +257,10 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 loss = loss * args.loss_scale
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
+            
+            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+            #l #logger.info("Training F1, Precision, Recall: {:d}: {:+.2f}, {:+.2f}, {:+.2f}".format(ep, s1))
+
             loss.backward()
             tr_loss += loss.item()
             nb_tr_examples += input_ids.size(0)
@@ -277,8 +284,12 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 model.zero_grad()
                 global_step += 1
 
-            if args.tensorboardWriter:
-                loss_all.append(loss)
+        tr_time = time.time()-st
+        tr_times.append(tr_time)
+        logger.info('Training time is {:.3f} seconds.'.format(tr_time))
+            
+        if args.tensorboardWriter:
+            loss_all.append(loss)
 
         output_weight_file = os.path.join(args.output_dir, 'weights_epoch%02d.pt'%ep)
 
@@ -317,7 +328,14 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
         input_ids, segment_ids, input_mask = batch[:3]
         label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
         with torch.no_grad():
-            tmp_eval_loss, tmp_decode_rs = model(input_ids, segment_ids, input_mask, label_ids)
+            n_gpu = torch.cuda.device_count()
+            
+            #pdb.set_trace()
+            if n_gpu > 1: # multiple gpus 
+            	# model.module.decode to replace original model() since forward cannot output multiple outputs in multiple gpus
+                tmp_eval_loss, tmp_decode_rs = model.module.decode(input_ids, segment_ids, input_mask, label_ids)
+            else:
+                tmp_eval_loss, tmp_decode_rs = model.decode(input_ids, segment_ids, input_mask, label_ids)
 
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
