@@ -321,7 +321,7 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
     model.eval()
     all_label_ids = []
     all_losses = []
-    all_logits = []
+    results = []
     label_list = eval_dataloader.dataset.label_list
     for batch in tqdm(eval_dataloader, desc="TestIter"):
         batch = tuple(t.to(device) for t in batch)
@@ -334,6 +334,7 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
             if n_gpu > 1: # multiple gpus 
             	# model.module.decode to replace original model() since forward cannot output multiple outputs in multiple gpus
                 tmp_eval_loss, tmp_decode_rs = model.module.decode(input_ids, segment_ids, input_mask, label_ids)
+                tmp_eval_loss = tmp_eval_loss.mean()
             else:
                 tmp_eval_loss, tmp_decode_rs = model.decode(input_ids, segment_ids, input_mask, label_ids)
 
@@ -347,16 +348,28 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
 
             logger.info('Test F1, Precision, Recall: {:+.2f}, {:+.2f}, {:+.2f}'.format(score[0], score[1], score[2]))
             #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
-        all_label_ids.append(label_ids)
-        all_losses.append(tmp_eval_loss)
-    results = eval_by_metrics(all_label_ids, all_losses, all_logits, label_list,
-                              tr_loss, global_step, args.multilabel)
+            result = [tmp_eval_loss]
+            result.extend(score)
+    #    all_label_ids.append(label_ids)
+    #    all_losses.append(tmp_eval_loss)
+    #results = eval_by_metrics(all_label_ids, all_losses, all_logits, label_list,
+    #                          tr_loss, global_step, args.multilabel)
+    results.append(result) # loss, F1, P, R
 
     model.train()
     eval_time = (time.time() - st) / 60
     logger.info('Eval time: %.2fmin' % eval_time)
     output_eval_file = os.path.join(args.output_dir, type+"_eval_results.txt")
 
+    np_res = np.array(results)
+    avg_res = np.mean(np_res, axis=0)
+
+    with open(output_eval_file, "a+") as writer:
+        logger.info("***** Eval results *****")
+        logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3]))
+        writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3]))
+         
+    '''
     for result in results:
         with open(output_eval_file, "a+") as writer:
             logger.info("***** Eval results *****")
@@ -364,6 +377,7 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
                 logger.info("  %s = %s", key, str(result[key]))
                 writer.write("%s = %s\n" % (key, str(result[key])))
             writer.write("\n")
+    '''
     return results
 
 def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step, multilabel=False):
