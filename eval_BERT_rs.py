@@ -592,11 +592,11 @@ def main(**kwargs):
 
                 type='train'
                 eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type) # eval on training data
-                eval_fc(model, eval_dataloader, device, args, type)
+                eval_fc(model, eval_dataloader, device, args, [], type)
 
                 type='dev'
                 eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type) # eval on training data
-                eval_fc(model, eval_dataloader, device, args, type)
+                eval_fc(model, eval_dataloader, device, args, [], type)
         else:
             eval_fc(model, eval_dataloader, device, args, 'test')
 

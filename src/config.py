@@ -15,6 +15,7 @@ class Config:
     do_train = False
     do_eval = False
     do_eval_train = False  # evaluate the performance of training data, work when do_eval = True
+    trainBERT = True    
     
     ##2.Preprocessing
     do_lower_case = True
