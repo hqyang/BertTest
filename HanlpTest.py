@@ -10,9 +10,12 @@ Scenario:
 """
 import os
 import pandas as pd
-import jieba
+from pyhanlp import *
 from src.basics import _is_chinese_char
 from src.pkuseg.metrics import getFscoreFromBIOTagList
+import re
+
+import pdb
 
 def get_examples(data_dir, type='train'):
     """See base class."""
@@ -76,6 +79,8 @@ def convertList2BIOwithComma(rs):
     return outStr
 
 def BMES2BIO(text):
+    # text = 'B E B M M E S'
+    # sOut = BMES2BIO(text) # 'B I B I I I O'
     sOut = text
     sOut = sOut.replace('M', 'I')
     sOut = sOut.replace('E', 'I')
@@ -91,10 +96,44 @@ def space2Comma(text):
 
     return sOut
 
+def proc_HanLP_rs(text):
+    # text = [台湾/ns, 的/ude1, 公/ng, 视/vg, 今天/t, 主办/v, 的/ude1, 台北/ns, 市长/nnt, 候选人/nnt, 辩论会/n, ，/w]
+    # Output
+    #   sText = ['台湾', '的', '公', '视', '今天', '主办', '的', '台北', '市长', '候选人', '辩论会', '，']
+    #   sText_seg = '台湾 的 公 视 今天 主办 的 台北 市长 候选人 辩论会 ， '
+    #   sText_pos =
+
+    sText = []
+    sText_seg = ''
+    sText_pos = ''
+
+    for i, word in enumerate(text.__iter__()):
+        # need additional process of '/'
+        ss = str(word)
+        fa_idx = re.findall('/', ss)
+        max_f = len(fa_idx)
+        word = ss.replace('/', '[SLASH]', max_f-1)
+
+        tt = word.split('/')
+
+        if '[SLASH]' in tt[0]: # restore [SLASH] to /
+            tt[0] = tt[0].replace('[SLASH]', '/')
+
+        sText.append(tt[0])
+
+        sText_seg += tt[0]
+        sText_pos += tt[1]
+        if i<len(text)-1:
+            sText_seg += ' '
+            sText_pos += ' '
+
+    return sText, sText_seg, sText_pos
+
+
 def do_eval(data_dir, type, output_dir):
     df = get_examples(data_dir, type)
 
-    jiebaList = []
+    hanlpList = []
     trueLabelList = []
 
     output_diff_file = os.path.join(output_dir, type+"_diff.txt")
@@ -105,24 +144,26 @@ def do_eval(data_dir, type, output_dir):
         #rs_ser = jieba.lcut_for_search(sentence) # search engine mode, similar to Full mode
 
         # sentence = '台湾的公视今天主办的台北市长候选人辩论会，'
-        # rs_precision = jieba.lcut(sentence, cut_all=False)
+        # hanlp_rs = HanLP.segment(sentence)
         #   rs_precision = ['台湾', '的', '公视', '今天', '主办', '的', '台北', '市长', '候选人', '辩论会', '，']
-        # jieba_rs = ' '.join(rs_precision)
-        #   jieba_rs = '台湾 的 公视 今天 主办 的 台北 市长 候选人 辩论会 ，'
+        # hanlp_rs = ' '.join(rs_precision)
+        #   hanlp_rs = '台湾 的 公视 今天 主办 的 台北 市长 候选人 辩论会 ，'
+        #if i==684:
+        #    pdb.set_trace()
 
-        rs_precision = jieba.lcut(sentence, cut_all=False)
-        jieba_rs = ' '.join(rs_precision)
+        hanlp_rs = HanLP.segment(sentence)
+        hanlp_text, hanlp_seg, hanlp_pos = proc_HanLP_rs(hanlp_rs)
 
         #str_precision = convertList2BMES(rs_precision)
-        str_BIO = convertList2BIOwithComma(rs_precision)
-        jiebaList.append(str_BIO)
+        hanlp_BIO = convertList2BIOwithComma(hanlp_text)
+        hanlpList.append(hanlp_BIO)
 
         tl = BMES2BIO(data.label)
         tl = space2Comma(tl)
         trueLabelList.append(tl)
 
-        #print('{:d}: '.format(i))
-        #print(sentence)
+        print('{:d}: '.format(i))
+        print(sentence)
         #print(tl)
         #print(str_BIO)
         #print('\n')
@@ -131,11 +172,11 @@ def do_eval(data_dir, type, output_dir):
             writer.write('{:d}: '.format(i))
             writer.write(sentence+'\n')
             writer.write(data.text_seg+'\n')
-            writer.write(jieba_rs+'\n')
+            writer.write(hanlp_seg+'\n')
             writer.write(tl+'\n')
-            writer.write(str_BIO+'\n\n')
+            writer.write(hanlp_BIO+'\n\n')
 
-    score, _ = getFscoreFromBIOTagList(trueLabelList, jiebaList)
+    score, _ = getFscoreFromBIOTagList(trueLabelList, hanlpList)
 
     print('Eval ' + type + ' results:')
     print('Test F1, Precision, Recall: {:+.2f}, {:+.2f}, {:+.2f}'.format(score[0], score[1], score[2]))
@@ -150,7 +191,7 @@ def do_eval(data_dir, type, output_dir):
 def main():
     data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data'
 
-    output_dir='./tmp/ontonotes/jieba/'
+    output_dir='./tmp/ontonotes/hanlp/'
     os.makedirs(output_dir, exist_ok=True)
 
     type = 'train'

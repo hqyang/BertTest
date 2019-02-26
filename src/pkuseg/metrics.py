@@ -63,8 +63,11 @@ def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
     return scoreList, infoList
 
 def getFscoreFromBIOTagList(goldTagList, resTagList):
-    # input are tag list, e.g.,
-    #   ['S B E S B M E B M M E S S S S B E S S B M M E S', 'S B E S B M E B M M E S S S S B E B E B M M E S']
+    # input are tag string lists, where each tag in the string is separated by ',', e.g.,
+    #   goldTagList = ['B,I,B,I,B,I,O,O,B,I,B,I,O,B,I,I,I,', 'O,B,I,I,O,', 'O,B,I,B,I,B,I,O,B,I,O,O,O,B,I,B,I,'] # true results
+    #   resTagList  = ['B,I,B,I,B,I,O,O,B,I,B,I,O,B,I,I,I,', 'O,B,I,I,O,', 'B,I,I,B,I,I,I,O,B,I,O,O,O,B,I,B,I,']
+    # output are F1, P, R scores
+
     scoreList = []
     assert len(resTagList) == len(goldTagList)
     goldChunkList = getChunks(goldTagList)

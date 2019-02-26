@@ -28,3 +28,20 @@ def _is_chinese_char(cp):
         (cp >= 0x2F800 and cp <= 0x2FA1F)):  #
         return True
     return False
+
+# copy from https://github.com/supercoderhawk/DNN_CWS/blob/master/utils.py
+def strQ2B(ustring):
+    '''全角转半角'''
+    rstring = ''
+
+    for uchar in ustring:
+        inside_code = ord(uchar)
+
+        if inside_code == 12288:  # 全角空格直接转换
+            inside_code = 32
+        elif (inside_code >= 65281 and inside_code <= 65374):  # 全角字符（除空格）根据关系转化
+            inside_code -= 65248
+
+    rstring += chr(inside_code)
+
+    return rstring
