@@ -1,10 +1,10 @@
 #!/bin/sh
 
-for nhl in 3 6
+for nhl in 6
 do
     for nte in 1 5 10 15
     do
-        for tbs in 64 128
+        for tbs in 96
         do 
             echo "train_batch_size $tbs, num_train_epochs $nte, num_hidden_layers $nhl"
             python main.py \
