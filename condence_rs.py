@@ -48,9 +48,17 @@ def saveScore2File():
                            for line in fin:
                               fout.write(line)
 
+                    #pdb.set_trace()
+                    nrow, ncol = nscore.shape
                     with open(outdir+type+'_prs_ep'+str(ne)+'_nhl'+str(nhl)+'.txt', 'a+') as fout2:
-                        for row in range(nscore.shape[0]):
-                            fout2.write(nscore[row, :]+'\n')
+                        for row in range(nrow):
+                            ostr = ''
+                            val = list(nscore[row, :])
+                            #pdb.set_trace()
+                            for col in range(ncol):
+                               ostr += str(val[col]) + ' '
+                            #pdb.set_trace()
+                            fout2.write(ostr+'\n')
 
 '''
 def plotResults():
