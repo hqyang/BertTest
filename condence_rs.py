@@ -35,10 +35,10 @@ def getScoreFromPureFile(infile):
     return outScore
 
 
-def saveScore2File():
+def saveScore2File(num_epochs = [15]):
     num_hidden_layers = [3, 6]
-    #num_epoches = [1, 5, 10, 15]
-    num_epochs = [15]
+    #num_epochs = [1, 5, 10, 15]
+    #num_epochs = [15]
     num_train_size = [64]
     types = ['train', 'dev', 'test']
 
@@ -75,11 +75,9 @@ def saveScore2File():
                             #pdb.set_trace()
                             fout2.write(ostr+'\n')
 
-def plotResults():
+def plotResults(num_epochs = [15]):
     types = ['train', 'dev', 'test']
     num_hidden_layers = [3, 6]
-    num_epochs = [15]
-
     pre_dir = './tmp_2019_2_22/ontonotes/out/'
 
     for nhl in num_hidden_layers:
@@ -165,50 +163,8 @@ def plotResults():
             plt.title('Recall on Ontonotes (No. hidden layers: {:d})'.format(nhl))
             plt.show()
 
-'''
-def plotDetResults():
-    types = ['train', 'dev', 'test']
-
-    scoreFile = './tmp_2019_2_22/ontonotes/out/condense_rs_ep15.txt'
-
-    score_rs = []
-    nl = False
-    idx = 0
-    with open(scoreFile, 'r') as fin:
-        for line in fin:
-            idx += 1
-            if idx % 51 == 2: 
-                type = 'train'
-            if idx % 51 == 2+17: type = 'dev'
-            if idx % 51 == 2+34: type = 'dev'
-
-
-            if nl==True:
-                if len(score_rs)!=0: # plot results
-                    xl = [v+1 for v in range(len(score_rs))]
-                    nscore = np.array(score_rs)
-
-                    fig = plt.figure()
-                    plt.plot(xl, nscore[:,0], 'ob')
-                    plt.xlabel('No. of epochs')
-                    plt.ylabel('Loss')
-                    plt.grid()
-                    plt.title('Results on the '+ori_type+' dataset')
-                    plt.show()
-
-                score_rs = []
-                nl = False
-                ori_type = type
-            else: # add results
-                outVal = re.split(':|,', line)
-
-                if len(outVal)>1: # the size of stored data should be larger than 1
-                    idx_range = range(1, len(outVal), 2)
-                    score = [float(outVal[i]) for i in idx_range]
-                    score_rs.append(score)
-'''
 
 if __name__=='__main__':
-    #saveScore2File()
+    #saveScore2File(num_epochs=[10])
 
-    plotResults()
+    plotResults(num_epochs = [10])
