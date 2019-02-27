@@ -62,6 +62,54 @@ def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
     infoList.append(correct_chunk)
     return scoreList, infoList
 
+def getFscoreFromBIOTagList(goldTagList, resTagList):
+    # input are tag string lists, where each tag in the string is separated by ',', e.g.,
+    #   goldTagList = ['B,I,B,I,B,I,O,O,B,I,B,I,O,B,I,I,I,', 'O,B,I,I,O,', 'O,B,I,B,I,B,I,O,B,I,O,O,O,B,I,B,I,'] # true results
+    #   resTagList  = ['B,I,B,I,B,I,O,O,B,I,B,I,O,B,I,I,I,', 'O,B,I,I,O,', 'B,I,I,B,I,I,I,O,B,I,O,O,O,B,I,B,I,']
+    # output are F1, P, R scores
+
+    scoreList = []
+    assert len(resTagList) == len(goldTagList)
+    goldChunkList = getChunks(goldTagList)
+    resChunkList = getChunks(resTagList)
+    gold_chunk = 0
+    res_chunk = 0
+    correct_chunk = 0
+    for i in range(len(goldChunkList)):
+        res = resChunkList[i]
+        gold = goldChunkList[i]
+        resChunkAry = res.split(Config.comma)
+        tmp = []
+        for t in resChunkAry:
+            if len(t) > 0:
+                tmp.append(t)
+        resChunkAry = tmp
+        goldChunkAry = gold.split(Config.comma)
+        tmp = []
+        for t in goldChunkAry:
+            if len(t) > 0:
+                tmp.append(t)
+        goldChunkAry = tmp
+        gold_chunk += len(goldChunkAry)
+        res_chunk += len(resChunkAry)
+        goldChunkSet = set()
+        for im in goldChunkAry:
+            goldChunkSet.add(im)
+        for im in resChunkAry:
+            if im in goldChunkSet:
+                correct_chunk += 1
+
+    pre = -1 if abs(res_chunk) < 1e-6 else correct_chunk / res_chunk * 100
+    rec = correct_chunk / gold_chunk * 100
+    f1 = 0 if correct_chunk == 0 else 2 * pre * rec / (pre + rec)
+    scoreList.append(f1)
+    scoreList.append(pre)
+    scoreList.append(rec)
+    infoList = []
+    infoList.append(gold_chunk)
+    infoList.append(res_chunk)
+    infoList.append(correct_chunk)
+    return scoreList, infoList
 
 def getNewTagList(tagMap, tagList):
     tmpList = []
