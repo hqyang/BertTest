@@ -7,6 +7,8 @@ import os
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+from matplotlib.legend_handler import HandlerLine2D
+import matplotlib.patches as mpatches
 import pdb
 
 def getScore(infile):
@@ -19,6 +21,19 @@ def getScore(infile):
             outScore.append(score)
 
     return outScore    
+
+def getScoreFromPureFile(infile):
+    outScore = []
+    with open(infile) as fi:
+        for line in fi:
+            #outVal = re.split(line)
+            outVal = line.split()
+            if outVal!='':
+                score = [float(val) for val in outVal]
+                outScore.append(score)
+
+    return outScore
+
 
 def saveScore2File():
     num_hidden_layers = [3, 6]
@@ -60,45 +75,97 @@ def saveScore2File():
                             #pdb.set_trace()
                             fout2.write(ostr+'\n')
 
-'''
 def plotResults():
     types = ['train', 'dev', 'test']
+    num_hidden_layers = [3, 6]
+    num_epochs = [15]
 
-    scoreFile = './tmp_2019_2_22/ontonotes/out/condense_rs_ep15.txt'
+    pre_dir = './tmp_2019_2_22/ontonotes/out/'
 
-    score_rs = []
-    nl = False
-    with open(scoreFile, 'r') as fin:
-        for line in fin:
+    for nhl in num_hidden_layers:
+        for ne in num_epochs:
             for type in types:
-                if type in line:
-                    nl = True
-                    break
+                outFile = pre_dir+type+'_prs_ep'+str(ne)+'_nhl'+str(nhl)+'.txt'
+                score = getScoreFromPureFile(outFile)
 
-            if nl==True:
-                if len(score_rs)!=0: # plot results
-                    xl = [v+1 for v in range(len(score_rs))]
-                    nscore = np.array(score_rs)
+                if type=='train':
+                    tr_score = np.array(score)
+                elif type=='dev':
+                    dev_score = np.array(score)
+                elif type=='test':
+                    ts_score = np.array(score)
 
-                    fig = plt.figure()
-                    plt.plot(xl, nscore[:,0], 'ob')
-                    plt.xlabel('No. of epochs')
-                    plt.ylabel('Loss')
-                    plt.grid()
-                    plt.title('Results on the '+ori_type+' dataset')
-                    plt.show()
+            xl = [v+1 for v in range(len(score))]
+            fig1 = plt.figure()
+            p1, = plt.plot(xl, tr_score[:,0], marker='v', color='b', label='Train')
+            p2, = plt.plot(xl, dev_score[:,0], marker='o', color='r', label='Dev')
+            p3, = plt.plot(xl, ts_score[:,0], marker='p', color='c', label='Test')
+            plt.xlabel('No. of epochs')
+            plt.ylabel('Loss')
+            plt.grid()
 
-                score_rs = []
-                nl = False
-                ori_type = type
-            else: # add results
-                outVal = re.split(':|,', line)
+            # get minimum value of dev
+            am_dev_loss = np.argmin(dev_score[:,0])
+            min_dev_loss = dev_score[am_dev_loss, 0]
+            plt.text(am_dev_loss+0.5, min_dev_loss-45, str(am_dev_loss+1)+': '+str(min_dev_loss), color='r')
+            #plt.arrow(am_dev_loss+1.8, min_dev_loss-45, -.5, 40, color='r',
+            #          head_width=0.5, head_length=.5) # \ #length_includes_head=True, , shape='full'
+            #mpatches.FancyArrow(am_dev_loss+1.8, min_dev_loss-45, -.5, 40, color='r', length_includes_head=True,
+            #          head_width=0.2, head_length=0.2)
 
-                if len(outVal)>1: # the size of stored data should be larger than 1
-                    idx_range = range(1, len(outVal), 2)
-                    score = [float(outVal[i]) for i in idx_range]
-                    score_rs.append(score)
+            #plt.legend(handles=[p1, p2, p3], loc=4)
+            plt.legend(handler_map={p1: HandlerLine2D(numpoints=1)})
+            #plt.legend(handles=[p1, p2, p3], labels=types)
+            plt.title('Loss on Ontonotes (No. hidden layers: {:d})'.format(nhl))
+            plt.show()
 
+            fig2 = plt.figure()
+            p1, = plt.plot(xl, tr_score[:,1], marker='v', color='b', label='Train')
+            p2, = plt.plot(xl, dev_score[:,1], marker='o', color='r', label='Dev')
+            p3, = plt.plot(xl, ts_score[:,1],  marker='p', color='c', label='Test')
+            plt.xlabel('No. of epochs')
+            plt.ylabel('F1')
+            plt.grid()
+            get_test_F1 = ts_score[am_dev_loss,1]
+            plt.text(am_dev_loss+2, get_test_F1-1, str(get_test_F1), color='c')
+            plt.arrow(am_dev_loss+1.9, get_test_F1-0.9, -.8, +.8, color='c', length_includes_head=True,
+                      head_width=0.2, head_length=0.2)
+
+            amax_test_F1 = np.argmax(ts_score[:,1])
+            max_test_F1 = ts_score[amax_test_F1, 1]
+            plt.text(amax_test_F1-1.5, max_test_F1-1, str(max_test_F1), color='c')
+            plt.arrow(amax_test_F1+0.1, max_test_F1-.9, .8, +.8, color='c', length_includes_head=True,
+                      head_width=0.2, head_length=0.2)
+
+            #plt.legend(handles=[p1, p2, p3], loc=4)
+            plt.legend(handler_map={p1: HandlerLine2D(numpoints=1)})
+            #plt.legend(handles=[p1, p2, p3], labels=types) # , types
+            plt.title('F1 on Ontonotes (No. hidden layers: {:d})'.format(nhl))
+            plt.show()
+
+            fig3 = plt.figure()
+            p1, = plt.plot(xl, tr_score[:,2], marker='v', color='b', label='Train')
+            p2, = plt.plot(xl, dev_score[:,2], marker='o', color='r', label='Dev')
+            p3, = plt.plot(xl, ts_score[:,2],  marker='p', color='c', label='Test')
+            plt.xlabel('No. of epochs')
+            plt.ylabel('Precision')
+            plt.grid()
+            plt.legend(handler_map={p1: HandlerLine2D(numpoints=1)})
+            plt.title('Precision on Ontonotes (No. hidden layers: {:d})'.format(nhl))
+            plt.show()
+
+            fig4 = plt.figure()
+            p1, = plt.plot(xl, tr_score[:,3], marker='v', color='b', label='Train')
+            p2, = plt.plot(xl, dev_score[:,3], marker='o', color='r', label='Dev')
+            p3, = plt.plot(xl, ts_score[:,3],  marker='p', color='c', label='Test')
+            plt.xlabel('No. of epochs')
+            plt.ylabel('Recall')
+            plt.grid()
+            plt.legend(handler_map={p1: HandlerLine2D(numpoints=1)})
+            plt.title('Recall on Ontonotes (No. hidden layers: {:d})'.format(nhl))
+            plt.show()
+
+'''
 def plotDetResults():
     types = ['train', 'dev', 'test']
 
@@ -142,6 +209,6 @@ def plotDetResults():
 '''
 
 if __name__=='__main__':
-    saveScore2File()
+    #saveScore2File()
 
-    #plotDetResults()
+    plotResults()
