@@ -62,6 +62,30 @@ def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
     infoList.append(correct_chunk)
     return scoreList, infoList
 
+def getCorrectIndividualTags(goldTagList, resTagList):
+    len_all = 0
+    correct_tag = 0
+
+    for i in range(len(goldTagList)):
+        goldChunkAry = goldTagList[i].split(Config.comma)
+        resChunkAry = resTagList[i].split(Config.comma)
+
+        len_gold = len(goldChunkAry)
+        len_res = len(resChunkAry)
+        len_comp = len_res
+
+        if len_comp > len_gold:
+            len_comp = len_gold
+
+        len_all += len_gold
+
+        # check the number of correct tags
+        for idx in range(len_comp):
+            if resChunkAry[idx]==goldChunkAry[idx]:
+                correct_tag += 1
+
+    return correct_tag, len_all
+
 def getFscoreFromBIOTagList(goldTagList, resTagList):
     # input are tag string lists, where each tag in the string is separated by ',', e.g.,
     #   goldTagList = ['B,I,B,I,B,I,O,O,B,I,B,I,O,B,I,I,I,', 'O,B,I,I,O,', 'O,B,I,B,I,B,I,O,B,I,O,O,O,B,I,B,I,'] # true results
@@ -70,11 +94,14 @@ def getFscoreFromBIOTagList(goldTagList, resTagList):
 
     scoreList = []
     assert len(resTagList) == len(goldTagList)
+
+    correct_tag, len_all = getCorrectIndividualTags(goldTagList, resTagList)
     goldChunkList = getChunks(goldTagList)
     resChunkList = getChunks(resTagList)
     gold_chunk = 0
     res_chunk = 0
     correct_chunk = 0
+
     for i in range(len(goldChunkList)):
         res = resChunkList[i]
         gold = goldChunkList[i]
@@ -85,6 +112,8 @@ def getFscoreFromBIOTagList(goldTagList, resTagList):
                 tmp.append(t)
         resChunkAry = tmp
         goldChunkAry = gold.split(Config.comma)
+
+        # check the number of correct chunks
         tmp = []
         for t in goldChunkAry:
             if len(t) > 0:
@@ -102,13 +131,19 @@ def getFscoreFromBIOTagList(goldTagList, resTagList):
     pre = -1 if abs(res_chunk) < 1e-6 else correct_chunk / res_chunk * 100
     rec = correct_chunk / gold_chunk * 100
     f1 = 0 if correct_chunk == 0 else 2 * pre * rec / (pre + rec)
+    acc = 0 if len_all == 0 else correct_tag * 100. / len_all
     scoreList.append(f1)
     scoreList.append(pre)
     scoreList.append(rec)
+    scoreList.append(acc)
+    #scoreList.append(len_all)
+
     infoList = []
     infoList.append(gold_chunk)
     infoList.append(res_chunk)
     infoList.append(correct_chunk)
+    infoList.append(correct_tag)
+    infoList.append(len_all)
     return scoreList, infoList
 
 def getNewTagList(tagMap, tagList):

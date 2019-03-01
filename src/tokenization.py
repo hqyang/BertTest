@@ -216,7 +216,18 @@ class BasicTokenizer(object):
             return True
     
         return False
-    
+
+    def _is_english_char(self, cp):
+        """Checks whether CP is an English character."""
+        # https://zh.wikipedia.org/wiki/%E5%85%A8%E5%BD%A2%E5%92%8C%E5%8D%8A%E5%BD%A2
+        if ((cp >= 0x0041 and cp <= 0x005A) or
+            (cp >= 0x0061 and cp <= 0x007A) or
+            (cp >= 0xFF21 and cp <= 0xFF3A) or
+            (cp >= 0xFF41 and cp <= 0xFF5A)):
+            return True
+
+        return False
+
     def _clean_text(self, text):
         """Performs invalid character removal and whitespace cleanup on text."""
         output = []

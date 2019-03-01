@@ -9,7 +9,8 @@ Feature:
 Scenario: 
 """
 from sklearn.preprocessing import LabelEncoder
-
+#import sys
+#sys.path.append('..')
 
 def test_BertCRF_constructor():
     from src.BERT.modeling import BertCRF
@@ -28,6 +29,80 @@ def test_BasicTokenizer():
     basic_tokenizer = BasicTokenizer(do_lower_case=True)
     text = 'beauty一百分\n Beauty 一百分!!'
     print(basic_tokenizer.tokenize(text))
+
+
+def test_FullTokenizer():
+    from src.tokenization import FullTokenizer, BasicTokenizer
+
+    vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt'
+    full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
+    text = '台湾的公视今天主办的台北市长 Candidate  Defence  ，'
+    print(full_tokenizer.tokenize(text))
+
+    text = 'Candidate'
+    print(full_tokenizer.tokenize(text))
+
+    text = '  Defence  ，'
+    print(full_tokenizer.tokenize(text))
+
+    text1 = '''植物研究所所長周昌弘先生當選第三世界科學院（Ｔｈｅ　Ｔｈｉｒｄ　Ｗｏｒｌｄ　Ａｃａｄｅｍｙ　ｏｆ　Ｓｃｉｅｎｃｅｓ，簡稱ＴＷＡＳ）
+    院士。ＴＷＡＳ係一九八三年由Ｐｒｏｆ　Ａｄｂｕｓ　Ｓａｌａｍ（巴基斯坦籍，曾獲諾貝爾獎）發起成立，會員遍佈６３個國家，目前由２３２位院士
+    （Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）
+    　及２位通信協院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者），李政道、楊振寧、丁肇中、
+    李遠哲、陳省身、吳健雄、朱經武、蔡南海等院士均為該院Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ。本院數理組院士、哈佛大學數學系教授丘成桐，經瑞典皇家科學院評定為
+    一九九四年克列佛（Ｃｒａｆｏｏ　Ｐｒｉｚｅ）獎得主，藉以表彰其在微分幾何領域影響深遠之貢獻。'''
+    print(full_tokenizer.tokenize(text1))
+
+    text = 'Ｐｒｏｆ　Ａｄｂｕｓ　Ｓａｌａｍ'
+    print(full_tokenizer.tokenize(text))
+
+    text = ' Ｐｒｏｆ　Ａｄｂｕｓ　Ｓａｌａｍ '
+    print(full_tokenizer.tokenize(text))
+
+    text = '( Ｐｒｏｆ　 Ａｄｂｕｓ　 Ｓａｌａｍ  ) '
+    print(full_tokenizer.tokenize(text))
+
+    text = '６３個國家'
+    print(full_tokenizer.tokenize(text))
+
+    text = '６３ 個國家'
+    print(full_tokenizer.tokenize(text))
+
+    text = '２４２４位通信院士'
+    print(full_tokenizer.tokenize(text))
+
+    text = '２４２４ 位通信院士'
+    print(full_tokenizer.tokenize(text))
+
+    text = '2424 位通信院士'
+    print(full_tokenizer.tokenize(text))
+
+    text = '2424位通信院士'
+    print(full_tokenizer.tokenize(text))
+
+    test_text = '第三世界科學院（Ｔｈｅ　Ｔｈｉｒｄ　Ｗｏｒｌｄ　Ａｃａｄｅｍｙ　ｏｆ　Ｓｃｉｅｎｃｅｓ，簡稱ＴＷＡＳ）'
+    basic_tokenizer = BasicTokenizer(do_lower_case=True)
+    sep_tokens = basic_tokenizer.tokenize(test_text)
+    print('Basic:')
+    for tt in sep_tokens:
+        if basic_tokenizer._is_chinese_char(ord(tt[0])):
+            wt = 'C'
+        elif basic_tokenizer._is_english_char(ord(tt[0])):
+            wt = 'E'
+        else:
+            wt = 'O'
+
+        print(tt+' '+wt)
+
+def check_english(w):
+    import re
+
+    english_check = re.compile(r'[a-z]')
+
+    if english_check.match(w):
+        print("english", w)
+    else:
+        print("other:", w)
 
 def test_pandas_drop():
     import pandas as pd
@@ -105,8 +180,6 @@ def test_CWS_Dict():
     q_eng = cws_dict._findEng(sent)
     print(list(q_eng.queue))
 
-
-
 def test_pkuseg():
     from src.metrics import getChunks, getFscore
     tag_list = ['BBIBBIIBIIIB', 'BBBBIBBBIIIB']
@@ -151,6 +224,33 @@ def test_pkuseg():
     print(scoreList)
     print(infoList)
 
+def calSize(H, vs, mpe, L):
+    for l in L:
+        # embedding: (vs+mpe)*H; # Query, Key, value: 3*H*H; Intermediate: 4*H *H; Pooler: H*H
+        sz = (vs+mpe)*H + ((3+4)*H*H)*l + H*H
+        print('# layer: '+str(l)+', #para: '+str(sz))
+
+def verifyModelSize():
+    H = 768
+    vs = 21128
+    mpe = 512
+    L = [3, 6, 12]
+
+    num_model_para = calSize(H, vs, mpe, L)
+
+'''
+def test_parse_one2BERTformat():
+    from OntoNotes.f6_generate_training_data import parse_one2BERT2Dict
+    s = '(NP (CP (IP (NP (DNP (NER-GPE (NR Taiwan)) (DEG 的)) (NER-ORG (NR 公视))) (VP (NT 今天) (VV 主办))) (DEC 的)) (NP-m (NP (NR 台北) (NN 市长)) (NP-m (NP (NN candidate) (NN defence)) (PU ，))))'
+    out_dict = parse_one2BERT2Dict(s)
+    print('src_seg:'+out_dict['src_seg'])
+    print('src_ner:'+out_dict['src_ner'])
+    print('full_pos:'+out_dict['full_pos'])
+    print('text:'+out_dict['text'])
+    print('text_seg:'+out_dict['text_seg'])
+    print('bert_seg:'+out_dict['bert_seg'])
+    print('bert_ner:'+out_dict['bert_ner'])
+'''
 
 if __name__ == '__main__':
     #test_BertCRF_constructor()
@@ -160,4 +260,9 @@ if __name__ == '__main__':
     #test_metrics()
     #test_CWS_Dict()
 
-    test_pkuseg()
+    #test_pkuseg()
+    #test_FullTokenizer()
+    #check_english('candidate defence')
+    #check_english('台北candidate defence')
+
+    #test_parse_one2BERTformat()

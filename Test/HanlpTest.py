@@ -11,90 +11,11 @@ Scenario:
 import os
 import pandas as pd
 from pyhanlp import *
-from src.basics import _is_chinese_char
 from src.pkuseg.metrics import getFscoreFromBIOTagList
 import re
-
+from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma
 import pdb
 
-def get_examples(data_dir, type='train'):
-    """See base class."""
-    df = pd.read_csv(os.path.join(data_dir, type+".tsv"), sep='\t')
-
-    # full_pos (chunk), ner, seg, text
-    # need parameter inplace=True
-    df.drop(columns=['full_pos', 'ner'], inplace=True)
-
-    # change name to tag for consistently processing
-    df.rename(columns={'seg': 'label'}, inplace=True)
-
-    return df
-
-def convertList2BMES(rs):
-    # rs: a list
-    outStr = ''
-    for i, word in enumerate(rs.__iter__()):
-        if not _is_chinese_char(ord(word[0])) or len(word)==1:
-            seg_gt = 'S '
-        else: # Chinese char and multiple words
-            seg_gt = 'B ' + 'M ' * (len(word) - 2) + 'E '
-
-        outStr += seg_gt
-
-        if i==len(rs)-1: # remove the additional space
-            outStr = outStr[:-1]
-
-    return outStr
-
-def convertList2BIO(rs):
-    # rs: a list
-    outStr = ''
-    for i, word in enumerate(rs.__iter__()):
-        if not _is_chinese_char(ord(word[0])) or len(word)==1:
-            seg_gt = 'O '
-        else: # Chinese char and multiple words
-            seg_gt = 'B ' + 'I ' * (len(word) - 1)
-
-        outStr += seg_gt
-
-        if i==len(rs)-1: # remove the additional space
-            outStr = outStr[:-1]
-
-    return outStr
-
-def convertList2BIOwithComma(rs):
-    # rs: a list
-    outStr = ''
-    for i, word in enumerate(rs.__iter__()):
-        if not _is_chinese_char(ord(word[0])) or len(word)==1:
-            seg_gt = 'O,'
-        else: # Chinese char and multiple words
-            seg_gt = 'B,' + 'I,' * (len(word) - 1)
-
-        outStr += seg_gt
-
-        if i==len(rs)-1: # remove the additional space
-            outStr = outStr[:-1]
-
-    return outStr
-
-def BMES2BIO(text):
-    # text = 'B E B M M E S'
-    # sOut = BMES2BIO(text) # 'B I B I I I O'
-    sOut = text
-    sOut = sOut.replace('M', 'I')
-    sOut = sOut.replace('E', 'I')
-    sOut = sOut.replace('S', 'O')
-
-    return sOut
-
-def space2Comma(text):
-    sOut = text
-    sOut = sOut.replace(' ', ',')
-    if sOut[-1]!=',':
-        sOut += ','
-
-    return sOut
 
 def proc_HanLP_rs(text):
     # text = [台湾/ns, 的/ude1, 公/ng, 视/vg, 今天/t, 主办/v, 的/ude1, 台北/ns, 市长/nnt, 候选人/nnt, 辩论会/n, ，/w]
@@ -131,7 +52,7 @@ def proc_HanLP_rs(text):
 
 
 def do_eval(data_dir, type, output_dir):
-    df = get_examples(data_dir, type)
+    df = get_Ontonotes(data_dir, type)
 
     hanlpList = []
     trueLabelList = []
@@ -162,11 +83,14 @@ def do_eval(data_dir, type, output_dir):
         tl = space2Comma(tl)
         trueLabelList.append(tl)
 
-        print('{:d}: '.format(i))
-        print(sentence)
-        #print(tl)
-        #print(str_BIO)
-        #print('\n')
+        if i % 20000 == 0:
+            print('{:d}: '.format(i))
+            print(sentence)
+            print(data.text_seg)
+            print(hanlp_seg)
+            print(tl)
+            print(hanlp_BIO)
+            print('\n')
 
         with open(output_diff_file, "a+") as writer:
             writer.write('{:d}: '.format(i))
@@ -176,26 +100,25 @@ def do_eval(data_dir, type, output_dir):
             writer.write(tl+'\n')
             writer.write(hanlp_BIO+'\n\n')
 
-    score, _ = getFscoreFromBIOTagList(trueLabelList, hanlpList)
+    score, scoreInfo = getFscoreFromBIOTagList(trueLabelList, hanlpList)
 
     print('Eval ' + type + ' results:')
-    print('Test F1, Precision, Recall: {:+.2f}, {:+.2f}, {:+.2f}'.format(score[0], score[1], score[2]))
+    print('Test F1, Precision, Recall, Acc, No. Tags: {:.3f}, {:.3f}, {:.3f}, {:.3f}, {:d}'.format(score[0], \
+                                                  score[1], score[2], score[3], scoreInfo[-1]))
 
     output_eval_file = os.path.join(output_dir, "eval_results.txt")
     with open(output_eval_file, "a+") as writer:
         writer.write('Eval ' + type + ' results: ')
-        writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}\n\n".format(score[0], score[1], score[2]))
+        writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, No. Tags: {:d}\n\n".format(score[0], \
+                                                score[1], score[2], score[3], scoreInfo[-1]))
 
     return score
 
-def main():
+def test_ontonotes():
     data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data'
 
-    output_dir='./tmp/ontonotes/hanlp/'
+    output_dir='./tmp/ontonotes/jieba/'
     os.makedirs(output_dir, exist_ok=True)
-
-    type = 'train'
-    do_eval(data_dir, type, output_dir)
 
     type = 'test'
     do_eval(data_dir, type, output_dir)
@@ -203,5 +126,8 @@ def main():
     type = 'dev'
     do_eval(data_dir, type, output_dir)
 
+    type = 'train'
+    do_eval(data_dir, type, output_dir)
+
 if __name__=='__main__':
-    main()
+    test_ontonotes()
