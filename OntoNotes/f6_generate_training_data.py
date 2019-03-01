@@ -110,7 +110,7 @@ def parse_one2BERTformat(s): # store into lists
     #
     #   src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner
     #       = parse_one2BERTformat(s)
-    #   
+    #
     # output:
     #   # Chinese word segmentation
     #   src_seg = ['S', 'S', 'B', 'E', 'B', 'E', 'B', 'E', 'S', 'B', 'E', 'B', 'E', 'S', 'S', 'S']
