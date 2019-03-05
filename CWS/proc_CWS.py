@@ -29,7 +29,7 @@ def preprocess(seg):
     return output
 '''
 
-def preprocess2dict(sent, tagType):
+def preprocess2dict(sent, tagType, full_tokenizer, basic_tokenizer):
     # Input:
     #   sent: sentence (suppose the sentence is not empty and the words are segmented by space)
     #   tagType: the generate BIO or BMES
@@ -47,7 +47,7 @@ def preprocess2dict(sent, tagType):
     assert(tagType in model_type)
 
     func = model_type[tagType]
-    text, bert_seg_list, src_seg_list = func(seg_list) #[text2bio(text) for text in seg_list]
+    text, bert_seg_list, src_seg_list = func(seg_list, full_tokenizer, basic_tokenizer) #[text2bio(text) for text in seg_list]
     bert_seg = ' '.join(''.join(bert_seg_list))
     src_seg = ','.join(''.join(src_seg_list)) + ','
 
@@ -61,11 +61,7 @@ def len_to_bio(length):
     else:
         return 'B' + 'I' * (length - 1)
 
-def list2BIOList(text_list):
-    vocab_file = '../vocab/bert-base-chinese.txt'
-    full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
-    basic_tokenizer = BasicTokenizer(do_lower_case=True)
-
+def list2BIOList(text_list, full_tokenizer, basic_tokenizer):
     mode_status_list = [basic_tokenizer._mode_type(ord(text[0])) for text in text_list]
 
     src_seg_List = []
@@ -103,7 +99,7 @@ def list2BIOList(text_list):
 
     return  outText, bert_seg_list, src_seg_List
 
-def list2BMESList(text_list):
+def list2BMESList(text_list, full_tokenizer, basic_tokenizer):
     # An example
     #  text_list = ['目前', '由', '２３２', '位', '院士', '（', 'Ｆｅｌｌｏｗ', '及', 'Ｆｏｕｎｄｉｎｇ', 'Ｆｅｌｌｏｗ', '）', '，', '６６', '位', '協院士', '（', 'Ａｓｓｏｃｉａｔｅ', 'Ｆｅｌｌｏｗ', '）', '２４', '位', '通信', '院士', '（', 'Ｃｏｒｒｅｓｐｏｎｄｉｎｇ', 'Ｆｅｌｌｏｗ', '）', '及', '２', '位', '通信', '協院士', '（', 'Ｃｏｒｒｅｓｐｏｎｄｉｎｇ', 'Ａｓｓｏｃｉａｔｅ', 'Ｆｅｌｌｏｗ', '）', '組成', '（', '不', '包括', '一九九四年', '當選', '者', '）', '，']
     #
@@ -111,9 +107,9 @@ def list2BMESList(text_list):
     #    outText = '目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ｆｅｌｌｏｗ）及２位通信協院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者），'
     #    bert_seg_list = ['B', 'E', 'S', 'B', 'M', 'E', 'S', 'B', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'S', 'B', 'E', 'S', 'B', 'M', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'S', 'S', 'B', 'E', 'B', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'S', 'S', 'S', 'B', 'E', 'B', 'M', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'B', 'E', 'S', 'S', 'B', 'E', 'B', 'M', 'M', 'M', 'E', 'B', 'E', 'S', 'S', 'S']
     #    src_seg_List =  ['B', 'E', 'S', 'S', 'S', 'B', 'E', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'B', 'M', 'E', 'S', 'S', 'S', 'S', 'S', 'S', 'B', 'E', 'B', 'E', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'B', 'E', 'B', 'M', 'E', 'S', 'S', 'S', 'S', 'S', 'B', 'E', 'S', 'S', 'B', 'E', 'B', 'M', 'M', 'M', 'E', 'B', 'E', 'S', 'S', 'S']
-    vocab_file = '../vocab/bert-base-chinese.txt'
-    full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
-    basic_tokenizer = BasicTokenizer(do_lower_case=True)
+    #vocab_file = '../vocab/bert-base-chinese.txt'
+    #full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
+    #basic_tokenizer = BasicTokenizer(do_lower_case=True)
 
     mode_status_list = [basic_tokenizer._mode_type(ord(text[0])) for text in text_list]
 
@@ -154,7 +150,11 @@ def gen_data(in_file, out_file, tagType):
     with open(in_file, 'r', encoding='utf8') as f:
         raw_data = [_.strip() for _ in f.readlines()]
 
-    data_all = [preprocess2dict(s, tagType) for s in tqdm(raw_data)]
+    vocab_file = '../vocab/bert-base-chinese.txt'
+    full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
+    basic_tokenizer = BasicTokenizer(do_lower_case=True)
+
+    data_all = [preprocess2dict(s, tagType, full_tokenizer, basic_tokenizer) for s in tqdm(raw_data)]
 
     df = pd.DataFrame(data_all)
     # separate with \t
