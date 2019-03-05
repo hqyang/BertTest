@@ -125,7 +125,7 @@ def parse_one2BERTformat(s): # store into lists
     #   bert_seg = ['S', 'S', 'B', 'E', 'B', 'E', 'B', 'E', 'S', 'B', 'E', 'B', 'E', 'B', 'M', 'M', 'E', 'B', 'M', 'E', 'S']
     #   bert_ner = ['W-GPE', 'O', 'B-ORG', 'E-ORG', 'B', 'E', 'B', 'E', 'O', 'B', 'E', 'B', 'E', 'B', 'M', 'M', 'E', 'B', 'M', 'E', 'O']
 
-    vocab_file = './vocab/bert-base-chinese.txt'
+    vocab_file = '../vocab/bert-base-chinese.txt'
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
     basic_tokenizer = BasicTokenizer(do_lower_case=True)
 

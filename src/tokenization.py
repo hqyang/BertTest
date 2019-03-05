@@ -228,6 +228,19 @@ class BasicTokenizer(object):
 
         return False
 
+    def _mode_type(self, cp):
+        """Return the type of the character, CP."""
+        # Return
+        #   C: if it is a Chinese character
+        #   E: if it is a English character
+        #   O: Others
+        if self._is_chinese_char(cp):
+            return 'C'
+        elif self._is_english_char(cp):
+            return 'E'
+        else:
+            return 'O'
+
     def _clean_text(self, text):
         """Performs invalid character removal and whitespace cleanup on text."""
         output = []
