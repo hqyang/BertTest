@@ -8,6 +8,9 @@ Feature:
 
 Scenario: 
 """
+import os
+import sys
+sys.path.append('..')
 import re
 import pandas as pd
 from src.tokenization import BasicTokenizer, FullTokenizer
@@ -188,13 +191,16 @@ def batch_remove_u3000():
         remove_u3000(infile, outfile)
 
 def batch_gendata():
-    infile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
+    #infile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
+    infile_dir = '../../data/CWS/'
     types = ['as', 'cityu', 'msr', 'pku']
 
     tagType = 'BIO'
     tagType = 'BMES'
-    outfile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
+    #outfile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
+    outfile_dir = '../../data/CWS/'
     outfile_dir += tagType + '/'
+    os.makedirs(outfile_dir, exist_ok=True)
 
     for dt in types:
         infile = infile_dir + dt + '_train.tsv'
