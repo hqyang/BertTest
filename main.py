@@ -66,19 +66,20 @@ def set_server_param():
             'data_dir': '../data/ontonotes5/',
             'bert_model_dir': '../models/bert-base-chinese/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
-            'output_dir': './tmp/ontonotes',
+            'output_dir': './tmp/ontonotes/',
             'do_train': True,
             'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
             'do_eval': True,
             'do_lower_case': True,
             'train_batch_size': 128,
+            'append_dir': True, 
             'override_output': True,
             'tensorboardWriter': False,
             'visible_device': (0,1,2),
             #'visible_device': 0,
             'num_train_epochs': 1,
             'max_seq_length': 128,
-	        'num_hidden_layers': 3
+	    'num_hidden_layers': 3
             }
 
 
@@ -366,18 +367,9 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
 
     with open(output_eval_file, "a+") as writer:
         logger.info("***** Eval results *****")
-        logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3]))
-        writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3]))
+        logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4]))
+        writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:3f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4]))
          
-    '''
-    for result in results:
-        with open(output_eval_file, "a+") as writer:
-            logger.info("***** Eval results *****")
-            for key in sorted(result.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
-            writer.write("\n")
-    '''
     return results
 
 def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step, multilabel=False):
@@ -411,39 +403,6 @@ def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step
                   'task': task_id}
         results.append(result)
     return results
-'''
-def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step, multilabel=False):
-    if not isinstance(logits, list):
-        infos = [labels], [losses], [logits], [label_lists]
-    else:
-        infos = [labels, losses, logits, label_lists]
-    results = []
-    for task_id, info in enumerate(zip(*infos)):
-        label, loss, logit, label_list = info
-        if multilabel:
-            acc_count = accuracy_multilabel(logit, label)
-            output = predict_at_least_one(logit)
-            acc = acc_count / logit.shape[0]
-        else:
-            acc = accuracy(logit, label, ignore_index=0, reduce=True)
-            score = np.exp(logit) / np.exp(logit).sum(axis=1, keepdims=True)
-            output, label = map_score_to_multilabel(label_list, score, label)
-
-        apmeter_by_class = APMeter()
-        apmeter_by_sample = APMeter()
-        apmeter_by_class.add(output, label)
-        apmeter_by_sample.add(output.T, label.T)
-        eval_loss = loss.mean()
-        result = {'eval_loss': eval_loss,
-                  'eval_accuracy': acc,
-                  'mAP_class': apmeter_by_class.value().mean().item(),
-                  'mAP_sample': apmeter_by_sample.value().mean().item(),
-                  'global_step': global_step,
-                  'loss': train_loss,
-                  'task': task_id}
-        results.append(result)
-    return results
-'''
 
 def set_test_param():
     return {'task_name': 'ontonotes_CWS',
@@ -496,6 +455,10 @@ def main(**kwargs):
     }
 
     os.makedirs(args.output_dir, exist_ok=True)
+    if args.append_dir: 
+        args.output_dir += 'nhl' + str(args.num_hidden_layers) + '_nte' \
+		+ str(args.num_train_epochs) + 'nbs' + str(args.train_batch_size) 
+        os.makedirs(args.output_dir, exist_ok=True)    
 
     task_name = args.task_name.lower()
     if task_name not in processors:

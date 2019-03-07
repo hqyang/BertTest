@@ -14,7 +14,7 @@ class Config:
     ##1.Basic tasks
     do_train = False
     do_eval = False
-    do_eval_train = False  # evaluate the performance of training data, work when do_eval = True
+    append_dir = False  # evaluate the performance of training data, work when do_eval = True
     trainBERT = True    
     
     ##2.Preprocessing

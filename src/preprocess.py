@@ -242,30 +242,28 @@ class CWS_BMEO(MeituProcessor):
         self.label_map = {'B': 0, 'M': 1, 'E': 2, 'S': 3, '[START]': 4, '[END]': 5}
         self.idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
 
+    def get_examples(self, fn):
+        """See base class."""
+        df = pd.read_csv(fn, sep='\t')
+
+        # full_pos (chunk), ner, seg, text
+        # need parameter inplace=True
+        df.drop(columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg'], inplace=True)
+
+        # change name to tag for consistently processing
+        df.rename(columns={'bert_seg': 'label'}, inplace=True)
+
+        return df
+
     def get_train_examples(self, data_dir):
         """See base class."""
-        df = pd.read_csv(os.path.join(data_dir, "train.tsv"), sep='\t')
-
-        # full_pos (chunk), ner, seg, text
-        # need parameter inplace=True
-        df.drop(columns=['full_pos', 'ner'], inplace=True)
-
-        # change name to tag for consistently processing
-        df.rename(columns={'seg': 'label'}, inplace=True)
-
-        return df
+        return self.get_examples(os.path.join(data_dir, "train.tsv"))
 
     def get_dev_examples(self, data_dir):
-        df = pd.read_csv(os.path.join(data_dir, "dev.tsv"), sep='\t')
+        return self.get_examples(os.path.join(data_dir, "dev.tsv"))
 
-        # full_pos (chunk), ner, seg, text
-        # need parameter inplace=True
-        df.drop(columns=['full_pos', 'ner'], inplace=True)
-
-        # change name to tag for consistently processing
-        df.rename(columns={'seg': 'label'}, inplace=True)
-
-        return df
+    def get_test_examples(self, data_dir):
+        return self.get_examples(os.path.join(data_dir, "test.tsv"))
 
     def get_labels(self):
         return self.label_list
