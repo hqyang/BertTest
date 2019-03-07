@@ -192,7 +192,7 @@ def batch_gendata():
     types = ['as', 'cityu', 'msr', 'pku']
 
     tagType = 'BIO'
-    tagType = 'BMES'
+    #tagType = 'BMES'
     outfile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
     outfile_dir += tagType + '/'
 

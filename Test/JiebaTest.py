@@ -13,6 +13,7 @@ import jieba
 from src.pkuseg.metrics import getFscoreFromBIOTagList
 from tqdm import tqdm
 from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma
+import pandas as pd
 
 def do_eval(data_dir, type, output_dir):
     df = get_Ontonotes(data_dir, type)
@@ -22,7 +23,7 @@ def do_eval(data_dir, type, output_dir):
 
     output_diff_file = os.path.join(output_dir, type+"_diff.txt")
 
-    for i, data in enumerate(df.itertuples()):
+    for i, data in tqdm(enumerate(df.itertuples())):
         sentence = data.text
         #rs_full = jieba.lcut(sentence, cut_all=True) # Full mode, all possible cuts
         #rs_ser = jieba.lcut_for_search(sentence) # search engine mode, similar to Full mode
@@ -103,9 +104,9 @@ def do_eval_with_file(infile, output_dir, otag, tagMode):
         # jieba_rs = ' '.join(rs_precision)
         #   jieba_rs = '台湾 的 公视 今天 主办 的 台北 市长 候选人 辩论会 ，'
         if tagMode=='BIO':
-            tl = data.label
+            tl = data.src_seg
         elif tagMode=='BMES':
-            tl = BMES2BIO(data.label)
+            tl = BMES2BIO(data.src_seg)
             tl = space2Comma(tl)
 
         rs_precision = jieba.lcut(sentence, cut_all=False)
@@ -179,6 +180,7 @@ def test_CWS():
 
 
 if __name__=='__main__':
-    test_ontonotes()
+    #test_ontonotes()
+    test_CWS()
     #do_eval_with_file('tmp/cws/tmp.txt', 'tmp', '', 'BIO')
     #test_CWS()

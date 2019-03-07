@@ -101,7 +101,7 @@ def parse_one(s): # store into lists
 
     return seg, ner, full_pos, text_str, text_seg, is_chinese_char
 
-def parse_one2BERTformat(s): # store into lists
+def parse_one2BERTformat(s, full_tokenizer, basic_tokenizer): # store into lists
     # Adopt BMEWO for NER tagging,
     #   see https://lingpipe-blog.com/2009/10/14/coding-chunkers-as-taggers-io-bio-bmewo-and-bmewo/
     #
@@ -124,10 +124,6 @@ def parse_one2BERTformat(s): # store into lists
     #   # bert_seg: special treatment for English word
     #   bert_seg = ['S', 'S', 'B', 'E', 'B', 'E', 'B', 'E', 'S', 'B', 'E', 'B', 'E', 'B', 'M', 'M', 'E', 'B', 'M', 'E', 'S']
     #   bert_ner = ['W-GPE', 'O', 'B-ORG', 'E-ORG', 'B', 'E', 'B', 'E', 'O', 'B', 'E', 'B', 'E', 'B', 'M', 'M', 'E', 'B', 'M', 'E', 'O']
-
-    vocab_file = '../vocab/bert-base-chinese.txt'
-    full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
-    basic_tokenizer = BasicTokenizer(do_lower_case=True)
 
     s = re.sub('\)', ') ', s)
     s = re.sub(' +', ' ', s).strip()
@@ -265,8 +261,8 @@ def parse_one_2dict(s):
     full_pos = ' '.join(full_pos)
     return {'seg': seg,  'ner': ner, 'full_pos': full_pos, 'text': text_str, 'text_seg': text_seg}
 
-def parse_one2BERT2Dict(s):
-    src_seg, src_ner, full_pos, text, text_seg, bert_seg, bert_ner = parse_one2BERTformat(s)
+def parse_one2BERT2Dict(s, full_tokenizer, basic_tokenizer):
+    src_seg, src_ner, full_pos, text, text_seg, bert_seg, bert_ner = parse_one2BERTformat(s, full_tokenizer, basic_tokenizer)
 
     src_seg = ','.join(src_seg) + ','
     src_ner = ','.join(src_ner) + ','
@@ -293,12 +289,16 @@ def gen_data(in_file, out_dir, mode):
 
 def genDataWithBERTSeg(in_file, out_dir, mode):
     print('Running genDataWithBERTSeg...')
+    vocab_file = '../vocab/bert-base-chinese.txt'
+    full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
+    basic_tokenizer = BasicTokenizer(do_lower_case=True)
+
     with open(in_file, 'r', encoding='utf8') as f:
         raw_data = f.readlines()
 
     #seg_all, ner_all, chunk_all, text_all = zip(*[parse_one_2str_list(s) for s in raw_data])
     #data_all = zip(*[parse_one_2dict(s) for s in raw_data])
-    data_all = [parse_one2BERT2Dict(s) for s in raw_data]
+    data_all = [parse_one2BERT2Dict(s, full_tokenizer, basic_tokenizer) for s in raw_data]
 
     import pandas as pd
     df = pd.DataFrame(data_all)
