@@ -133,15 +133,17 @@ def do_eval_with_file(infile, output_dir, otag, tagMode):
             writer.write(tl+'\n')
             writer.write(str_BIO+'\n\n')
 
-    score, _ = getFscoreFromBIOTagList(trueLabelList, jiebaList)
+    score, sInfo = getFscoreFromBIOTagList(trueLabelList, jiebaList)
 
     print('Eval ' + otag + ' results:')
-    print("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}\n\n".format(score[0], score[1], score[2], score[3]))
+    print("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Token: {:d}\n\n".format(score[0], \
+                                              score[1], score[2], score[3], sInfo[-1]))
 
     output_eval_file = os.path.join(output_dir, "eval_results.txt")
     with open(output_eval_file, "a+") as writer:
         writer.write('Eval ' + otag + ' results: ')
-        writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}\n\n".format(score[0], score[1], score[2], score[3]))
+        writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Token: {:d}\n\n".format(score[0], \
+                                             score[1], score[2], score[3], sInfo[-1]))
 
     return score
 
@@ -171,7 +173,6 @@ def test_CWS():
     output_dir='./tmp/cws/jieba/'
     os.makedirs(output_dir, exist_ok=True)
 
-
     for wt in fnames:
         for md in modes:
             infile = data_dir + wt + '_' + md + '.tsv'
@@ -180,7 +181,7 @@ def test_CWS():
 
 
 if __name__=='__main__':
-    #test_ontonotes()
+    test_ontonotes()
     test_CWS()
     #do_eval_with_file('tmp/cws/tmp.txt', 'tmp', '', 'BIO')
     #test_CWS()

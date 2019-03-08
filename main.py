@@ -343,9 +343,10 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
                 label_array = label_ids.data
                 mask_array = input_mask.data
             else:
-                label_array = label_ids.data.cpu()
+                lab el_array = label_ids.data.cpu()
                 mask_array = input_mask.data.cpu()
-            score, _ = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
+            #score, _ = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
+            score, _ = outputFscoreUsedBMES(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
 
             logger.info('Test F1, Precision, Recall: {:+.2f}, {:+.2f}, {:+.2f}'.format(score[0], score[1], score[2]))
             #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)

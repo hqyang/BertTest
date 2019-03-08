@@ -346,8 +346,12 @@ if __name__ == '__main__':
     print(text_str)
     print(text_seg)
     '''
+    vocab_file = '../vocab/bert-base-chinese.txt'
+    full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
+    basic_tokenizer = BasicTokenizer(do_lower_case=True)
+
     s = '(NP (CP (IP (NP (DNP (NER-GPE (NR Taiwan)) (DEG 的)) (NER-ORG (NR 公视))) (VP (NT 今天) (VV 主办))) (DEC 的)) (NP-m (NP (NR 台北) (NN 市长)) (NP-m (NP (NN candidate) (NN defence)) (PU ，))))'
-    src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner = parse_one2BERTformat(s)
+    src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner = parse_one2BERTformat(s, full_tokenizer, basic_tokenizer)
     print(s)
     print(src_seg)
     print(src_ner)
@@ -357,7 +361,7 @@ if __name__ == '__main__':
     print(bert_seg)
     print(bert_ner)
 
-    out_dict = parse_one2BERT2Dict(s)
+    out_dict = parse_one2BERT2Dict(s, full_tokenizer, basic_tokenizer)
     print('src_seg:'+out_dict['src_seg'])
     print('src_ner:'+out_dict['src_ner'])
     print('full_pos:'+out_dict['full_pos'])
@@ -366,12 +370,11 @@ if __name__ == '__main__':
     print('bert_seg:'+out_dict['bert_seg'])
     print('bert_ner:'+out_dict['bert_ner'])
 
-    TEST_FLAG = False
+    TEST_FLAG = True
     if TEST_FLAG:
-        out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/'
-        #in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/fuse-tree2/train.fuse.parse'
-        in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/fuse-tree2/tmp_train/train.fuse.parse'
-        gen_data(in_file, out_dir, 'test_code')
+        out_dir = '../tmp/ontonotes/'
+        in_file = '../tmp/ontonotes/data_ori.txt'
+        genDataWithBERTSeg(in_file, out_dir, 'data_proc')
     else:
         out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/'
         os.makedirs(out_dir, exist_ok=True)
