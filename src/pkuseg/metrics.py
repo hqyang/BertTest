@@ -22,6 +22,9 @@ def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
     assert len(resTagList) == len(goldTagList)
     getNewTagList(idx_to_chunk_tag, goldTagList)
     getNewTagList(idx_to_chunk_tag, resTagList)
+
+    correct_tag, len_all = getCorrectIndividualTags(goldTagList, resTagList)
+
     goldChunkList = getChunks(goldTagList)
     resChunkList = getChunks(resTagList)
     pdb.set_trace()
@@ -55,13 +58,18 @@ def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
     pre = -1 if abs(res_chunk) < 1e-6 else correct_chunk / res_chunk * 100
     rec = correct_chunk / gold_chunk * 100
     f1 = 0 if correct_chunk == 0 else 2 * pre * rec / (pre + rec)
+    acc = 0 if len_all == 0 else correct_tag * 100. / len_all
+
     scoreList.append(f1)
     scoreList.append(pre)
     scoreList.append(rec)
+    scoreList.append(acc)
+
     infoList = []
     infoList.append(gold_chunk)
     infoList.append(res_chunk)
     infoList.append(correct_chunk)
+    infoList.append(len_all)
     return scoreList, infoList
 
 def getCorrectIndividualTags(goldTagList, resTagList):
