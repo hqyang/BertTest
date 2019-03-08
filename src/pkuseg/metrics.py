@@ -12,6 +12,7 @@ Scenario:
 # Copy from https://github.com/lancopku/pkuseg-python/blob/master/pkuseg/scorer.py
 '''
 from src.pkuseg.config import Config
+import pdb
 
 def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
     # input are string list, e.g.,
@@ -23,6 +24,7 @@ def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
     getNewTagList(idx_to_chunk_tag, resTagList)
     goldChunkList = getChunks(goldTagList)
     resChunkList = getChunks(resTagList)
+    pdb.set_trace()
     gold_chunk = 0
     res_chunk = 0
     correct_chunk = 0
