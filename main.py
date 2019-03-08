@@ -82,6 +82,21 @@ def set_server_param():
 	    'num_hidden_layers': 3
             }
 
+def set_test_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': './tmp/ontonotes/final_data',
+            'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'output_dir': './tmp/ontonotes',
+            'do_train': True,
+            'do_eval': True,
+            'do_lower_case': True,
+            'train_batch_size': 2,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/pytorch_model.bin',
+            'override_output': True,
+            'tensorboardWriter': False
+            }
 
 def get_dataset_and_dataloader(processor, args, training=True):
     dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
@@ -343,14 +358,15 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
                 label_array = label_ids.data
                 mask_array = input_mask.data
             else:
-                lab el_array = label_ids.data.cpu()
+                label_array = label_ids.data.cpu()
                 mask_array = input_mask.data.cpu()
-            #score, _ = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
-            score, _ = outputFscoreUsedBMES(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
+            score, sInfo = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
 
-            logger.info('Test F1, Precision, Recall: {:+.2f}, {:+.2f}, {:+.2f}'.format(score[0], score[1], score[2]))
-            #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
+            logger.info('Test F1: {:+.2f}, P: {:+.2f}, R: {:+.2f}, Acc: {:+.2f}, Tags: {:d}'.format(score[0], \
+                                                                       score[1], score[2], score[3], sInfo[-1]))
+
             result = [tmp_eval_loss]
+            score.append(sInfo[-1])
             result.extend(score)
     #    all_label_ids.append(label_ids)
     #    all_losses.append(tmp_eval_loss)
@@ -368,8 +384,10 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
 
     with open(output_eval_file, "a+") as writer:
         logger.info("***** Eval results *****")
-        logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4]))
-        writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:3f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4]))
+        logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_res[0], \
+                                                               avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
+        writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:3f}, Tags: {:.2f}\n".format(avg_res[0], \
+                                                             avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
          
     return results
 
@@ -405,23 +423,6 @@ def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step
         results.append(result)
     return results
 
-def set_test_param():
-    return {'task_name': 'ontonotes_CWS',
-            'model_type': 'sequencelabeling',
-            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data',
-            'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
-            'output_dir': '/Users/haiqinyang/Downloads/tmp/ontonotes',
-            'do_train': True,
-            'do_eval': True,
-            'do_lower_case': True,
-            'train_batch_size': 32,
-            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/pytorch_model.bin',
-            'override_output': True,
-            'tensorboardWriter': True
-            }
-            #'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
-            #'visible_device': 2,
 
 def set_eval_param():
     return {'task_name': 'ontonotes_CWS',
@@ -444,10 +445,13 @@ def set_eval_param():
 	        'num_hidden_layers': 3
             }
 
+TEST_FLAG = False
 
 def main(**kwargs):
-    #kwargs = set_test_param()
-    kwargs = set_server_param()
+    if TEST_FLAG:
+        kwargs = set_test_param()
+    else:
+        kwargs = set_server_param()
     #kwargs = set_eval_param()
     args._parse(kwargs)
 
@@ -456,7 +460,8 @@ def main(**kwargs):
     }
 
     os.makedirs(args.output_dir, exist_ok=True)
-    if args.append_dir: 
+
+    if args.append_dir and not TEST_FLAG:
         args.output_dir += 'nhl' + str(args.num_hidden_layers) + '_nte' \
 		+ str(args.num_train_epochs) + 'nbs' + str(args.train_batch_size) 
         os.makedirs(args.output_dir, exist_ok=True)    
