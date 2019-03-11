@@ -473,7 +473,7 @@ def main(**kwargs):
 
     if args.append_dir and not TEST_FLAG:
         args.output_dir += '/nhl' + str(args.num_hidden_layers) + '_nte' \
-		+ str(args.num_train_epochs) + 'nbs' + str(args.train_batch_size) 
+		+ str(args.num_train_epochs) + '_nbs' + str(args.train_batch_size) 
         os.makedirs(args.output_dir, exist_ok=True)    
         print(args.output_dir)
         time.sleep(4)

@@ -340,28 +340,29 @@ class OntoNotesDataset(Dataset):
         self.dev_df = None
         self.test_df = None
         self.df = None
-        self.train(training=training, type)
+        self.train(training=training, ty=type)
         self.label_list = processor.get_labels()
         self.label_map = processor.label_map
 
-    def train(self, training=True, type='train'):
+    def train(self, training=True, ty='train'):
         self.training = training
-        if type=='train':
+        if ty=='train':
             if self.train_df is None:
                 self.train_df = self.processor.get_train_examples(self.data_dir)
             self.df = self.train_df
-        elif type=='dev':
+        elif ty=='dev':
             if self.dev_df is None:
                 self.dev_df = self.processor.get_dev_examples(self.data_dir)
             self.df = self.dev_df
-	elif type=='test':
-	    if self.test_df is None:
-	        self.test_df = self.processor.get_dev_examples(self.data_dir)
-	    self.df = self.test_df
+        elif ty=='test': 
+            if self.test_df is None:
+                self.test_df = self.processor.get_test_examples(self.data_dir)
+            self.df = self.test_df
+        
         return self
 
-    #def dev(self):
-    #    return self.train(training=False)
+    def dev(self):
+        return self.train(training=False)
 
     def _tokenize(self):
         logging.info('Tokenizing...')
@@ -506,3 +507,4 @@ def randomly_mask_input(input_ids, tokenizer, mask_token_rate=0.15,
                             len(vocab)) * is_replace_random.long()
     label_ids = input_ids * is_mask.long() + (-1) * (1 - is_mask.long())
     return masked_input_ids, label_ids
+
