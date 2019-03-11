@@ -14,6 +14,7 @@ sys.path.append('..')
 import re
 import csv
 from src.tokenization import BasicTokenizer, FullTokenizer
+import numpy as np
 
 
 def parse_one(s): # store into lists
@@ -138,6 +139,7 @@ def parse_one2BERTformat(s, full_tokenizer, basic_tokenizer): # store into lists
     ner_types = []
     text = []  # store the source words, English words and numbers are separated by space
     lang_status_list = [] # store the language type: 'C' (Chinese); 'NE' (Number and English)
+    num_ner = 0
 
     for p in pos:
         if '(' in p:
@@ -165,6 +167,7 @@ def parse_one2BERTformat(s, full_tokenizer, basic_tokenizer): # store into lists
                     if ner_types != []:
                         ner_type = ner_types.pop()
                         bNER = True
+                        num_ner += 1
                     else:
                         bNER = False
 
@@ -231,7 +234,7 @@ def parse_one2BERTformat(s, full_tokenizer, basic_tokenizer): # store into lists
 
     text_seg = ' '.join(text)
 
-    return src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner
+    return src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner, num_ner
 
 def parse_one_2strs(s):
     #s = strQ2B(s) # no use
@@ -262,7 +265,7 @@ def parse_one_2dict(s):
     return {'seg': seg,  'ner': ner, 'full_pos': full_pos, 'text': text_str, 'text_seg': text_seg}
 
 def parse_one2BERT2Dict(s, full_tokenizer, basic_tokenizer):
-    src_seg, src_ner, full_pos, text, text_seg, bert_seg, bert_ner = parse_one2BERTformat(s, full_tokenizer, basic_tokenizer)
+    src_seg, src_ner, full_pos, text, text_seg, bert_seg, bert_ner, num_ner = parse_one2BERTformat(s, full_tokenizer, basic_tokenizer)
 
     src_seg = ','.join(src_seg) + ','
     src_ner = ','.join(src_ner) + ','
@@ -306,6 +309,74 @@ def genDataWithBERTSeg(in_file, out_dir, mode):
     df.to_csv(out_dir+mode+'.tsv', sep='\t', encoding='utf-8', index=False)
 
     print('Finish writing generated data!')
+
+def parse_Ner(s, NerSet): # store into lists
+    num_ner = 0
+    s = re.sub('\)', ') ', s)
+    s = re.sub(' +', ' ', s).strip()
+    pos = s.split(' ')
+    buffer = []
+    innermost = True
+    ner_types = []
+    text = []
+
+    for p in pos:
+        if '(' in p:
+            innermost = True
+            if 'NER' in p:
+                ner_types.append(re.sub('NER', '', p[1:]))
+                continue
+            else:
+                buffer.append(p)
+        elif ')' in p:
+            if buffer != []:
+                suffix = buffer.pop()[1:]
+                if innermost:
+                    assert len(p) > 1
+                    word = p[:-1]
+                    text.append(word)
+                    innermost = False
+                    p = p[-1]
+
+                    if ner_types != []:
+                        ner_type = ner_types.pop()
+                        ner_type = ner_type[1:]
+                        if ner_type not in NerSet:
+                            NerSet[ner_type] = 1
+                        else:
+                            NerSet[ner_type] += 1
+                        num_ner += 1
+    return num_ner
+
+def countNer(infile):
+    with open(in_file, 'r', encoding='utf8') as f:
+        raw_data = f.readlines()
+
+    NerSet = {}
+
+    num_ners = [parse_Ner(s, NerSet) for s in raw_data]
+    for v in NerSet:
+        print(v+':' + str(NerSet[v]))
+
+    count_ners = np.array(num_ners)
+
+    return np.sum(count_ners).item(), NerSet
+
+
+def gen_4ner_type():
+    #out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/'
+    out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/'
+    os.makedirs(out_dir, exist_ok=True)
+
+    in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/test.fuse.parse'
+    genDataWithBERTSeg(in_file, out_dir, 'test')
+
+    in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/train.fuse.parse'
+    genDataWithBERTSeg(in_file, out_dir, 'train')
+
+    in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/dev.fuse.parse'
+    genDataWithBERTSeg(in_file, out_dir, 'dev')
+
 
 if __name__ == '__main__':
     ''' 
@@ -351,7 +422,7 @@ if __name__ == '__main__':
     basic_tokenizer = BasicTokenizer(do_lower_case=True)
 
     s = '(NP (CP (IP (NP (DNP (NER-GPE (NR Taiwan)) (DEG 的)) (NER-ORG (NR 公视))) (VP (NT 今天) (VV 主办))) (DEC 的)) (NP-m (NP (NR 台北) (NN 市长)) (NP-m (NP (NN candidate) (NN defence)) (PU ，))))'
-    src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner = parse_one2BERTformat(s, full_tokenizer, basic_tokenizer)
+    src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner, _ = parse_one2BERTformat(s, full_tokenizer, basic_tokenizer)
     print(s)
     print(src_seg)
     print(src_ner)
@@ -375,15 +446,20 @@ if __name__ == '__main__':
         out_dir = '../tmp/ontonotes/'
         in_file = '../tmp/ontonotes/data_ori.txt'
         genDataWithBERTSeg(in_file, out_dir, 'data_proc')
-    else:
-        out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/'
-        os.makedirs(out_dir, exist_ok=True)
 
+        print('test:')
         in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/test.fuse.parse'
-        genDataWithBERTSeg(in_file, out_dir, 'test')
+        num_ner, NerSet = countNer(in_file)
+        print('test:' + str(num_ner))
 
+        print('train:')
         in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/train.fuse.parse'
-        genDataWithBERTSeg(in_file, out_dir, 'train')
+        num_ner, NerSet = countNer(in_file)
+        print('train:' + str(num_ner))
 
+        print('dev:')
         in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/dev.fuse.parse'
-        genDataWithBERTSeg(in_file, out_dir, 'dev')
+        num_ner, NerSet = countNer(in_file)
+        print('dev:' + str(num_ner))
+    else:
+        gen_4ner_type()
