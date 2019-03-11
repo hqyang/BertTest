@@ -450,21 +450,23 @@ TEST_FLAG = False
 def main(**kwargs):
     if TEST_FLAG:
         kwargs = set_test_param()
-    else:
-        kwargs = set_server_param()
+    #else:
+        #kwargs = set_server_param()
     #kwargs = set_eval_param()
     args._parse(kwargs)
 
     processors = {
         "ontonotes_cws": lambda: CWS_BMEO(nopunc=args.nopunc),
     }
-
-    os.makedirs(args.output_dir, exist_ok=True)
+    
+    #os.makedirs(args.output_dir, exist_ok=True)
 
     if args.append_dir and not TEST_FLAG:
-        args.output_dir += 'nhl' + str(args.num_hidden_layers) + '_nte' \
+        args.output_dir += '/nhl' + str(args.num_hidden_layers) + '_nte' \
 		+ str(args.num_train_epochs) + 'nbs' + str(args.train_batch_size) 
         os.makedirs(args.output_dir, exist_ok=True)    
+        print(args.output_dir)
+        time.sleep(4)
 
     task_name = args.task_name.lower()
     if task_name not in processors:
