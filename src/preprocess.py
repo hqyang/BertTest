@@ -329,7 +329,7 @@ class MeituTagDataset(Dataset):
 
 
 class OntoNotesDataset(Dataset):
-    def __init__(self, processor, data_dir, vocab_file, max_length, training=True):
+    def __init__(self, processor, data_dir, vocab_file, max_length, training=True, type='train'):
         self.tokenizer = FullTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
         self.max_length = max_length
@@ -338,25 +338,30 @@ class OntoNotesDataset(Dataset):
         self.training = training
         self.train_df = None
         self.dev_df = None
+        self.test_df = None
         self.df = None
-        self.train(training=training)
+        self.train(training=training, type)
         self.label_list = processor.get_labels()
         self.label_map = processor.label_map
 
-    def train(self, training=True):
+    def train(self, training=True, type='train'):
         self.training = training
-        if training:
+        if type=='train':
             if self.train_df is None:
                 self.train_df = self.processor.get_train_examples(self.data_dir)
             self.df = self.train_df
-        else:
+        elif type=='dev':
             if self.dev_df is None:
                 self.dev_df = self.processor.get_dev_examples(self.data_dir)
             self.df = self.dev_df
+	elif type=='test':
+	    if self.test_df is None:
+	        self.test_df = self.processor.get_dev_examples(self.data_dir)
+	    self.df = self.test_df
         return self
 
-    def dev(self):
-        return self.train(training=False)
+    #def dev(self):
+    #    return self.train(training=False)
 
     def _tokenize(self):
         logging.info('Tokenizing...')

@@ -2,7 +2,7 @@
 
 for nhl in 3 6
 do
-    for nte in 1 5 10 15
+    for nte in 15
     do
         for tbs in 64 128
         do 
@@ -15,7 +15,7 @@ do
              --vocab_file ../models/bert-base-chinese/vocab.txt \
              --output_dir ./tmp/ontonotes \
              --do_train False \
-             --init_checkpoint ./tmp_2019_2_22/ontonotes/ \
+             --init_checkpoint ./tmp_2019_3_11/ontonotes/ \
              --do_eval True \
              --do_lower_case True \
              --train_batch_size $tbs \

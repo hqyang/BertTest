@@ -27,7 +27,7 @@ def getFscore(goldTagList, resTagList, idx_to_chunk_tag):
 
     goldChunkList = getChunks(goldTagList)
     resChunkList = getChunks(resTagList)
-    pdb.set_trace()
+    #pdb.set_trace()
     gold_chunk = 0
     res_chunk = 0
     correct_chunk = 0
