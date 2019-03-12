@@ -1,4 +1,4 @@
-#!/anaconda3/envs/haiqin370/bin/ python3
+#!/anaconda3/envs/haiqin370/bin/python3
 # -*- coding: utf-8 -*-
 """
 Created on at 2:17 PM 23/1/2019 
@@ -17,6 +17,8 @@ import logging
 import random
 from collections import OrderedDict
 from tqdm import tqdm, trange
+#import sys
+#sys.path.append('..')
 from src.metrics import outputFscoreUsedBIO
 
 import numpy as np
@@ -66,48 +68,42 @@ def set_server_param():
             'data_dir': '../data/ontonotes5/',
             'bert_model_dir': '../models/bert-base-chinese/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
-            'output_dir': './tmp/ontonotes/',
+            'output_dir': './tmp/ontonotes',
             'do_train': True,
             'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
             'do_eval': True,
             'do_lower_case': True,
             'train_batch_size': 128,
-            'append_dir': True, 
             'override_output': True,
             'tensorboardWriter': False,
-            'visible_device': (0,1,2),
+            'visible_device': (0),
             #'visible_device': 0,
             'num_train_epochs': 1,
             'max_seq_length': 128,
-	    'num_hidden_layers': 3
+	        'num_hidden_layers': 3
             }
 
-def set_test_param():
-    return {'task_name': 'ontonotes_CWS',
-            'model_type': 'sequencelabeling',
-            'data_dir': './tmp/ontonotes/final_data',
-            'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
-            'output_dir': './tmp/ontonotes',
-            'do_train': True,
-            'do_eval': True,
-            'do_lower_case': True,
-            'train_batch_size': 2,
-            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/pytorch_model.bin',
-            'override_output': True,
-            'tensorboardWriter': False
-            }
 
 def get_dataset_and_dataloader(processor, args, training=True, type='train'):
+    #if type=='train': # loading data for training
+    #    training=True
+    #else:
+    #    training=False
+ 
+    #    if type=='train_with_eval': #eval on training data, other type is 'dev', 'test'
+    #        type='train'
+    
+    # training for training mode or test mode
+    # type: which dataset 
     dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
-                                 args.max_seq_length, training=training, type=type)
+                                 args.max_seq_length, training, type=type)
+
     dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
                                        args.local_rank, training=training)
     return dataset, dataloader
 
 
 def load_model(label_list, tokenizer, args):
-    #pdb.set_trace()
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
             args.visible_device = str(args.visible_device)
@@ -210,20 +206,9 @@ def load_model(label_list, tokenizer, args):
             if len(unexpected_keys) > 0:
                 logger.info("Weights from pretrained model not used in {}: {}".format(
                     model.__class__.__name__, unexpected_keys))
-            '''
-            weights = torch.load(args.init_checkpoint, map_location='cpu')
-            try:
-                model.bert.load_state_dict(weights, strict=True)
-            except RuntimeError:
-                logger.info("Try loading self-pretrained weights(strict=True) instead of the google's one")
-                weights = OrderedDict({k:v for k,v in weights.items()})
-                try:
-                    model.load_state_dict(weights, strict=True)
-                except RuntimeError:
-                    logger.info('Load self-pretrained weights(strict=True) failed...')
-                    logger.info('Loading self-pretrained weights(strict=False)')
-                    model.load_state_dict(weights, strict=False)
-            '''
+  
+            #pdb.set_trace()
+ 
     if args.fp16:
         model.half()
     if args.modification:
@@ -258,11 +243,9 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 label_ids = label_ids.to(device)
             else:
                 label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
-            #pdb.set_trace()
             #loss, decode_rs = model(input_ids, segment_ids, input_mask, label_ids)
             loss = model(input_ids, segment_ids, input_mask, label_ids)
             #s1 = outputFscoreUsedBIO(list(label_ids.data.numpy()), decode_rs, list(input_mask.data.numpy()))
-            #pdb.set_trace()
            
             n_gpu = torch.cuda.device_count()
             if n_gpu > 1: # or loss.shape[0] > 1:
@@ -318,25 +301,28 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         # logger.info(tr_loss/step)
         tr_loss = tr_loss / step
         if (args.do_eval) and (not args.pretraining):
-            do_eval(model, eval_dataloader, device, args, tr_times, 'train')
+            #do_eval(model, train_dataloader, device, args, tr_times, type='train')
+            do_eval(model, eval_dataloader, device, args, tr_times, type='train')
+    
+    if args.tensorboardWriter:
+        len_loss_all = len(loss_all)
+        labels = ["%d" % (i) for i in range(len_loss_all)]
 
-        if args.tensorboardWriter:
-            len_loss_all = len(loss_all)
-            labels = ["%d" % (i) for i in range(len_loss_all)]
-
-            with SummaryWriter() as writer:
-                for i in range():
-                    writer.add_embedding(
-                        mat=loss_all[i],
-                        metadata = labels,
-                        tag = "train_loss",
-                        global_step=i)
+        with SummaryWriter() as writer:
+            for i in range():
+                writer.add_embedding(
+                    mat=loss_all[i],
+                    metadata = labels,
+                    tag = "train_loss",
+                    global_step=i)
 
 def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
     model.eval()
     all_label_ids = []
     all_losses = []
+   
     results = []
+
     label_list = eval_dataloader.dataset.label_list
     st = time.time()
     for batch in tqdm(eval_dataloader, desc="TestIter"):
@@ -346,7 +332,6 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
         with torch.no_grad():
             n_gpu = torch.cuda.device_count()
             
-            #pdb.set_trace()
             if n_gpu > 1: # multiple gpus 
             	# model.module.decode to replace original model() since forward cannot output multiple outputs in multiple gpus
                 tmp_eval_loss, tmp_decode_rs = model.module.decode(input_ids, segment_ids, input_mask, label_ids)
@@ -362,41 +347,50 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
                 mask_array = input_mask.data.cpu()
             score, sInfo = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
 
-            logger.info('Test F1: {:+.2f}, P: {:+.2f}, R: {:+.2f}, Acc: {:+.2f}, Tags: {:d}'.format(score[0], \
-                                                                       score[1], score[2], score[3], sInfo[-1]))
-
+            logger.info(type+' F1: {:+.3f}, P: {:+.3f}, R: {:+.3f}, Acc: {:+.3f}, Tags: {:+d}'.format(score[0], score[1], score[2], score[3], sInfo[-1]))
+            #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
         if args.no_cuda:
             tmp_el = tmp_eval_loss
-        else:
+        else: 
             tmp_el = tmp_eval_loss.cpu() 
-
-        score.extend([sInfo[-1]])
+  
+        score.extend([sInfo[-1]]) 
         result = [tmp_el.numpy().tolist()]
         result.extend(score)
-        results.append(result)
+        results.append(result) # loss, F1, P, R
 
     model.train()
     eval_time = (time.time() - st) / 60
     logger.info('Eval time: %.2fmin' % eval_time)
-    output_eval_file = os.path.join(args.output_dir, type+"_eval_results.txt")
- 
+    output_eval_file = os.path.join(args.output_dir, type+'_eval_rs.txt')
+    print(output_eval_file)
+   
     if times!=[]:
-        np_times = np.array(times)
-        avg_times = np.mean(np_times)
-
+       np_times = np.array(times)
+       avg_times = np.mean(np_times)     
+  
     np_res = np.array(results)
     avg_res = np.mean(np_res, axis=0)
-    #pdb.set_trace()
 
     with open(output_eval_file, "a+") as writer:
         logger.info("***** Eval results *****")
+        
         if times!=[]:
             logger.info("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
             writer.write("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}\n".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
-        else:
+        else:         
             logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
-            writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))        
+            writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
          
+    '''
+    for result in results:
+        with open(output_eval_file, "a+") as writer:
+            logger.info("***** Eval results *****")
+            for key in sorted(result.keys()):
+                logger.info("  %s = %s", key, str(result[key]))
+                writer.write("%s = %s\n" % (key, str(result[key])))
+            writer.write("\n")
+    '''
     return results
 
 def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step, multilabel=False):
@@ -431,6 +425,21 @@ def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step
         results.append(result)
     return results
 
+def set_test_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data',
+            'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'output_dir': '/Users/haiqinyang/Downloads/tmp/ontonotes',
+            'do_train': True,
+            'do_eval': True,
+            'do_lower_case': True,
+            'train_batch_size': 32,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/pytorch_model.bin',
+            'override_output': True,
+            'tensorboardWriter': True
+            }
 
 def set_eval_param():
     return {'task_name': 'ontonotes_CWS',
@@ -453,29 +462,58 @@ def set_eval_param():
 	        'num_hidden_layers': 3
             }
 
-TEST_FLAG = False
+def set_server_eval_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '../data/ontonotes5/',
+            'bert_model_dir': '../models/bert-base-chinese/',
+            'vocab_file': '../models/bert-base-chinese/vocab.txt',
+            'output_dir': './tmp/ontonotes',
+            'do_train': False,
+            'init_checkpoint': './tmp/ontonotes/',
+            'do_eval': True,
+            'do_eval_train': True,
+            'do_lower_case': True,
+            'train_batch_size': 64,
+            'override_output': False,
+            'tensorboardWriter': False,
+            'visible_device': 0, # device 0
+            'num_train_epochs': 15,
+            'max_seq_length': 128,
+	    'num_hidden_layers': 3
+            }
 
 def main(**kwargs):
-    if TEST_FLAG:
-        kwargs = set_test_param()
-    #else:
-        #kwargs = set_server_param()
+    #kwargs = set_test_param()
+
     #kwargs = set_eval_param()
     args._parse(kwargs)
-
+    
     processors = {
         "ontonotes_cws": lambda: CWS_BMEO(nopunc=args.nopunc),
     }
-    
-    #os.makedirs(args.output_dir, exist_ok=True)
 
-    if args.append_dir and not TEST_FLAG:
-        args.output_dir += '/nhl' + str(args.num_hidden_layers) + '_nte' \
-		+ str(args.num_train_epochs) + '_nbs' + str(args.train_batch_size) 
-        os.makedirs(args.output_dir, exist_ok=True)    
+    #pdb.set_trace()
+    if args.do_train:
+        args.output_dir = args.output_dir + '/nhl' \
+                +str(args.num_hidden_layers)+'_nte'+str(args.num_train_epochs) \
+                +'_nbs'+str(args.train_batch_size) 
         print(args.output_dir)
-        time.sleep(4)
+    
+    if args.do_eval:
+        args.init_checkpoint = args.init_checkpoint + '/nhl' \
+                +str(args.num_hidden_layers)+'_nte'+str(args.num_train_epochs) \
+                +'_nbs'+str(args.train_batch_size) 
+        args.output_dir = args.init_checkpoint + '/out'
 
+        print('init_checkpoint:')
+        print(args.init_checkpoint)
+        print(args.output_dir)
+    
+    if not args.do_train: 
+        os.makedirs(args.output_dir, exist_ok=True)
+    #pdb.set_trace() 
+	
     task_name = args.task_name.lower()
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
@@ -510,7 +548,8 @@ def main(**kwargs):
     train_dataset = None
     num_train_steps = None
     if args.do_train:
-        train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
+        train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, True, type='train') # type can be 'train', 'dev', 'test'
+        #train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, True, type='dev') # type can be 'train', 'dev', 'test'
         train_dataset._tokenize()
         num_train_steps = int(
             len(train_dataset) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs)
@@ -518,15 +557,25 @@ def main(**kwargs):
                              lr=args.learning_rate,
                              warmup=args.warmup_proportion,
                              t_total=num_train_steps)
+        
+        #pdb.set_trace()
         eval_dataloader = None
         if args.do_eval:
-            eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type='train')
+            #eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type='dev') # train and eval on training set
+            #if args.train_batch_size==128:
+            #    eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type='dev') # train and eval on training set
+            #else:
+            eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type='train') # train and eval on training set
             eval_dataset._tokenize()
+     
+            #pdb.set_trace()
         do_train(model, train_dataloader, optimizer, param_optimizer,
                  device, args, eval_dataloader=eval_dataloader)
 
+    #pdb.set_trace()
     if (args.do_eval) and not (args.do_train):
-        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type='test')
+        print('Start evaluating...')
+        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type='test') # eval on test data
         global_step = 0
         eval_fc = do_eval_pretraining if args.pretraining else do_eval
         if args.init_checkpoint is None:
@@ -539,10 +588,14 @@ def main(**kwargs):
                     model.load_state_dict(weights)
                 except RuntimeError:
                     model.module.load_state_dict(weights)
-                eval_fc(model, eval_dataloader, device, 0., global_step, args)
+                eval_fc(model, eval_dataloader, device, args)
 
-                type = 'train'
-                eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type)
+                type='train'
+                eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type) # eval on training data
+                eval_fc(model, eval_dataloader, device, args, [], type)
+
+                type='dev'
+                eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type) # eval on training data
                 eval_fc(model, eval_dataloader, device, args, [], type)
         else:
             eval_fc(model, eval_dataloader, device, args, 'test')
