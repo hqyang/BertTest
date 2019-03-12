@@ -181,7 +181,7 @@ def test_CWS():
 
 
 if __name__=='__main__':
-    test_ontonotes()
+    #test_ontonotes()
     test_CWS()
     #do_eval_with_file('tmp/cws/tmp.txt', 'tmp', '', 'BIO')
     #test_CWS()

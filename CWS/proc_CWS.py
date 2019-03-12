@@ -54,7 +54,8 @@ def preprocess2dict(sent, tagType, full_tokenizer, basic_tokenizer):
     bert_seg = ' '.join(''.join(bert_seg_list))
     src_seg = ','.join(''.join(src_seg_list)) + ','
 
-    return {'bert_seg': bert_seg, 'src_seg': src_seg, 'text': text, 'text_seg': text_seg}
+    return {'bert_seg': bert_seg, 'src_seg': src_seg, 'text': text, 'text_seg': text_seg, \
+            'full_pos': '', 'bert_ner': '', 'src_ner': ''} # full_pos, bert_ner, src_ner are redundant columns for consistence of Ontonotes datasets
 
 
 def len_to_bio(length):
@@ -191,12 +192,12 @@ def batch_remove_u3000():
         remove_u3000(infile, outfile)
 
 def batch_gendata():
-    #infile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
-    infile_dir = '../../data/CWS/'
+    infile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
+    #infile_dir = '../../data/CWS/'
     types = ['as', 'cityu', 'msr', 'pku']
 
     tagType = 'BIO'
-    tagType = 'BMES'
+    #tagType = 'BMES'
     outfile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
 
     #outfile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
