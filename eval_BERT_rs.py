@@ -17,6 +17,8 @@ import logging
 import random
 from collections import OrderedDict
 from tqdm import tqdm, trange
+#import sys
+#sys.path.append('..')
 from src.metrics import outputFscoreUsedBIO
 
 import numpy as np
@@ -343,22 +345,18 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
             else:
                 label_array = label_ids.data.cpu()
                 mask_array = input_mask.data.cpu()
-            score, _ = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
+            score, sInfo = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
 
-            logger.info(type+' F1, Precision, Recall: {:+.2f}, {:+.2f}, {:+.2f}'.format(score[0], score[1], score[2]))
+            logger.info(type+' F1: {:+.3f}, P: {:+.3f}, R: {:+.3f}, Acc: {:+.3f}, Tags: {:+d}'.format(score[0], score[1], score[2], score[3], sInfo[-1]))
             #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
         if args.no_cuda:
             tmp_el = tmp_eval_loss
         else: 
             tmp_el = tmp_eval_loss.cpu() 
-   
+  
+        score.extend([sInfo[-1]]) 
         result = [tmp_el.numpy().tolist()]
         result.extend(score)
-
-    #    all_label_ids.append(label_ids)
-    #    all_losses.append(tmp_eval_loss)
-    #results = eval_by_metrics(all_label_ids, all_losses, all_logits, label_list,
-    #                          tr_loss, global_step, args.multilabel)
         results.append(result) # loss, F1, P, R
 
     model.train()
@@ -378,11 +376,11 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
         logger.info("***** Eval results *****")
         
         if times!=[]:
-            logger.info("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3]))
-            writer.write("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}\n".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3]))
+            logger.info("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
+            writer.write("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}\n".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
         else:         
-            logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3]))
-            writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3]))
+            logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
+            writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
          
     '''
     for result in results:
@@ -508,6 +506,7 @@ def main(**kwargs):
                 +'_nbs'+str(args.train_batch_size) 
         args.output_dir = args.init_checkpoint + '/out'
 
+        print('init_checkpoint:')
         print(args.init_checkpoint)
         print(args.output_dir)
     
@@ -575,6 +574,7 @@ def main(**kwargs):
 
     #pdb.set_trace()
     if (args.do_eval) and not (args.do_train):
+        print('Start evaluating...')
         eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type='test') # eval on test data
         global_step = 0
         eval_fc = do_eval_pretraining if args.pretraining else do_eval

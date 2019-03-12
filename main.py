@@ -98,9 +98,9 @@ def set_test_param():
             'tensorboardWriter': False
             }
 
-def get_dataset_and_dataloader(processor, args, training=True):
+def get_dataset_and_dataloader(processor, args, training=True, type='train'):
     dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
-                                 args.max_seq_length, training=training)
+                                 args.max_seq_length, training=training, type=type)
     dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
                                        args.local_rank, training=training)
     return dataset, dataloader
@@ -318,7 +318,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         # logger.info(tr_loss/step)
         tr_loss = tr_loss / step
         if (args.do_eval) and (not args.pretraining):
-            do_eval(model, eval_dataloader, device, tr_loss, global_step, args)
+            do_eval(model, eval_dataloader, device, args, tr_times, 'train')
 
         if args.tensorboardWriter:
             len_loss_all = len(loss_all)
@@ -332,13 +332,13 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                         tag = "train_loss",
                         global_step=i)
 
-def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='test'):
-    st = time.time()
+def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
     model.eval()
     all_label_ids = []
     all_losses = []
     results = []
     label_list = eval_dataloader.dataset.label_list
+    st = time.time()
     for batch in tqdm(eval_dataloader, desc="TestIter"):
         batch = tuple(t.to(device) for t in batch)
         input_ids, segment_ids, input_mask = batch[:3]
@@ -365,29 +365,37 @@ def do_eval(model, eval_dataloader, device, tr_loss, global_step, args, type='te
             logger.info('Test F1: {:+.2f}, P: {:+.2f}, R: {:+.2f}, Acc: {:+.2f}, Tags: {:d}'.format(score[0], \
                                                                        score[1], score[2], score[3], sInfo[-1]))
 
-            result = [tmp_eval_loss]
-            score.append(sInfo[-1])
-            result.extend(score)
-    #    all_label_ids.append(label_ids)
-    #    all_losses.append(tmp_eval_loss)
-    #results = eval_by_metrics(all_label_ids, all_losses, all_logits, label_list,
-    #                          tr_loss, global_step, args.multilabel)
-    results.append(result) # loss, F1, P, R
+        if args.no_cuda:
+            tmp_el = tmp_eval_loss
+        else:
+            tmp_el = tmp_eval_loss.cpu() 
+
+        score.extend([sInfo[-1]])
+        result = [tmp_el.numpy().tolist()]
+        result.extend(score)
+        results.append(result)
 
     model.train()
     eval_time = (time.time() - st) / 60
     logger.info('Eval time: %.2fmin' % eval_time)
     output_eval_file = os.path.join(args.output_dir, type+"_eval_results.txt")
+ 
+    if times!=[]:
+        np_times = np.array(times)
+        avg_times = np.mean(np_times)
 
     np_res = np.array(results)
     avg_res = np.mean(np_res, axis=0)
+    #pdb.set_trace()
 
     with open(output_eval_file, "a+") as writer:
         logger.info("***** Eval results *****")
-        logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_res[0], \
-                                                               avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
-        writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:3f}, Tags: {:.2f}\n".format(avg_res[0], \
-                                                             avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
+        if times!=[]:
+            logger.info("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
+            writer.write("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}\n".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
+        else:
+            logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
+            writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))        
          
     return results
 
@@ -450,21 +458,23 @@ TEST_FLAG = False
 def main(**kwargs):
     if TEST_FLAG:
         kwargs = set_test_param()
-    else:
-        kwargs = set_server_param()
+    #else:
+        #kwargs = set_server_param()
     #kwargs = set_eval_param()
     args._parse(kwargs)
 
     processors = {
         "ontonotes_cws": lambda: CWS_BMEO(nopunc=args.nopunc),
     }
-
-    os.makedirs(args.output_dir, exist_ok=True)
+    
+    #os.makedirs(args.output_dir, exist_ok=True)
 
     if args.append_dir and not TEST_FLAG:
-        args.output_dir += 'nhl' + str(args.num_hidden_layers) + '_nte' \
-		+ str(args.num_train_epochs) + 'nbs' + str(args.train_batch_size) 
+        args.output_dir += '/nhl' + str(args.num_hidden_layers) + '_nte' \
+		+ str(args.num_train_epochs) + '_nbs' + str(args.train_batch_size) 
         os.makedirs(args.output_dir, exist_ok=True)    
+        print(args.output_dir)
+        time.sleep(4)
 
     task_name = args.task_name.lower()
     if task_name not in processors:
@@ -500,7 +510,7 @@ def main(**kwargs):
     train_dataset = None
     num_train_steps = None
     if args.do_train:
-        train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True)
+        train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
         train_dataset._tokenize()
         num_train_steps = int(
             len(train_dataset) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs)
@@ -510,13 +520,13 @@ def main(**kwargs):
                              t_total=num_train_steps)
         eval_dataloader = None
         if args.do_eval:
-            eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False)
+            eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type='train')
             eval_dataset._tokenize()
         do_train(model, train_dataloader, optimizer, param_optimizer,
                  device, args, eval_dataloader=eval_dataloader)
 
     if (args.do_eval) and not (args.do_train):
-        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False)
+        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type='test')
         global_step = 0
         eval_fc = do_eval_pretraining if args.pretraining else do_eval
         if args.init_checkpoint is None:
@@ -531,11 +541,11 @@ def main(**kwargs):
                     model.module.load_state_dict(weights)
                 eval_fc(model, eval_dataloader, device, 0., global_step, args)
 
-                if args.do_eval_train:
-                    eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args)
-                    eval_fc(model, eval_dataloader, device, 0., global_step, args)
+                type = 'train'
+                eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type)
+                eval_fc(model, eval_dataloader, device, args, [], type)
         else:
-            eval_fc(model, eval_dataloader, device, 0., global_step, args)
+            eval_fc(model, eval_dataloader, device, args, 'test')
 
 if __name__ == "__main__":
     import fire

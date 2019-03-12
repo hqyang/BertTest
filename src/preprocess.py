@@ -329,7 +329,7 @@ class MeituTagDataset(Dataset):
 
 
 class OntoNotesDataset(Dataset):
-    def __init__(self, processor, data_dir, vocab_file, max_length, training=True):
+    def __init__(self, processor, data_dir, vocab_file, max_length, training=True, type='train'):
         self.tokenizer = FullTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
         self.max_length = max_length
@@ -338,21 +338,27 @@ class OntoNotesDataset(Dataset):
         self.training = training
         self.train_df = None
         self.dev_df = None
+        self.test_df = None
         self.df = None
-        self.train(training=training)
+        self.train(training=training, ty=type)
         self.label_list = processor.get_labels()
         self.label_map = processor.label_map
 
-    def train(self, training=True):
+    def train(self, training=True, ty='train'):
         self.training = training
-        if training:
+        if ty=='train':
             if self.train_df is None:
                 self.train_df = self.processor.get_train_examples(self.data_dir)
             self.df = self.train_df
-        else:
+        elif ty=='dev':
             if self.dev_df is None:
                 self.dev_df = self.processor.get_dev_examples(self.data_dir)
             self.df = self.dev_df
+        elif ty=='test': 
+            if self.test_df is None:
+                self.test_df = self.processor.get_test_examples(self.data_dir)
+            self.df = self.test_df
+        
         return self
 
     def dev(self):
@@ -501,3 +507,4 @@ def randomly_mask_input(input_ids, tokenizer, mask_token_rate=0.15,
                             len(vocab)) * is_replace_random.long()
     label_ids = input_ids * is_mask.long() + (-1) * (1 - is_mask.long())
     return masked_input_ids, label_ids
+
