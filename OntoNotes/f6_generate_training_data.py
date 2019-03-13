@@ -421,6 +421,10 @@ if __name__ == '__main__':
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
     basic_tokenizer = BasicTokenizer(do_lower_case=True)
 
+    s = '(NP (CP (IP (NP (DNP (NER-GPE (NR #students)) (DEG 的)) (NER-ORG (NR 公视))) (VP (NT 今天) (VV 主办))) (DEC 的)) (NP-m (NP (NR 台北) (NN 市长)) (NP-m (NP (NN candidate) (NN defence)) (PU ，))))'
+    src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner, _ = parse_one2BERTformat(s, full_tokenizer, basic_tokenizer)
+
+
     s = '(NP (CP (IP (NP (DNP (NER-GPE (NR Taiwan)) (DEG 的)) (NER-ORG (NR 公视))) (VP (NT 今天) (VV 主办))) (DEC 的)) (NP-m (NP (NR 台北) (NN 市长)) (NP-m (NP (NN candidate) (NN defence)) (PU ，))))'
     src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner, _ = parse_one2BERTformat(s, full_tokenizer, basic_tokenizer)
     print(s)

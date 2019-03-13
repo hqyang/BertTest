@@ -3,6 +3,7 @@ import torch.nn as nn
 import math
 from src.BERT.modeling import PreTrainedBertModel, BertModel
 from src.TorchCRF import CRF
+from src.preprocess import tokenize_text
 
 class BertSelfAttention(nn.Module):
     def __init__(self, config):
@@ -246,7 +247,7 @@ class BertCRF(PreTrainedBertModel):
 
     num_tags = 3
 
-    model = Bert_CRF(config, num_tags)
+    model = BertCRF(config, num_tags)
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
@@ -286,5 +287,99 @@ class BertCRF(PreTrainedBertModel):
             decode_rs = self.classifier.decode(bert_feats, mask)
             
             return loss, decode_rs
+        else:
+            return None, decode_rs
+
+class BertCRFCWS(PreTrainedBertModel):
+    """BERT model with CRF for Chinese Word Segmentation.
+    This module is composed of the BERT model with a linear layer on top of
+    the pooled output via Conditional Random Field.
+
+    Params:
+        `config`: a BertConfig class instance with the configuration to build a new model.
+        `num_labels`: the number of classes for the classifier. Default = 2.
+
+    Inputs:
+
+    Outputs:
+        if `labels` is not `None`:
+            Outputs the CrossEntropy classification loss of the output with the labels.
+        if `labels` is `None`:
+            Outputs the classification logits of shape [batch_size, num_labels].
+
+    Example usage:
+    ```python
+
+    config = BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
+        num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
+
+    num_tags = 3
+
+    model = BertCRFCWS(config, num_tags)
+    logits = model(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, config, num_tags=4, vocab_file, max_length):
+        super(BertCRFCWS, self).__init__(config)
+        self.tokenizer = FullTokenizer(
+                vocab_file=vocab_file, do_lower_case=True)
+        self.num_tags = num_tags
+        self.bert = BertModel(config)
+        self.max_length = max_length
+        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
+
+        # Maps the output of BERT into tag space.
+        self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
+        self.classifier = CRF(num_tags, batch_first=True)
+
+    def cut(self, ln):
+        """
+        # Example usage:
+            text = '''
+            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
+            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
+            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
+            # of students is 256.
+            '''
+
+            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = model.cut(text)
+        """
+        l = ln.rstrip('\r\n')
+
+        wls = ''
+        decode_output = ''
+        while len(l) > 0:
+            if len(l) > self.max_length-2:
+                pl = l[:self.max_length-2]
+                l = l[self.max_length-2:]
+            else:
+                pl = l
+
+            wls += self.tokenizer.tokenize(pl)
+            input_ids, segment_ids, input_mask = tokenize_text(pl, self.max_length, self.tokenizer)
+            sequence_output, _ = self.bert(input_ids, attention_mask, output_all_encoded_layers=False)
+            sequence_output = self.dropout(sequence_output)
+            bert_feats = self.hidden2tag(sequence_output)
+            decode_rs = self.classifier.decode(bert_feats, mask)
+            decode_output += ''.join(decode_rs)
+
+
+        # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
+        #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+
+        # replace the [START] and [END] tokens
+        decode_output = decode_output.replace('4', '')
+        decode_output = decode_output.replace('5', '')
+
+        result_str = ''
+        for text, tag in zip(wls, decode_output):
+            text = text.replace('##', '')
+            if int(tag) > 1: # tokens of 'E' and 'S'
+                result_str += text + ' '
+            else:
+                result_str += text
+        return result_str.strip().split()
+
 
 

@@ -235,10 +235,8 @@ class MeituTagProcessor:
 
 class CWS_BMEO(MeituProcessor):
     def __init__(self, nopunc=False):
-        #self.label_list = None
-        #self.label_map = None
         self.nopunc = nopunc
-        self.label_list = ['B', 'M', 'E', 'O', '[START]', '[END]']
+        self.label_list = ['B', 'M', 'E', 'S', '[START]', '[END]']
         self.label_map = {'B': 0, 'M': 1, 'E': 2, 'S': 3, '[START]': 4, '[END]': 5}
         self.idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
 
@@ -399,6 +397,25 @@ class OntoNotesDataset(Dataset):
     def __len__(self):
         return self.df.shape[0]
 
+
+def tokenize_text(text, max_length, tokenizer):
+    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
+    # words = list(filter(lambda x: x!=' ', words))
+    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
+    words = tokenizer.tokenize(text)
+    if len(words) > max_length - 2:
+        words = words[:max_length - 2]
+    words = ['[CLS]'] + words + ['[SEP]']
+    # vocab = tokenizer.vocab
+    # tokens = [vocab[_] if _ in vocab.keys() else vocab['[UNK]'] for _ in words]
+    # tokens = [vocab['[CLS]']] + tokens + [vocab['[SEP]']]
+    tokens = tokenizer.convert_tokens_to_ids(words)
+    if len(tokens) < max_length:
+        tokens.extend([0] * (max_length - len(tokens)))
+    tokens = np.array(tokens)
+    mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
+    segment = np.array([0] * max_length)
+    return [tokens, segment, mask]
 
 def tokenize_text(text, max_length, tokenizer):
     # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
