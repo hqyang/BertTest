@@ -357,6 +357,7 @@ def set_server_eval_param():
             'num_hidden_layers': 3,
             'init_checkpoint': '../models/bert-base-chinese/',
             'bert_model': './tmp_2019_3_12/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
+            'no_cuda': True,
             'override_output': True,
             'tensorboardWriter': False
             }
