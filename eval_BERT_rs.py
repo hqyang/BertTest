@@ -55,7 +55,6 @@ from src.tokenization import FullTokenizer
 
 CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
-WEIGHTS_NAME = 'pytorch_model.bin'
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
                     datefmt = '%m/%d/%Y %H:%M:%S',

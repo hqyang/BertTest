@@ -9,11 +9,28 @@ Feature:
 Scenario: 
 """
 import os
-import jieba
+
 from src.pkuseg.metrics import getFscoreFromBIOTagList
 from tqdm import tqdm
 from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma
 import pandas as pd
+from src.config import args
+from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset,
+
+import numpy as np
+import torch
+
+from src.BERT.modeling import BertConfig
+from src.customize_modeling import BertCRFCWS
+
+import logging
+logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                    datefmt = '%m/%d/%Y %H:%M:%S',
+                    level = logging.INFO)
+logger = logging.getLogger(__name__)
+
+CONFIG_NAME = 'bert_config.json'
+WEIGHTS_NAME = 'pytorch_model.bin'
 
 def do_eval_with_model(model, data_dir, type, output_dir):
     df = get_Ontonotes(data_dir, type)
@@ -38,7 +55,7 @@ def do_eval_with_model(model, data_dir, type, output_dir):
         bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
-        str_BIO = convertList2BIOwithComma(bertCRF_rs)
+        str_BIO = convertList2BIOwithComma(rs_precision)
         bertCRFList.append(str_BIO)
 
         tl = BMES2BIO(data.label)
@@ -77,7 +94,8 @@ def do_eval_with_model(model, data_dir, type, output_dir):
     return score
 
 
-def do_eval_with_file(infile, output_dir, otag, tagMode):
+def do_eval_with_file_model(model, infile, output_dir, otag, tagMode):
+    # model: BertCRF model
     # infile: input file in tsv format
     # output_dir: the directory to store evaluation file
     # otag: to denote what type of file should be stored
@@ -109,13 +127,13 @@ def do_eval_with_file(infile, output_dir, otag, tagMode):
             tl = BMES2BIO(data.src_seg)
             tl = space2Comma(tl)
 
-        rs_precision = jieba.lcut(sentence, cut_all=False)
-        jieba_rs = ' '.join(rs_precision)
+        rs_precision = model.cut(sentence)
+        bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
         str_BIO = convertList2BIOwithComma(rs_precision)
 
-        jiebaList.append(str_BIO)
+        bertCRFList.append(str_BIO)
         trueLabelList.append(tl)
 
         if i % 20000 == 0:
@@ -129,11 +147,11 @@ def do_eval_with_file(infile, output_dir, otag, tagMode):
             writer.write('{:d}: '.format(i))
             writer.write(sentence+'\n')
             writer.write(data.text_seg+'\n')
-            writer.write(jieba_rs+'\n')
+            writer.write(bertCRF_rs+'\n')
             writer.write(tl+'\n')
             writer.write(str_BIO+'\n\n')
 
-    score, sInfo = getFscoreFromBIOTagList(trueLabelList, jiebaList)
+    score, sInfo = getFscoreFromBIOTagList(trueLabelList, bertCRFList)
 
     print('Eval ' + otag + ' results:')
     print("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Token: {:d}\n\n".format(score[0], \
@@ -192,19 +210,41 @@ def load_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCRFCWS(config, len(label_list), args.vocab_file, args.max_seq_length)
+    model = BertCRFCWS(bert_config, args.vocab_file, args.max_seq_length, len(label_list))
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
-    elif os.path.isdir(args.init_checkpoint):
-        raise ValueError("init_checkpoint is not a file")
+    #elif os.path.isdir(args.init_checkpoint):
+    #    raise ValueError("init_checkpoint is not a file")
     else:
-        weights = torch.load(args.init_checkpoint, map_location='cpu')
+        weights_path = os.path.join(args.init_checkpoint, WEIGHTS_NAME)
 
-        try:
-            model.load_state_dict(weights)
-        except RuntimeError:
-            model.module.load_state_dict(weights)
+        # main code copy from modeling.py line after 506
+        state_dict = torch.load(weights_path)
+
+        missing_keys = []
+        unexpected_keys = []
+        error_msgs = []
+        # copy state_dict so _load_from_state_dict can modify it
+        metadata = getattr(state_dict, '_metadata', None)
+        state_dict = state_dict.copy()
+        if metadata is not None:
+            state_dict._metadata = metadata
+
+        def load(module, prefix=''):
+            local_metadata = {} if metadata is None else metadata.get(prefix[:-1], {})
+            module._load_from_state_dict(
+                state_dict, prefix, local_metadata, True, missing_keys, unexpected_keys, error_msgs)
+            for name, child in module._modules.items():
+                if child is not None:
+                    load(child, prefix + name + '.')
+        load(model, prefix='' if hasattr(model, 'bert') else 'bert.')
+        if len(missing_keys) > 0:
+            logger.info("Weights of {} not initialized from pretrained model: {}".format(
+                model.__class__.__name__, missing_keys))
+        if len(unexpected_keys) > 0:
+            logger.info("Weights from pretrained model not used in {}: {}".format(
+                model.__class__.__name__, unexpected_keys))
 
     model.to(device)
     if args.local_rank != -1:
@@ -215,13 +255,7 @@ def load_model(label_list, args):
 
     return model, device
 
-
-def test_ontonotes(args):
-    data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data'
-
-    output_dir='./tmp/ontonotes/BerTCRF/'
-    os.makedirs(output_dir, exist_ok=True)
-
+def preload(args):
     processors = {
         "ontonotes_cws": lambda: CWS_BMEO(nopunc=args.nopunc),
     }
@@ -235,7 +269,36 @@ def test_ontonotes(args):
 
     label_list = processor.get_labels()
     model, device = load_model(label_list, args)
+
+    if args.bert_model is not None:
+        weights = torch.load(args.bert_model, map_location='cpu')
+
+        try:
+            model.load_state_dict(weights)
+        except RuntimeError:
+            model.module.load_state_dict(weights)
+
     model.eval()
+
+    text = '''目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）# of students is 256.
+    '''
+    output = model.cut(text)
+
+    outText = ' '.join(output)
+    print(outText)
+
+    return model
+
+
+def test_ontonotes(args):
+    #data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data'
+
+    #output_dir='./tmp/ontonotes/BerTCRF/'
+    data_dir = args.data_dir
+    output_dir = args.output_dir
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    model = preload(args)
 
     type = 'test'
     do_eval_with_model(model, data_dir, type, output_dir)
@@ -246,7 +309,7 @@ def test_ontonotes(args):
     type = 'train'
     do_eval_with_model(model, data_dir, type, output_dir)
 
-def test_CWS():
+def test_CWS(args):
     fnames = ['as', 'cityu', 'msr', 'pku']
     modes = ['train', 'test']
     tagMode = 'BIO'
@@ -256,15 +319,58 @@ def test_CWS():
     output_dir='./tmp/cws/jieba/'
     os.makedirs(output_dir, exist_ok=True)
 
+    model = preload(args)
+
     for wt in fnames:
         for md in modes:
             infile = data_dir + wt + '_' + md + '.tsv'
             otag = wt + '_' + md
-            do_eval_with_file(infile, output_dir, otag, tagMode)
+            do_eval_with_file_model(model, infile, output_dir, otag, tagMode)
 
+
+def set_local_eval_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
+            #'bert_model_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/eval/2019_3_12/models/',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/rs/nhl3',
+            'do_lower_case': True,
+            'train_batch_size': 128,
+            'num_hidden_layers': 3,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/models/nhl3/weights_epoch03.pt',
+            'override_output': True,
+            'tensorboardWriter': False
+            }
+
+def set_server_eval_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '../data/ontonotes5/',
+            'vocab_file': '../models/bert-base-chinese/vocab.txt',
+            'bert_config_file': '../models/bert-base-chinese/bert_config.json',
+            'output_dir': './tmp_2019_3_12/out/nhl3',
+            'do_lower_case': True,
+            'train_batch_size': 128,
+            'num_hidden_layers': 3,
+            'init_checkpoint': '../models/bert-base-chinese/',
+            'bert_model': './tmp_2019_3_12/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
+            'override_output': True,
+            'tensorboardWriter': False
+            }
+
+Local_FLAG = False
 
 if __name__=='__main__':
-    #test_ontonotes()
-    test_CWS()
+    if TEST_FLAG:
+        kwargs = set_local_eval_param()
+    else:
+        kwargs = set_server_eval_param()
+
+    args._parse(kwargs)
+    test_ontonotes(args)
+    #test_CWS()
     #do_eval_with_file('tmp/cws/tmp.txt', 'tmp', '', 'BIO')
     #test_CWS()

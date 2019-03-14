@@ -9,14 +9,16 @@ class Config:
     vocab_file = None
     output_dir = None
     bert_model_dir = None
-    
+
+
     ## Other parameters
     ##1.Basic tasks
     do_train = False
     do_eval = False
     append_dir = False  # evaluate the performance of training data, work when do_eval = True
     trainBERT = True    
-    
+    bert_model = None
+
     ##2.Preprocessing
     do_lower_case = True
     nopunc = False

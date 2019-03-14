@@ -4,6 +4,8 @@ import math
 from src.BERT.modeling import PreTrainedBertModel, BertModel
 from src.TorchCRF import CRF
 from src.preprocess import tokenize_text
+from src.tokenization import FullTokenizer
+import numpy as np
 
 class BertSelfAttention(nn.Module):
     def __init__(self, config):
@@ -313,13 +315,13 @@ class BertCRFCWS(PreTrainedBertModel):
     config = BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
         num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
 
-    num_tags = 3
+    num_tags = 4
 
     model = BertCRFCWS(config, num_tags)
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_tags=4, vocab_file, max_length):
+    def __init__(self, config, vocab_file, max_length, num_tags=6):
         super(BertCRFCWS, self).__init__(config)
         self.tokenizer = FullTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
@@ -345,32 +347,44 @@ class BertCRFCWS(PreTrainedBertModel):
             model = BertCRFCWS(config, num_tags, vocab_file, max_length)
             output = model.cut(text)
         """
-        l = ln.rstrip('\r\n')
-
-        wls = ''
+        #l = ln.rstrip('\r\n')
+        l = ln
+        wls = []
         decode_output = ''
         while len(l) > 0:
+            l = l.strip('\r\n')
+            l = l.strip()
             if len(l) > self.max_length-2:
                 pl = l[:self.max_length-2]
                 l = l[self.max_length-2:]
             else:
                 pl = l
+                l = ''
 
-            wls += self.tokenizer.tokenize(pl)
+            wls.extend(self.tokenizer.tokenize(pl))
             input_ids, segment_ids, input_mask = tokenize_text(pl, self.max_length, self.tokenizer)
-            sequence_output, _ = self.bert(input_ids, attention_mask, output_all_encoded_layers=False)
+
+            input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()]))
+            input_mask_torch = torch.from_numpy(np.array([input_mask.tolist()]))
+
+            sequence_output, _ = self.bert(input_ids_torch, input_mask_torch, output_all_encoded_layers=False)
             sequence_output = self.dropout(sequence_output)
             bert_feats = self.hidden2tag(sequence_output)
-            decode_rs = self.classifier.decode(bert_feats, mask)
-            decode_output += ''.join(decode_rs)
+
+            input_mask_byte = input_mask_torch.byte()
+            #  change input_mask_torch type to byte to avoid RuntimeError: _th_all is not implemented for type torch.LongTensor
+            #   in TorchCRF: no_empty_seq_bf = self.batch_first and mask[:, 0].all()
+            decode_rs = self.classifier.decode(bert_feats, input_mask_byte)
+            tmp_rs = ''.join(str(v) for v in decode_rs[0])
+            decode_output += tmp_rs[1:-1]
 
 
         # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
         #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
 
         # replace the [START] and [END] tokens
-        decode_output = decode_output.replace('4', '')
-        decode_output = decode_output.replace('5', '')
+        #decode_output = decode_output.replace('4', '')
+        #decode_output = decode_output.replace('5', '')
 
         result_str = ''
         for text, tag in zip(wls, decode_output):

@@ -35,15 +35,15 @@ def getScoreFromPureFile(infile):
     return outScore
 
 
-def saveScore2File(num_epochs = [15]):
+def saveScore2File(pre_out_dir, num_epochs = [15]):
     num_hidden_layers = [3, 6]
     #num_epochs = [1, 5, 10, 15]
     #num_epochs = [15]
     num_train_size = [64]
     types = ['train', 'dev', 'test']
 
-    pre_out_dir = './tmp_2019_2_22/ontonotes/'
-
+    outdir = pre_out_dir+'out/'
+    os.makedirs(outdir, exist_ok=True)
     for nhl in num_hidden_layers:
         for ne in num_epochs:
             for nts in num_train_size:
@@ -54,8 +54,6 @@ def saveScore2File(num_epochs = [15]):
                     score = getScore(infile)
                     nscore = np.array(score)
 
-                    outdir = pre_out_dir+'out/'
-                    os.makedirs(outdir, exist_ok=True)
                     with open(outdir+'condense_rs_ep'+str(ne)+'.txt', 'a+') as fout:
                        fout.write('\n'+type+' results at No. of hidden layers: {:d}, No. of training epochs: {:d}, No. of training size: {:d}\n'.format(nhl, ne, nts))
 
@@ -75,10 +73,9 @@ def saveScore2File(num_epochs = [15]):
                             #pdb.set_trace()
                             fout2.write(ostr+'\n')
 
-def plotResults(num_epochs = [15]):
+def plotResults(pre_dir, num_epochs = [15]):
     types = ['train', 'dev', 'test']
     num_hidden_layers = [3, 6]
-    pre_dir = './tmp_2019_2_22/ontonotes/out/'
 
     for nhl in num_hidden_layers:
         for ne in num_epochs:
@@ -125,14 +122,14 @@ def plotResults(num_epochs = [15]):
             plt.ylabel('F1')
             plt.grid()
             get_test_F1 = ts_score[am_dev_loss,1]
-            plt.text(am_dev_loss+2, get_test_F1-1, str(get_test_F1), color='c')
-            plt.arrow(am_dev_loss+1.9, get_test_F1-0.9, -.8, +.8, color='c', length_includes_head=True,
+            plt.text(am_dev_loss+1, get_test_F1+1, str(am_dev_loss+1)+': '+str(get_test_F1), color='c')
+            plt.arrow(am_dev_loss+1.9, get_test_F1+0.9, -.8, -.8, color='c', length_includes_head=True,
                       head_width=0.2, head_length=0.2)
 
             amax_test_F1 = np.argmax(ts_score[:,1])
             max_test_F1 = ts_score[amax_test_F1, 1]
-            plt.text(amax_test_F1-1.5, max_test_F1-1, str(max_test_F1), color='c')
-            plt.arrow(amax_test_F1+0.1, max_test_F1-.9, .8, +.8, color='c', length_includes_head=True,
+            plt.text(amax_test_F1-1, max_test_F1+1, str(amax_test_F1+1)+': '+str(max_test_F1), color='c')
+            plt.arrow(amax_test_F1-0.1, max_test_F1+.9, +.9, -.8, color='c', length_includes_head=True,
                       head_width=0.2, head_length=0.2)
 
             #plt.legend(handles=[p1, p2, p3], loc=4)
@@ -163,8 +160,43 @@ def plotResults(num_epochs = [15]):
             plt.title('Recall on Ontonotes (No. hidden layers: {:d})'.format(nhl))
             plt.show()
 
+            fig5 = plt.figure()
+            p1, = plt.plot(xl, tr_score[:,4], marker='v', color='b', label='Train')
+            p2, = plt.plot(xl, dev_score[:,4], marker='o', color='r', label='Dev')
+            p3, = plt.plot(xl, ts_score[:,4],  marker='p', color='c', label='Test')
+            plt.xlabel('No. of epochs')
+            plt.ylabel('Accuracy')
+            plt.grid()
+
+            get_test_Acc = ts_score[am_dev_loss,4]
+            plt.text(am_dev_loss+1, get_test_Acc+1, str(am_dev_loss+1)+': '+str(get_test_Acc), color='c')
+            plt.arrow(am_dev_loss+1.9, get_test_Acc+0.9, -.8, -.8, color='c', length_includes_head=True,
+                      head_width=0.2, head_length=0.2)
+
+            # get minimum value of dev
+            am_dev_acc = np.argmax(dev_score[:,4])
+            max_dev_acc = dev_score[am_dev_acc, 4]
+
+            #get_test_F1 = ts_score[am_dev_loss,1]
+            plt.text(am_dev_acc-1, max_dev_acc+1, str(am_dev_acc+1)+': '+str(max_dev_acc), color='c')
+            plt.arrow(am_dev_acc-0.1, max_dev_acc+0.9, +.9, -.8, color='c', length_includes_head=True,
+                      head_width=0.2, head_length=0.2)
+
+            #amax_test_F1 = np.argmax(ts_score[:,1])
+            #max_test_F1 = ts_score[amax_test_F1, 1]
+            #plt.text(amax_test_F1-1.5, max_test_F1-1, str(max_test_F1), color='c')
+            #plt.arrow(amax_test_F1+0.1, max_test_F1-.9, .8, +.8, color='c', length_includes_head=True,
+            #          head_width=0.2, head_length=0.2)
+
+            plt.legend(handler_map={p1: HandlerLine2D(numpoints=1)})
+            plt.title('Accuracy on Ontonotes (No. hidden layers: {:d})'.format(nhl))
+            plt.show()
+
 
 if __name__=='__main__':
-    #saveScore2File(num_epochs=[10])
+    pre_out_dir = '../tmp_2019_3_11/ontonotes/'
+    pre_out_dir = '../tmp_2019_3_12/ontonotes/'
+    saveScore2File(pre_out_dir, num_epochs=[15])
 
-    plotResults(num_epochs = [10])
+    pre_dir = pre_out_dir + 'out/'
+    plotResults(pre_dir, num_epochs = [15])

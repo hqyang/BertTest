@@ -149,9 +149,9 @@ def do_eval_with_file(infile, output_dir, otag, tagMode):
 
 
 def test_ontonotes():
-    data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data'
+    data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/'
 
-    output_dir='./tmp/ontonotes/jieba/'
+    output_dir='/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/jieba/'
     os.makedirs(output_dir, exist_ok=True)
 
     type = 'test'
@@ -181,7 +181,7 @@ def test_CWS():
 
 
 if __name__=='__main__':
-    #test_ontonotes()
-    test_CWS()
+    test_ontonotes()
+    #test_CWS()
     #do_eval_with_file('tmp/cws/tmp.txt', 'tmp', '', 'BIO')
     #test_CWS()

@@ -310,7 +310,11 @@ def genDataWithBERTSeg(in_file, out_dir, mode):
 
     print('Finish writing generated data!')
 
-def parse_Ner(s, NerSet): # store into lists
+def parse_Ner(s, NerSet, wordLenList):
+    # s: a tag list followed Ontonotes'format
+    # NerSet: a dictionary to store the number of words in the corresponding type
+    # wordLenList: a list to store the length of each word
+
     num_ner = 0
     s = re.sub('\)', ') ', s)
     s = re.sub(' +', ' ', s).strip()
@@ -334,6 +338,8 @@ def parse_Ner(s, NerSet): # store into lists
                 if innermost:
                     assert len(p) > 1
                     word = p[:-1]
+                    wordLenList.append(len(word))
+
                     text.append(word)
                     innermost = False
                     p = p[-1]
@@ -348,19 +354,20 @@ def parse_Ner(s, NerSet): # store into lists
                         num_ner += 1
     return num_ner
 
-def countNer(infile):
+def countNer_Word(infile):
     with open(in_file, 'r', encoding='utf8') as f:
         raw_data = f.readlines()
 
     NerSet = {}
 
-    num_ners = [parse_Ner(s, NerSet) for s in raw_data]
+    wordLenList = []
+    num_ners = [parseNerWord(s, NerSet, wordLenList) for s in raw_data]
     for v in NerSet:
         print(v+':' + str(NerSet[v]))
 
     count_ners = np.array(num_ners)
 
-    return np.sum(count_ners).item(), NerSet
+    return np.sum(count_ners).item(), NerSet, wordLenList
 
 
 def gen_4ner_type():
@@ -453,17 +460,17 @@ if __name__ == '__main__':
 
         print('test:')
         in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/test.fuse.parse'
-        num_ner, NerSet = countNer(in_file)
+        num_ner, NerSet = countNer_Word(in_file)
         print('test:' + str(num_ner))
 
         print('train:')
         in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/train.fuse.parse'
-        num_ner, NerSet = countNer(in_file)
+        num_ner, NerSet = countNer_Word(in_file)
         print('train:' + str(num_ner))
 
         print('dev:')
         in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/dev.fuse.parse'
-        num_ner, NerSet = countNer(in_file)
+        num_ner, NerSet = countNer_Word(in_file)
         print('dev:' + str(num_ner))
     else:
         gen_4ner_type()
