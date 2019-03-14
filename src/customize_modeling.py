@@ -334,7 +334,7 @@ class BertCRFCWS(PreTrainedBertModel):
         self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
         self.classifier = CRF(num_tags, batch_first=True)
 
-    def cut(self, ln):
+    def cut(self, ln, procAll=True):
         """
         # Example usage:
             text = '''
@@ -356,7 +356,10 @@ class BertCRFCWS(PreTrainedBertModel):
             l = l.strip()
             if len(l) > self.max_length-2:
                 pl = l[:self.max_length-2]
-                l = l[self.max_length-2:]
+                if procAll:
+                    l = l[self.max_length-2:]
+                else:
+                    l = ''
             else:
                 pl = l
                 l = ''

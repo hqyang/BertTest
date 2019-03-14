@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
-def do_eval_with_model(model, data_dir, type, output_dir):
+def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
     df = get_Ontonotes(data_dir, type)
 
     bertCRFList = []
@@ -51,7 +51,7 @@ def do_eval_with_model(model, data_dir, type, output_dir):
         # jieba_rs = ' '.join(rs_precision)
         #   jieba_rs = '台湾 的 公视 今天 主办 的 台北 市长 候选人 辩论会 ，'
 
-        rs_precision = model.cut(sentence)
+        rs_precision = model.cut(sentence, mode)
         bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
@@ -250,7 +250,7 @@ def load_model(label_list, args):
     if args.local_rank != -1:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
                                                           output_device=args.local_rank)
-    elif n_gpu > 1:
+    elif n_gpu > 1 and not args.no_cuda:
         model = torch.nn.DataParallel(model)
 
     return model, device
@@ -280,13 +280,6 @@ def preload(args):
 
     model.eval()
 
-    text = '''目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）# of students is 256.
-    '''
-    output = model.cut(text)
-
-    outText = ' '.join(output)
-    print(outText)
-
     return model
 
 
@@ -299,6 +292,13 @@ def test_ontonotes(args):
     os.makedirs(args.output_dir, exist_ok=True)
 
     model = preload(args)
+
+    text = '''目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）# of students is 256.
+    '''
+    output = model.cut(text, False)
+
+    outText = ' '.join(output)
+    print(outText)
 
     type = 'test'
     do_eval_with_model(model, data_dir, type, output_dir)
@@ -361,10 +361,10 @@ def set_server_eval_param():
             'tensorboardWriter': False
             }
 
-Local_FLAG = False
+LOCAL_FLAG = False
 
 if __name__=='__main__':
-    if TEST_FLAG:
+    if LOCAL_FLAG:
         kwargs = set_local_eval_param()
     else:
         kwargs = set_server_eval_param()
