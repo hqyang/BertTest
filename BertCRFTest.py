@@ -20,6 +20,7 @@ import time
 
 import numpy as np
 import torch
+import pdb
 
 from src.BERT.modeling import BertConfig
 from src.customize_modeling import BertCRFCWS
@@ -63,7 +64,7 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
         tl = space2Comma(tl)
         trueLabelList.append(tl)
 
-        if i % 20000 == 0:
+        if str_BIO != tl:
             print('{:d}: '.format(i))
             print(sentence)
             print(data.text_seg)
@@ -71,6 +72,7 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
             print(tl)
             print(str_BIO)
             print('\n')
+            pdb.set_trace()
 
         with open(output_diff_file, "a+") as writer:
             writer.write('{:d}: '.format(i))
@@ -290,7 +292,8 @@ def test_ontonotes(args):
     #output_dir='./tmp/ontonotes/BerTCRF/'
     localtime = time.localtime(time.time())
     data_dir = args.data_dir
-    output_dir = args.output_dir + str(localtime.tm_year) + '_' + str(localtime.tm_mon) + '_' + str(localtime.tm_mday) \
+    output_dir = args.output_dir + 'nhl' + str(args.num_hidden_layers) + '_' + str(localtime.tm_year) \
+                 + '_' + str(localtime.tm_mon) + '_' + str(localtime.tm_mday) \
                  + '_' + str(localtime.tm_hour) + str(localtime.tm_min) + str(localtime.tm_sec)
     os.makedirs(output_dir, exist_ok=True)
 
@@ -313,7 +316,13 @@ def test_ontonotes(args):
     outTextT = ' '.join(outputT)
     print(outTextT)
 
+    output_eval_file = os.path.join(output_dir, "eval_results.txt")
+    with open(output_eval_file, "a+") as writer:
+        writer.write(args.bert_model + '\n')  
+        writer.write(str(args.num_hidden_layers) + '\n')
+     
     mode = False
+    mode = True
     type = 'test'
     do_eval_with_model(model, data_dir, type, output_dir, mode)
 
@@ -365,7 +374,7 @@ def set_server_eval_param():
             'data_dir': '../data/ontonotes5/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp_2019_3_12/out/nhl3',
+            'output_dir': './tmp_2019_3_12/out/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'num_hidden_layers': 3,
@@ -376,7 +385,7 @@ def set_server_eval_param():
             'tensorboardWriter': False
             }
 
-LOCAL_FLAG = True
+LOCAL_FLAG = False
 
 if __name__=='__main__':
     if LOCAL_FLAG:
