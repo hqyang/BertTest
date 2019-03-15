@@ -15,7 +15,8 @@ from tqdm import tqdm
 from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma
 import pandas as pd
 from src.config import args
-from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset,
+from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
+import time
 
 import numpy as np
 import torch
@@ -94,7 +95,7 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
     return score
 
 
-def do_eval_with_file_model(model, infile, output_dir, otag, tagMode):
+def do_eval_with_file_model(model, infile, output_dir, otag, tagMode, mode=False):
     # model: BertCRF model
     # infile: input file in tsv format
     # output_dir: the directory to store evaluation file
@@ -127,7 +128,7 @@ def do_eval_with_file_model(model, infile, output_dir, otag, tagMode):
             tl = BMES2BIO(data.src_seg)
             tl = space2Comma(tl)
 
-        rs_precision = model.cut(sentence)
+        rs_precision = model.cut(sentence, mode)
         bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
@@ -287,27 +288,40 @@ def test_ontonotes(args):
     #data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data'
 
     #output_dir='./tmp/ontonotes/BerTCRF/'
+    localtime = time.localtime(time.time())
     data_dir = args.data_dir
-    output_dir = args.output_dir
-    os.makedirs(args.output_dir, exist_ok=True)
+    output_dir = args.output_dir + str(localtime.tm_year) + '_' + str(localtime.tm_mon) + '_' + str(localtime.tm_mday) \
+                 + '_' + str(localtime.tm_hour) + str(localtime.tm_min) + str(localtime.tm_sec)
+    os.makedirs(output_dir, exist_ok=True)
 
     model = preload(args)
 
-    text = '''目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）# of students is 256.
+    text = '''
+        目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
+        ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
+        （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
+        # of students is 256.
     '''
-    output = model.cut(text, False)
 
-    outText = ' '.join(output)
-    print(outText)
+    outputF = model.cut(text, False)
 
+    outTextF = ' '.join(outputF)
+    print(outTextF)
+
+    outputT = model.cut(text)
+
+    outTextT = ' '.join(outputT)
+    print(outTextT)
+
+    mode = False
     type = 'test'
-    do_eval_with_model(model, data_dir, type, output_dir)
+    do_eval_with_model(model, data_dir, type, output_dir, mode)
 
     type = 'dev'
-    do_eval_with_model(model, data_dir, type, output_dir)
+    do_eval_with_model(model, data_dir, type, output_dir, mode)
 
     type = 'train'
-    do_eval_with_model(model, data_dir, type, output_dir)
+    do_eval_with_model(model, data_dir, type, output_dir, mode)
 
 def test_CWS(args):
     fnames = ['as', 'cityu', 'msr', 'pku']
@@ -335,7 +349,7 @@ def set_local_eval_param():
             #'bert_model_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/eval/2019_3_12/models/',
             'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
             'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
-            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/rs/nhl3',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/rs/nhl3/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'num_hidden_layers': 3,
@@ -362,7 +376,7 @@ def set_server_eval_param():
             'tensorboardWriter': False
             }
 
-LOCAL_FLAG = False
+LOCAL_FLAG = True
 
 if __name__=='__main__':
     if LOCAL_FLAG:

@@ -347,24 +347,35 @@ class BertCRFCWS(PreTrainedBertModel):
             model = BertCRFCWS(config, num_tags, vocab_file, max_length)
             output = model.cut(text)
         """
-        #l = ln.rstrip('\r\n')
-        l = ln
-        wls = []
-        decode_output = ''
-        while len(l) > 0:
-            l = l.strip('\r\n')
-            l = l.strip()
-            if len(l) > self.max_length-2:
-                pl = l[:self.max_length-2]
-                if procAll:
-                    l = l[self.max_length-2:]
-                else:
-                    l = ''
-            else:
-                pl = l
-                l = ''
+        l = ln.strip('\r\n')
+        l = l.strip()
 
-            wls.extend(self.tokenizer.tokenize(pl))
+        if not procAll:
+            sl = l.split()
+            select_len = self.max_length-2
+
+            pl = ''
+
+            for v in sl:
+                words = self.tokenizer.tokenize(v)
+
+                if len(words)<select_len:
+                    pl += v + ' '
+                    select_len -= len(words)
+                else: # only select part of the string
+                    ws = ''.join(words[:select_len])
+                    pl += ws
+                    break
+        else: # process all string
+            pl = l
+
+        ls = pl.split()
+
+        result_str = ''
+
+        for pl in ls:
+            wls = self.tokenizer.tokenize(pl)
+
             input_ids, segment_ids, input_mask = tokenize_text(pl, self.max_length, self.tokenizer)
 
             input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()]))
@@ -379,23 +390,25 @@ class BertCRFCWS(PreTrainedBertModel):
             #   in TorchCRF: no_empty_seq_bf = self.batch_first and mask[:, 0].all()
             decode_rs = self.classifier.decode(bert_feats, input_mask_byte)
             tmp_rs = ''.join(str(v) for v in decode_rs[0])
-            decode_output += tmp_rs[1:-1]
+
+            # tmp_rs[1:-1]: remove the start token and the end token
+            decode_output = tmp_rs[1:-1]
 
 
-        # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
-        #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+            # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
+            #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
 
-        # replace the [START] and [END] tokens
-        #decode_output = decode_output.replace('4', '')
-        #decode_output = decode_output.replace('5', '')
+            # replace the [START] and [END] tokens
+            #decode_output = decode_output.replace('4', '')
+            #decode_output = decode_output.replace('5', '')
 
-        result_str = ''
-        for text, tag in zip(wls, decode_output):
-            text = text.replace('##', '')
-            if int(tag) > 1: # tokens of 'E' and 'S'
-                result_str += text + ' '
-            else:
-                result_str += text
+            for text, tag in zip(wls, decode_output):
+                text = text.replace('##', '')
+                if int(tag) > 1: # tokens of 'E' and 'S'
+                    result_str += text + ' '
+                else:
+                    result_str += text
+
         return result_str.strip().split()
 
 
