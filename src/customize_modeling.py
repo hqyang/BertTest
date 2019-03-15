@@ -3,7 +3,7 @@ import torch.nn as nn
 import math
 from src.BERT.modeling import PreTrainedBertModel, BertModel
 from src.TorchCRF import CRF
-from src.preprocess import tokenize_text
+from src.preprocess import tokenize_text, tokenize_list
 from src.tokenization import FullTokenizer
 import numpy as np
 
@@ -334,6 +334,36 @@ class BertCRFCWS(PreTrainedBertModel):
         self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
         self.classifier = CRF(num_tags, batch_first=True)
 
+    def _seg_wordslist(self, words):#->str
+        input_ids, segment_ids, input_mask = tokenize_list(words, self.max_length, self.tokenizer)
+
+        input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()]))
+        input_mask_torch = torch.from_numpy(np.array([input_mask.tolist()]))
+
+        sequence_output, _ = self.bert(input_ids_torch, input_mask_torch, output_all_encoded_layers=False)
+        sequence_output = self.dropout(sequence_output)
+        bert_feats = self.hidden2tag(sequence_output)
+
+        input_mask_byte = input_mask_torch.byte()
+        #  change input_mask_torch type to byte to avoid RuntimeError: _th_all is not implemented for type torch.LongTensor
+        #   in TorchCRF: no_empty_seq_bf = self.batch_first and mask[:, 0].all()
+        decode_rs = self.classifier.decode(bert_feats, input_mask_byte)
+        tmp_rs = ''.join(str(v) for v in decode_rs[0])
+
+        # tmp_rs[1:-1]: remove the start token and the end token
+        decode_output = tmp_rs[1:-1]
+
+
+        # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
+        #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+
+        # replace the [START] and [END] tokens
+        decode_output = decode_output.replace('4', '3') # predict those wrong tokens as a separated word
+        decode_output = decode_output.replace('5', '3') #
+
+        return decode_output # a string
+
+
     def cut(self, ln, procAll=True):
         """
         # Example usage:
@@ -369,38 +399,25 @@ class BertCRFCWS(PreTrainedBertModel):
         else: # process all string
             pl = l
 
+        #ls = pl.split('，,。.!！')
         ls = pl.split()
 
         result_str = ''
 
-        for pl in ls:
-            wls = self.tokenizer.tokenize(pl)
+        for plu in ls:
+            wls = self.tokenizer.tokenize(plu)
 
-            input_ids, segment_ids, input_mask = tokenize_text(pl, self.max_length, self.tokenizer)
+            #input_ids, segment_ids, input_mask = tokenize_text(plu, self.max_length, self.tokenizer)
+            wls_used = wls
+            decode_output = ''
+            len_max = self.max_length-2
+            while len(wls_used) > 0:
+                decode_output += self._seg_wordslist(wls_used)
 
-            input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()]))
-            input_mask_torch = torch.from_numpy(np.array([input_mask.tolist()]))
-
-            sequence_output, _ = self.bert(input_ids_torch, input_mask_torch, output_all_encoded_layers=False)
-            sequence_output = self.dropout(sequence_output)
-            bert_feats = self.hidden2tag(sequence_output)
-
-            input_mask_byte = input_mask_torch.byte()
-            #  change input_mask_torch type to byte to avoid RuntimeError: _th_all is not implemented for type torch.LongTensor
-            #   in TorchCRF: no_empty_seq_bf = self.batch_first and mask[:, 0].all()
-            decode_rs = self.classifier.decode(bert_feats, input_mask_byte)
-            tmp_rs = ''.join(str(v) for v in decode_rs[0])
-
-            # tmp_rs[1:-1]: remove the start token and the end token
-            decode_output = tmp_rs[1:-1]
-
-
-            # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
-            #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
-
-            # replace the [START] and [END] tokens
-            #decode_output = decode_output.replace('4', '')
-            #decode_output = decode_output.replace('5', '')
+                if len(wls_used) > len_max:
+                    wls_used = wls_used[len_max:]
+                else:
+                    wls_used = []
 
             for text, tag in zip(wls, decode_output):
                 text = text.replace('##', '')

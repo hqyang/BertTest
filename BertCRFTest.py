@@ -316,6 +316,13 @@ def test_ontonotes(args):
     outTextT = ' '.join(outputT)
     print(outTextT)
 
+    t2 = '''
+    在朝野各界为核四事件吵嚷不休之际，发生在一月中旬的垦丁龙坑生态油污事件，直到二月底才受到初步控制，加上近来台湾山区森林火灾屡扑屡起，显现台湾生态的危机，已不容人们将焦点放在单一的开发事件上，全面性的大地破坏与自然反扑更值得关注。
+    '''
+    outputT2 = model.cut(t2)
+    outTextT2 = ' '.join(outputT2)
+    print(outTextT2)
+
     output_eval_file = os.path.join(output_dir, "eval_results.txt")
     with open(output_eval_file, "a+") as writer:
         writer.write(args.bert_model + '\n')  
@@ -361,6 +368,7 @@ def set_local_eval_param():
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/rs/nhl3/',
             'do_lower_case': True,
             'train_batch_size': 128,
+            'max_seq_length': 64,
             'num_hidden_layers': 3,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
             'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/models/nhl3/weights_epoch03.pt',
@@ -377,6 +385,7 @@ def set_server_eval_param():
             'output_dir': './tmp_2019_3_12/out/',
             'do_lower_case': True,
             'train_batch_size': 128,
+            'max_seq_length': 64,
             'num_hidden_layers': 3,
             'init_checkpoint': '../models/bert-base-chinese/',
             'bert_model': './tmp_2019_3_12/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
