@@ -317,14 +317,16 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
 def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
     model.eval()
+
     all_label_ids = []
-    all_losses = []
+    all_pre_labels = []
+    all_mask_tokens = []
     save_model(model, args.output_dir + 'model_eval.tsv')
-    pdb.set_trace()
+    #pdb.set_trace()
 
     results = []
 
-    label_list = eval_dataloader.dataset.label_list
+    #label_list = eval_dataloader.dataset.label_list
     st = time.time()
     for batch in tqdm(eval_dataloader, desc="TestIter"):
         batch = tuple(t.to(device) for t in batch)
@@ -343,22 +345,23 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
                 mask_array = input_mask.data
+                tmp_el = tmp_eval_loss
             else:
                 label_array = label_ids.data.cpu()
                 mask_array = input_mask.data.cpu()
-            score, sInfo = outputFscoreUsedBIO(list(label_array.numpy()), tmp_decode_rs, list(mask_array.numpy()))
+                tmp_el = tmp_eval_loss.cpu()
 
-            logger.info(type+' F1: {:+.3f}, P: {:+.3f}, R: {:+.3f}, Acc: {:+.3f}, Tags: {:+d}'.format(score[0], score[1], score[2], score[3], sInfo[-1]))
-            #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
-        if args.no_cuda:
-            tmp_el = tmp_eval_loss
-        else: 
-            tmp_el = tmp_eval_loss.cpu() 
-  
-        score.extend([sInfo[-1]]) 
-        result = [tmp_el.numpy().tolist()]
-        result.extend(score)
-        results.append(result) # loss, F1, P, R
+        all_label_ids.extend(label_array.tolist())
+        all_mask_tokens.extend(mask_array.tolist())
+        all_pre_labels.extend(tmp_decode_rs)
+        results.append(tmp_el.tolist())
+
+    score, sInfo = outputFscoreUsedBIO(all_label_ids, all_pre_labels, all_mask_tokens)
+
+    logger.info(type+' F1: {:+.3f}, P: {:+.3f}, R: {:+.3f}, Acc: {:+.3f}, Tags: {:+d}'.format(score[0], score[1], score[2], score[3], sInfo[-1]))
+    #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
+
+    score.extend([sInfo[-1]])
 
     model.train()
     eval_time = (time.time() - st) / 60
