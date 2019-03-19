@@ -334,6 +334,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
 def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
     model.eval()
+
     all_label_ids = []
     all_losses = []
     results = []

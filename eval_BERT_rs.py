@@ -319,7 +319,9 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
     model.eval()
     all_label_ids = []
     all_losses = []
-   
+    save_model(model, args.output_dir + 'model_eval.tsv')
+    pdb.set_trace()
+
     results = []
 
     label_list = eval_dataloader.dataset.label_list

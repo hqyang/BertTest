@@ -24,6 +24,8 @@ import pdb
 
 from src.BERT.modeling import BertConfig
 from src.customize_modeling import BertCRFCWS
+from src.utilis import save_model
+from src.utilis import save_model
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -282,6 +284,8 @@ def preload(args):
             model.module.load_state_dict(weights)
 
     model.eval()
+    save_model(model, args.output_dir + 'model_eval.tsv')
+    pdb.set_trace()
 
     return model
 

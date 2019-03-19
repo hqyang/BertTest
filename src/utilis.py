@@ -19,8 +19,19 @@ import re
 #import preprocess
 import queue
 import pandas as pd
+import torch
 
+from src.BERT.modeling import BertConfig
+from src.customize_modeling import BertCRFCWS
 
+import logging
+logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
+                    datefmt = '%m/%d/%Y %H:%M:%S',
+                    level = logging.INFO)
+logger = logging.getLogger(__name__)
+
+CONFIG_NAME = 'bert_config.json'
+WEIGHTS_NAME = 'pytorch_model.bin'
 # copy from https://github.com/supercoderhawk/DNN_CWS/blob/master/utils.py
 def strQ2B(ustring):
     '''全角转半角'''
@@ -296,3 +307,121 @@ def space2Comma(text):
         sOut += ','
 
     return sOut
+
+def load_model(label_list, args):
+    if args.visible_device is not None:
+        if isinstance(args.visible_device, int):
+            args.visible_device = str(args.visible_device)
+        elif isinstance(args.visible_device, (tuple, list)):
+            args.visible_device = ','.join([str(_) for _ in args.visible_device])
+        os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_device
+
+    if args.local_rank == -1 or args.no_cuda:
+        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+        n_gpu = torch.cuda.device_count()
+    else:
+        device = torch.device("cuda", args.local_rank)
+        n_gpu = 1
+        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+        torch.distributed.init_process_group(backend='nccl')
+        if args.fp16:
+            logger.info("16-bits training currently not supported in distributed training")
+            args.fp16 = False # (see https://github.com/pytorch/pytorch/pull/13496)
+    logger.info("device %s n_gpu %d distributed training %r", device, n_gpu, bool(args.local_rank != -1))
+
+    if n_gpu > 0:
+        torch.cuda.manual_seed_all(args.seed)
+
+    if args.bert_model_dir is not None:
+        config_file = os.path.join(args.bert_model_dir, CONFIG_NAME)
+        bert_config = BertConfig.from_json_file(config_file)
+    else:
+        bert_config = BertConfig.from_json_file(args.bert_config_file)
+
+    if args.num_hidden_layers>0 and args.num_hidden_layers<bert_config.num_hidden_layers:
+        bert_config.num_hidden_layers = args.num_hidden_layers
+
+    if args.max_seq_length > bert_config.max_position_embeddings:
+        raise ValueError(
+            "Cannot use sequence length {} because the BERT model was only trained up to sequence length {}".format(
+            args.max_seq_length, bert_config.max_position_embeddings))
+
+    if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
+        if not args.override_output:
+            raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
+        else:
+            os.system("rm %s" % os.path.join(args.output_dir, '*'))
+
+    model = BertCRFCWS(bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+
+    if args.init_checkpoint is None:
+        raise RuntimeError('Evaluating a random initialized model is not supported...!')
+    #elif os.path.isdir(args.init_checkpoint):
+    #    raise ValueError("init_checkpoint is not a file")
+    else:
+        weights_path = os.path.join(args.init_checkpoint, WEIGHTS_NAME)
+
+        # main code copy from modeling.py line after 506
+        state_dict = torch.load(weights_path)
+
+        missing_keys = []
+        unexpected_keys = []
+        error_msgs = []
+        # copy state_dict so _load_from_state_dict can modify it
+        metadata = getattr(state_dict, '_metadata', None)
+        state_dict = state_dict.copy()
+        if metadata is not None:
+            state_dict._metadata = metadata
+
+        def load(module, prefix=''):
+            local_metadata = {} if metadata is None else metadata.get(prefix[:-1], {})
+            module._load_from_state_dict(
+                state_dict, prefix, local_metadata, True, missing_keys, unexpected_keys, error_msgs)
+            for name, child in module._modules.items():
+                if child is not None:
+                    load(child, prefix + name + '.')
+        load(model, prefix='' if hasattr(model, 'bert') else 'bert.')
+        if len(missing_keys) > 0:
+            logger.info("Weights of {} not initialized from pretrained model: {}".format(
+                model.__class__.__name__, missing_keys))
+        if len(unexpected_keys) > 0:
+            logger.info("Weights from pretrained model not used in {}: {}".format(
+                model.__class__.__name__, unexpected_keys))
+
+    model.to(device)
+    if args.local_rank != -1:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
+                                                          output_device=args.local_rank)
+    elif n_gpu > 1 and not args.no_cuda:
+        model = torch.nn.DataParallel(model)
+
+    if args.bert_model is not None:
+        weights = torch.load(args.bert_model, map_location='cpu')
+
+        try:
+            model.load_state_dict(weights)
+        except RuntimeError:
+            model.module.load_state_dict(weights)
+
+    return model, device
+
+def export_stat_list(n, param):
+    a = param.view(-1)
+
+    return {'name': n, 'max': '{:.6f}'.format(torch.max(a).item()), 'min': '{:.6f}'.format(torch.min(a).item()), \
+            'mean': '{:.6f}'.format(torch.mean(a).item()), 'std': '{:.6f}'.format(torch.std(a).item()), \
+            'median': '{:.6f}'.format(torch.median(a).item()) }
+
+def save_model(model, fo='tmp.tsv'):
+    data_all = [export_stat_list(n, param) for n, param in model.named_parameters()]
+
+    import pandas as pd
+    df = pd.DataFrame(data_all)
+    # separate with \t
+    df.to_csv(fo, sep='\t', encoding='utf-8', index=False,  header=True, \
+              columns=['name', 'max', 'min', 'mean', 'median', 'std'])
+
+    print('Finish writing model data to ' + fo + '!')
+
+
+

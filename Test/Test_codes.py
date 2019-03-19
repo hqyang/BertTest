@@ -9,8 +9,11 @@ Feature:
 Scenario: 
 """
 from sklearn.preprocessing import LabelEncoder
-#import sys
-#sys.path.append('..')
+import sys
+sys.path.append('..')
+from src.utilis import load_model, save_model
+from src.config import args
+
 
 def test_BertCRF_constructor():
     from src.BERT.modeling import BertCRF
@@ -252,6 +255,35 @@ def test_parse_one2BERTformat():
     print('bert_ner:'+out_dict['bert_ner'])
 '''
 
+def set_local_eval_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
+            #'bert_model_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/eval/2019_3_12/models/',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/rs/nhl3/',
+            'do_lower_case': True,
+            'train_batch_size': 128,
+            'max_seq_length': 64,
+            'num_hidden_layers': 3,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/models/nhl3/weights_epoch03.pt',
+            'override_output': True,
+            'tensorboardWriter': False
+            }
+
+
+def test_load_model():
+    kwargs = set_local_eval_param()
+    args._parse(kwargs)
+
+    label_list = ['B', 'M', 'E', 'S', '[START]', '[END]']
+    model, device = load_model(label_list, args)
+
+    save_model(model, args.output_dir + 'tmp.tsv')
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -266,3 +298,5 @@ if __name__ == '__main__':
     #check_english('台北candidate defence')
 
     #test_parse_one2BERTformat()
+
+    test_load_model()
