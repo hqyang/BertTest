@@ -320,14 +320,10 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
     model.eval()
 
     all_label_ids = []
-    all_pre_labels = []
     all_mask_tokens = []
-    save_model(model, args.output_dir + 'model_eval.tsv')
-    #pdb.set_trace()
-
+    all_pre_labels = []
+    all_losses = []
     results = []
-
-    #label_list = eval_dataloader.dataset.label_list
     st = time.time()
     for batch in tqdm(eval_dataloader, desc="TestIter"):
         batch = tuple(t.to(device) for t in batch)
@@ -335,8 +331,9 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
         label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
         with torch.no_grad():
             n_gpu = torch.cuda.device_count()
-            
-            if n_gpu > 1: # multiple gpus 
+
+            #pdb.set_trace()
+            if n_gpu > 1: # multiple gpus
             	# model.module.decode to replace original model() since forward cannot output multiple outputs in multiple gpus
                 tmp_eval_loss, tmp_decode_rs = model.module.decode(input_ids, segment_ids, input_mask, label_ids)
                 tmp_eval_loss = tmp_eval_loss.mean()
@@ -355,47 +352,41 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
         all_label_ids.extend(label_array.tolist())
         all_mask_tokens.extend(mask_array.tolist())
         all_pre_labels.extend(tmp_decode_rs)
-        results.append(tmp_el.tolist())
+        all_losses.extend(tmp_el.tolist())
 
     score, sInfo = outputFscoreUsedBIO(all_label_ids, all_pre_labels, all_mask_tokens)
 
-    logger.info(type+' F1: {:+.3f}, P: {:+.3f}, R: {:+.3f}, Acc: {:+.3f}, Tags: {:+d}'.format(score[0], score[1], score[2], score[3], sInfo[-1]))
-    #score = output_Fscore(eval_dataloader.dataset.idx_to_label_map, label_list, input_mask, tmp_decode_rs)
+    #logger.info(type + 'evaluation: F1: {:+.2f}, P: {:+.2f}, R: {:+.2f}, Acc: {:+.2f}, Tags: {:d}'.format(
+    #        score[0], score[1], score[2], score[3], sInfo[-1]))
 
-    score.extend([sInfo[-1]])
-
+    eval_time = (time.time() - st) / 60.
     model.train()
-    eval_time = (time.time() - st) / 60
+
     logger.info('Eval time: %.2fmin' % eval_time)
-    output_eval_file = os.path.join(args.output_dir, type+'_eval_rs.txt')
-    print(output_eval_file)
-   
+    output_eval_file = os.path.join(args.output_dir, type+"_eval_results.txt")
+
     if times!=[]:
-       np_times = np.array(times)
-       avg_times = np.mean(np_times)     
-  
-    np_res = np.array(results)
-    avg_res = np.mean(np_res, axis=0)
+        np_times = np.array(times)
+        avg_times = np.mean(np_times)
+
+    np_loss = np.array(all_losses)
+    avg_loss = np.mean(np_loss)
 
     with open(output_eval_file, "a+") as writer:
         logger.info("***** Eval results *****")
-        
         if times!=[]:
-            logger.info("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
-            writer.write("time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}\n".format(avg_times, avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
-        else:         
-            logger.info("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
-            writer.write("loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:.2f}\n".format(avg_res[0], avg_res[1], avg_res[2], avg_res[3], avg_res[4], avg_res[5]))
-         
-    '''
-    for result in results:
-        with open(output_eval_file, "a+") as writer:
-            logger.info("***** Eval results *****")
-            for key in sorted(result.keys()):
-                logger.info("  %s = %s", key, str(result[key]))
-                writer.write("%s = %s\n" % (key, str(result[key])))
-            writer.write("\n")
-    '''
+            logger.info(type + ': train time: {:.3f}, test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
+                               avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
+            writer.write(type + ': train time: {:.3f}, test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
+                               avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
+            results = [avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]]
+        else:
+            logger.info(type + ': test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
+                               eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
+            writer.write(type + ': test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
+                               eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
+            results = [eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]]
+
     return results
 
 def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step, multilabel=False):
