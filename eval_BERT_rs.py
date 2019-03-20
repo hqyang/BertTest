@@ -52,6 +52,7 @@ from src.BERT.optimization import BertAdam
 from src.preprocess import dataset_to_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO
 from src.config import args
 from src.tokenization import FullTokenizer
+from src.utilis import save_model
 
 CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
@@ -445,17 +446,16 @@ def set_test_param():
             'tensorboardWriter': True
             }
 
-def set_eval_param():
+def set_local_eval_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
-            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
             'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
             'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
             'output_dir': '/Users/haiqinyang/Downloads/tmp/ontonotes/out',
             'do_train': False,
-            'init_checkpoint': '/Users/haiqinyang/Downloads/tmp/ontonotes/',
+            'init_checkpoint': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/models', #'/Users/haiqinyang/Downloads/tmp/ontonotes/',
             'do_eval': True,
-            'do_eval_train': True,
             'do_lower_case': True,
             'train_batch_size': 64,
             'override_output': True,
@@ -488,7 +488,7 @@ def set_server_eval_param():
             }
 
 def main(**kwargs):
-    #kwargs = set_test_param()
+    kwargs = set_local_eval_param()
 
     #kwargs = set_eval_param()
     args._parse(kwargs)

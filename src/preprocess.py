@@ -496,10 +496,11 @@ def tokenize_label(label, label_map):
 
 def tokenize_label_list(label, max_length, label_map):
     assert isinstance(label_map, (dict, list))
-    if len(label) > max_length - 2:
-        label = label[:max_length - 2]
 
     label_list = label.split()
+
+    if len(label_list) > max_length - 2:
+        label_list = label_list[:max_length - 2]
     label_list = ['[START]'] + label_list + ['[END]']
 
     label_id = [label_map[_] for _ in label_list]

@@ -25,7 +25,6 @@ import pdb
 from src.BERT.modeling import BertConfig
 from src.customize_modeling import BertCRFCWS
 from src.utilis import save_model
-from src.utilis import save_model
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -74,7 +73,7 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
             print(tl)
             print(str_BIO)
             print('\n')
-            pdb.set_trace()
+            #pdb.set_trace()
 
         with open(output_diff_file, "a+") as writer:
             writer.write('{:d}: '.format(i))
@@ -285,7 +284,7 @@ def preload(args):
 
     model.eval()
     save_model(model, args.output_dir + 'model_eval.tsv')
-    pdb.set_trace()
+    #pdb.set_trace()
 
     return model
 
@@ -372,7 +371,7 @@ def set_local_eval_param():
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/rs/nhl3/',
             'do_lower_case': True,
             'train_batch_size': 128,
-            'max_seq_length': 64,
+            'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
             'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/models/nhl3/weights_epoch03.pt',
@@ -398,7 +397,7 @@ def set_server_eval_param():
             'tensorboardWriter': False
             }
 
-LOCAL_FLAG = False
+LOCAL_FLAG = True
 
 if __name__=='__main__':
     if LOCAL_FLAG:
