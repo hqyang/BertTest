@@ -4,10 +4,10 @@ for nhl in 3 6
 do
     for nte in 15
     do
-        for tbs in 64 128
+        for tbs in 64
         do 
             echo "train_batch_size $tbs, num_train_epochs $nte, num_hidden_layers $nhl"
-            python eval_BERT_rs.py \
+            python main.py \
              --task_name ontonotes_CWS \
              --model_type sequencelabeling \
              --data_dir ../data/ontonotes5/ \
@@ -15,7 +15,7 @@ do
              --vocab_file ../models/bert-base-chinese/vocab.txt \
              --output_dir ./tmp/ontonotes \
              --do_train False \
-             --init_checkpoint ./tmp_2019_3_11/ontonotes/ \
+             --init_checkpoint ./tmp_2019_3_20/ontonotes/ \
              --do_eval True \
              --do_lower_case True \
              --train_batch_size $tbs \
@@ -28,3 +28,4 @@ do
          done
     done
 done
+#eval_BERT_rs.py \ 

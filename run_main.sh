@@ -1,6 +1,6 @@
 #!/bin/sh
 
-for nhl in 3 6
+for nhl in 6
 do
     for nte in 15
     do
@@ -22,7 +22,7 @@ do
              --train_batch_size $tbs \
              --override_output True \
              --tensorboardWriter False \
-             --visible_device 1 \
+             --visible_device 0 \
              --num_train_epochs $nte \
              --max_seq_length 128 \
              --num_hidden_layers $nhl

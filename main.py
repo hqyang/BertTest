@@ -26,33 +26,16 @@ import time
 from glob import glob
 import pdb
 
-#import sys
-#import importlib
-#importlib.reload(sys)
-'''
-import tokenization
-import time
-import argparse
-import itertools
-import pandas as pd
-from torchnet.meter import APMeter
-import .src.customize_modeling
-'''
-
 from src.BERT.modeling import BertConfig, BertForMaskedLM
 from src.customize_modeling import BertCRF
-# ModuleNotFoundError: No module named '__main__.src'; '__main__' is not a package
-#, BertForSequenceClassification
-#from .src.BERT.modeling import BertForSequenceMultilabelClassification
-#from .src.BERT.modeling import BertForSequenceMultiTaskClassification
 from src.BERT.optimization import BertAdam
 
 from src.preprocess import dataset_to_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO
 from src.config import args
 from src.tokenization import FullTokenizer
+from src.utilis import save_model
 
 CONFIG_NAME = 'bert_config.json'
-WEIGHTS_NAME = 'pytorch_model.bin'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -315,6 +298,10 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             #Its state dict keys are all start with a "module."
             state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
         torch.save(state_dict, output_weight_file)
+
+        output_model_file = os.path.join(args.output_dir, 'weights_epoch%02d_nhl%d.tsv'%(ep, args.num_hidden_layers))
+        save_model(model, output_model_file)
+
         # logger.info(tr_loss/step)
         tr_loss = tr_loss / step
         if (args.do_eval) and (not args.pretraining):
@@ -356,6 +343,7 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
             else:
                 tmp_eval_loss, tmp_decode_rs = model.decode(input_ids, segment_ids, input_mask, label_ids)
 
+            #pdb.set_trace()
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
                 mask_array = input_mask.data
@@ -368,7 +356,7 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
         all_label_ids.extend(label_array.tolist())
         all_mask_tokens.extend(mask_array.tolist())
         all_pre_labels.extend(tmp_decode_rs)
-        all_losses.extend(tmp_el.tolist())
+        all_losses.append(tmp_el.tolist())
 
     score, sInfo = outputFscoreUsedBIO(all_label_ids, all_pre_labels, all_mask_tokens)
 
@@ -393,13 +381,13 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
         if times!=[]:
             logger.info(type + ': train time: {:.3f}, test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
                                avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
-            writer.write(type + ': train time: {:.3f}, test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
+            writer.write(type + ': train time: {:.3f}, test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}\n'.format( \
                                avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
             results = [avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]]
         else:
             logger.info(type + ': test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
                                eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
-            writer.write(type + ': test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
+            writer.write(type + ': test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}\n'.format( \
                                eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
             results = [eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]]
 
@@ -473,16 +461,27 @@ def main(**kwargs):
         "ontonotes_cws": lambda: CWS_BMEO(nopunc=args.nopunc),
     }
     
-    #os.makedirs(args.output_dir, exist_ok=True)
-
-    if args.append_dir and not TEST_FLAG:
-        args.output_dir += '/nhl' + str(args.num_hidden_layers) + '_nte' \
-		+ str(args.num_train_epochs) + '_nbs' + str(args.train_batch_size) 
-        os.makedirs(args.output_dir, exist_ok=True)    
+    if args.do_train:
+        args.output_dir = args.output_dir + '/nhl' \
+                +str(args.num_hidden_layers)+'_nte'+str(args.num_train_epochs) \
+                +'_nbs'+str(args.train_batch_size) 
         print(args.output_dir)
-        time.sleep(4)
+        os.makedirs(args.output_dir, exist_ok=True)
+        processor.save_labelidmap(args.output_dir)
 
-    task_name = args.task_name.lower()
+    
+    if args.do_eval:
+        args.init_checkpoint = args.init_checkpoint + '/nhl' \
+                +str(args.num_hidden_layers)+'_nte'+str(args.num_train_epochs) \
+                +'_nbs'+str(args.train_batch_size) 
+        args.output_dir = args.init_checkpoint + '/out'
+        os.makedirs(args.output_dir, exist_ok=True)
+
+        print('init_checkpoint:')
+        print(args.init_checkpoint)
+        print(args.output_dir)
+   
+    task_name = args.task_name.lower() 
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
@@ -493,9 +492,6 @@ def main(**kwargs):
     label_list = processor.get_labels() # get_labels
 
     model, device = load_model(label_list, tokenizer, args)
-
-    if args.do_train:
-        processor.save_labelidmap(args.output_dir)
 
     # Prepare optimizer
     if args.fp16:
@@ -545,11 +541,18 @@ def main(**kwargs):
                     model.load_state_dict(weights)
                 except RuntimeError:
                     model.module.load_state_dict(weights)
-                eval_fc(model, eval_dataloader, device, 0., global_step, args)
+                eval_fc(model, eval_dataloader, device, args) # test
+
+                #eval_fc(model, eval_dataloader, device, 0., global_step, args)
 
                 type = 'train'
                 eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type)
                 eval_fc(model, eval_dataloader, device, args, [], type)
+
+                type='dev'
+                eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, False, type) # eval on training data
+                eval_fc(model, eval_dataloader, device, args, [], type)
+
         else:
             eval_fc(model, eval_dataloader, device, args, 'test')
 
