@@ -536,6 +536,7 @@ def main(**kwargs):
         elif os.path.isdir(args.init_checkpoint):
             ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
             for ckpt_file in ckpt_files:
+                print('Predicting via ' + ckpt_file)
                 weights = torch.load(ckpt_file, map_location='cpu')
                 try:
                     model.load_state_dict(weights)
