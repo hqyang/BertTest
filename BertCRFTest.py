@@ -332,7 +332,7 @@ def test_ontonotes(args):
         writer.write(str(args.num_hidden_layers) + '\n')
      
     mode = False
-    mode = True
+    #mode = True
     type = 'test'
     do_eval_with_model(model, data_dir, type, output_dir, mode)
 
@@ -385,19 +385,19 @@ def set_server_eval_param():
             'data_dir': '../data/ontonotes5/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp_2019_3_12/out/',
+            'output_dir': './tmp_2019_3_20/out/',
             'do_lower_case': True,
             'train_batch_size': 128,
-            'max_seq_length': 64,
+            'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '../models/bert-base-chinese/',
-            'bert_model': './tmp_2019_3_12/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
+            'bert_model': './tmp_2019_3_20/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
             'no_cuda': True,
             'override_output': True,
             'tensorboardWriter': False
             }
 
-LOCAL_FLAG = True
+LOCAL_FLAG = False
 
 if __name__=='__main__':
     if LOCAL_FLAG:
