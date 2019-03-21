@@ -16,6 +16,7 @@ def getScore(infile):
     with open(infile) as fi: 
         for line in fi:
             outVal = re.split(':|,', line)
+            outVal = outVal[3:] # change due to modify the input the file
             idx_range = range(1, len(outVal), 2)
             score = [float(outVal[i]) for i in idx_range]
             outScore.append(score)
@@ -43,13 +44,17 @@ def saveScore2File(pre_out_dir, num_epochs = [15]):
     types = ['train', 'dev', 'test']
 
     outdir = pre_out_dir+'out/'
+
+    if os.path.exists(outdir) and os.listdir(outdir):
+        os.system("rm %s" % os.path.join(outdir, '*'))
     os.makedirs(outdir, exist_ok=True)
+
     for nhl in num_hidden_layers:
         for ne in num_epochs:
             for nts in num_train_size:
                 out_dir = pre_out_dir + 'nhl' + str(nhl) + '_nte' + str(ne) + '_nbs' + str(nts) + '/out/'
                 for type in types:
-                    infile = out_dir + type + '_eval_rs.txt'
+                    infile = out_dir + type + '_eval_results.txt'
                     #pdb.set_trace()
                     score = getScore(infile)
                     nscore = np.array(score)
@@ -122,14 +127,14 @@ def plotResults(pre_dir, num_epochs = [15]):
             plt.ylabel('F1')
             plt.grid()
             get_test_F1 = ts_score[am_dev_loss,1]
-            plt.text(am_dev_loss+1, get_test_F1+1, str(am_dev_loss+1)+': '+str(get_test_F1), color='c')
-            plt.arrow(am_dev_loss+1.9, get_test_F1+0.9, -.8, -.8, color='c', length_includes_head=True,
+            plt.text(am_dev_loss+.5, get_test_F1+1, str(am_dev_loss+1)+': '+str(get_test_F1), color='c')
+            plt.arrow(am_dev_loss+1.4, get_test_F1+0.9, -.4, -.8, color='c', length_includes_head=True,
                       head_width=0.2, head_length=0.2)
 
             amax_test_F1 = np.argmax(ts_score[:,1])
             max_test_F1 = ts_score[amax_test_F1, 1]
-            plt.text(amax_test_F1-1, max_test_F1+1, str(amax_test_F1+1)+': '+str(max_test_F1), color='c')
-            plt.arrow(amax_test_F1-0.1, max_test_F1+.9, +.9, -.8, color='c', length_includes_head=True,
+            plt.text(amax_test_F1+.5, max_test_F1+1, str(amax_test_F1+1)+': '+str(max_test_F1), color='c')
+            plt.arrow(amax_test_F1+1.4, max_test_F1+.9, -.4, -.8, color='c', length_includes_head=True,
                       head_width=0.2, head_length=0.2)
 
             #plt.legend(handles=[p1, p2, p3], loc=4)
@@ -169,8 +174,8 @@ def plotResults(pre_dir, num_epochs = [15]):
             plt.grid()
 
             get_test_Acc = ts_score[am_dev_loss,4]
-            plt.text(am_dev_loss+1, get_test_Acc+1, str(am_dev_loss+1)+': '+str(get_test_Acc), color='c')
-            plt.arrow(am_dev_loss+1.9, get_test_Acc+0.9, -.8, -.8, color='c', length_includes_head=True,
+            plt.text(am_dev_loss-1, get_test_Acc+1, str(am_dev_loss+1)+': '+str(get_test_Acc), color='c')
+            plt.arrow(am_dev_loss-0.1, get_test_Acc+0.9, +1., -.8, color='c', length_includes_head=True,
                       head_width=0.2, head_length=0.2)
 
             # get minimum value of dev
@@ -178,8 +183,8 @@ def plotResults(pre_dir, num_epochs = [15]):
             max_dev_acc = dev_score[am_dev_acc, 4]
 
             #get_test_F1 = ts_score[am_dev_loss,1]
-            plt.text(am_dev_acc-1, max_dev_acc+1, str(am_dev_acc+1)+': '+str(max_dev_acc), color='c')
-            plt.arrow(am_dev_acc-0.1, max_dev_acc+0.9, +.9, -.8, color='c', length_includes_head=True,
+            plt.text(am_dev_acc+1.5, max_dev_acc+1, str(am_dev_acc+1)+': '+str(max_dev_acc), color='c')
+            plt.arrow(am_dev_acc+1.9, max_dev_acc+0.9, -.9, -.8, color='c', length_includes_head=True,
                       head_width=0.2, head_length=0.2)
 
             #amax_test_F1 = np.argmax(ts_score[:,1])
@@ -196,6 +201,7 @@ def plotResults(pre_dir, num_epochs = [15]):
 if __name__=='__main__':
     pre_out_dir = '../tmp_2019_3_11/ontonotes/'
     pre_out_dir = '../tmp_2019_3_12/ontonotes/'
+    pre_out_dir = '../tmp_2019_3_20/ontonotes/'
     saveScore2File(pre_out_dir, num_epochs=[15])
 
     pre_dir = pre_out_dir + 'out/'
