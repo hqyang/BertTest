@@ -1,0 +1,15 @@
+train: test time: 2.446, loss: 128.693, F1: 97.042, P: 96.963, R: 97.121, Acc: 98.054, Tags: 1179770
+train: test time: 2.454, loss: 81.834, F1: 98.132, P: 98.128, R: 98.136, Acc: 98.730, Tags: 1179770
+train: test time: 2.441, loss: 57.943, F1: 98.690, P: 98.605, R: 98.774, Acc: 99.089, Tags: 1179770
+train: test time: 2.451, loss: 42.354, F1: 99.050, P: 98.976, R: 99.124, Acc: 99.357, Tags: 1179770
+train: test time: 2.431, loss: 32.136, F1: 99.358, P: 99.325, R: 99.390, Acc: 99.549, Tags: 1179770
+train: test time: 2.434, loss: 25.794, F1: 99.473, P: 99.444, R: 99.501, Acc: 99.653, Tags: 1179770
+train: test time: 2.450, loss: 19.627, F1: 99.606, P: 99.592, R: 99.620, Acc: 99.744, Tags: 1179770
+train: test time: 2.430, loss: 16.517, F1: 99.633, P: 99.632, R: 99.634, Acc: 99.787, Tags: 1179770
+train: test time: 2.443, loss: 14.535, F1: 99.684, P: 99.693, R: 99.675, Acc: 99.812, Tags: 1179770
+train: test time: 2.452, loss: 12.813, F1: 99.724, P: 99.714, R: 99.734, Acc: 99.834, Tags: 1179770
+train: test time: 2.454, loss: 12.212, F1: 99.747, P: 99.732, R: 99.761, Acc: 99.844, Tags: 1179770
+train: test time: 2.447, loss: 11.691, F1: 99.754, P: 99.750, R: 99.757, Acc: 99.850, Tags: 1179770
+train: test time: 2.460, loss: 11.388, F1: 99.766, P: 99.762, R: 99.771, Acc: 99.858, Tags: 1179770
+train: test time: 2.443, loss: 11.306, F1: 99.781, P: 99.778, R: 99.784, Acc: 99.860, Tags: 1179770
+train: test time: 2.437, loss: 11.209, F1: 99.783, P: 99.780, R: 99.786, Acc: 99.862, Tags: 1179770

@@ -1,0 +1,15 @@
+test: test time: 0.307, loss: 348.754, F1: 95.662, P: 94.785, R: 96.555, Acc: 96.657, Tags: 211332
+test: test time: 0.274, loss: 365.925, F1: 95.546, P: 94.608, R: 96.503, Acc: 96.512, Tags: 201658
+test: test time: 0.270, loss: 375.556, F1: 95.693, P: 94.733, R: 96.673, Acc: 96.635, Tags: 201658
+test: test time: 0.273, loss: 403.568, F1: 95.663, P: 94.679, R: 96.668, Acc: 96.639, Tags: 201658
+test: test time: 0.276, loss: 441.989, F1: 95.639, P: 94.794, R: 96.498, Acc: 96.607, Tags: 201658
+test: test time: 0.275, loss: 482.349, F1: 95.625, P: 94.772, R: 96.493, Acc: 96.631, Tags: 201658
+test: test time: 0.278, loss: 532.990, F1: 95.741, P: 94.891, R: 96.606, Acc: 96.649, Tags: 201658
+test: test time: 0.275, loss: 579.778, F1: 95.662, P: 94.750, R: 96.591, Acc: 96.633, Tags: 201658
+test: test time: 0.274, loss: 605.245, F1: 95.737, P: 94.905, R: 96.583, Acc: 96.698, Tags: 201658
+test: test time: 0.278, loss: 644.325, F1: 95.755, P: 94.948, R: 96.577, Acc: 96.684, Tags: 201658
+test: test time: 0.272, loss: 688.098, F1: 95.692, P: 94.820, R: 96.582, Acc: 96.638, Tags: 201658
+test: test time: 0.276, loss: 716.395, F1: 95.658, P: 94.748, R: 96.586, Acc: 96.609, Tags: 201658
+test: test time: 0.280, loss: 723.191, F1: 95.656, P: 94.806, R: 96.521, Acc: 96.630, Tags: 201658
+test: test time: 0.276, loss: 753.342, F1: 95.676, P: 94.751, R: 96.619, Acc: 96.615, Tags: 201658
+test: test time: 0.283, loss: 745.322, F1: 95.725, P: 94.865, R: 96.601, Acc: 96.656, Tags: 201658
