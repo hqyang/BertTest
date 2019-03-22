@@ -14,15 +14,9 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 #import cPickle
 #import models
 import re
-#from config import DictConfig
-#import utils_data
-#import preprocess
 import queue
 import pandas as pd
 import torch
-
-from src.BERT.modeling import BertConfig
-from src.customize_modeling import BertCRFCWS
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -32,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
+
+
 # copy from https://github.com/supercoderhawk/DNN_CWS/blob/master/utils.py
 def strQ2B(ustring):
     '''全角转半角'''
@@ -49,7 +45,8 @@ def strQ2B(ustring):
 
     return rstring
 
-def _is_chinese_char(cp):
+
+def is_chinese_char(cp):
     """Checks whether CP is the codepoint of a CJK character."""
     # This defines a "chinese character" as anything in the CJK Unicode block:
     #   https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
@@ -69,6 +66,26 @@ def _is_chinese_char(cp):
         (cp >= 0x2F800 and cp <= 0x2FA1F)):  #
         return True
     return False
+
+
+def is_english_char(cp):
+    """Checks whether CP is an English character."""
+    # https://zh.wikipedia.org/wiki/%E5%85%A8%E5%BD%A2%E5%92%8C%E5%8D%8A%E5%BD%A2
+    if ((cp >= 0x0041 and cp <= 0x005A) or
+        (cp >= 0x0061 and cp <= 0x007A) or
+        (cp >= 0xFF21 and cp <= 0xFF3A) or
+        (cp >= 0xFF41 and cp <= 0xFF5A)):
+        return True
+
+    return False
+
+
+def check_english_words(word):
+    for idx in range(len(word)):
+        if not is_english_char(ord(word[idx])):
+            return False # one char is not English, it is not an English word
+    return True
+
 
 def escape(text):
     '''html转义'''
@@ -248,7 +265,7 @@ def convertList2BMES(rs):
     # rs: a list
     outStr = ''
     for i, word in enumerate(rs.__iter__()):
-        if not _is_chinese_char(ord(word[0])) or len(word)==1:
+        if not is_chinese_char(ord(word[0])) or len(word)==1:
             seg_gt = 'S '
         else: # Chinese char and multiple words
             seg_gt = 'B ' + 'M ' * (len(word) - 2) + 'E '
@@ -264,7 +281,7 @@ def convertList2BIO(rs):
     # rs: a list
     outStr = ''
     for i, word in enumerate(rs.__iter__()):
-        if not _is_chinese_char(ord(word[0])) or len(word)==1:
+        if not is_chinese_char(ord(word[0])) or len(word)==1:
             seg_gt = 'O '
         else: # Chinese char and multiple words
             seg_gt = 'B ' + 'I ' * (len(word) - 1)
@@ -280,7 +297,7 @@ def convertList2BIOwithComma(rs):
     # rs: a list
     outStr = ''
     for i, word in enumerate(rs.__iter__()):
-        if not _is_chinese_char(ord(word[0])) or len(word)==1:
+        if not is_chinese_char(ord(word[0])) or len(word)==1:
             seg_gt = 'O,'
         else: # Chinese char and multiple words
             seg_gt = 'B,' + 'I,' * (len(word) - 1)
@@ -308,102 +325,6 @@ def space2Comma(text):
 
     return sOut
 
-def load_model(label_list, args):
-    if args.visible_device is not None:
-        if isinstance(args.visible_device, int):
-            args.visible_device = str(args.visible_device)
-        elif isinstance(args.visible_device, (tuple, list)):
-            args.visible_device = ','.join([str(_) for _ in args.visible_device])
-        os.environ["CUDA_VISIBLE_DEVICES"] = args.visible_device
-
-    if args.local_rank == -1 or args.no_cuda:
-        device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
-        n_gpu = torch.cuda.device_count()
-    else:
-        device = torch.device("cuda", args.local_rank)
-        n_gpu = 1
-        # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
-        torch.distributed.init_process_group(backend='nccl')
-        if args.fp16:
-            logger.info("16-bits training currently not supported in distributed training")
-            args.fp16 = False # (see https://github.com/pytorch/pytorch/pull/13496)
-    logger.info("device %s n_gpu %d distributed training %r", device, n_gpu, bool(args.local_rank != -1))
-
-    if n_gpu > 0:
-        torch.cuda.manual_seed_all(args.seed)
-
-    if args.bert_model_dir is not None:
-        config_file = os.path.join(args.bert_model_dir, CONFIG_NAME)
-        bert_config = BertConfig.from_json_file(config_file)
-    else:
-        bert_config = BertConfig.from_json_file(args.bert_config_file)
-
-    if args.num_hidden_layers>0 and args.num_hidden_layers<bert_config.num_hidden_layers:
-        bert_config.num_hidden_layers = args.num_hidden_layers
-
-    if args.max_seq_length > bert_config.max_position_embeddings:
-        raise ValueError(
-            "Cannot use sequence length {} because the BERT model was only trained up to sequence length {}".format(
-            args.max_seq_length, bert_config.max_position_embeddings))
-
-    if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
-        if not args.override_output:
-            raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
-        else:
-            os.system("rm %s" % os.path.join(args.output_dir, '*'))
-
-    model = BertCRFCWS(bert_config, args.vocab_file, args.max_seq_length, len(label_list))
-
-    if args.init_checkpoint is None:
-        raise RuntimeError('Evaluating a random initialized model is not supported...!')
-    #elif os.path.isdir(args.init_checkpoint):
-    #    raise ValueError("init_checkpoint is not a file")
-    else:
-        weights_path = os.path.join(args.init_checkpoint, WEIGHTS_NAME)
-
-        # main code copy from modeling.py line after 506
-        state_dict = torch.load(weights_path)
-
-        missing_keys = []
-        unexpected_keys = []
-        error_msgs = []
-        # copy state_dict so _load_from_state_dict can modify it
-        metadata = getattr(state_dict, '_metadata', None)
-        state_dict = state_dict.copy()
-        if metadata is not None:
-            state_dict._metadata = metadata
-
-        def load(module, prefix=''):
-            local_metadata = {} if metadata is None else metadata.get(prefix[:-1], {})
-            module._load_from_state_dict(
-                state_dict, prefix, local_metadata, True, missing_keys, unexpected_keys, error_msgs)
-            for name, child in module._modules.items():
-                if child is not None:
-                    load(child, prefix + name + '.')
-        load(model, prefix='' if hasattr(model, 'bert') else 'bert.')
-        if len(missing_keys) > 0:
-            logger.info("Weights of {} not initialized from pretrained model: {}".format(
-                model.__class__.__name__, missing_keys))
-        if len(unexpected_keys) > 0:
-            logger.info("Weights from pretrained model not used in {}: {}".format(
-                model.__class__.__name__, unexpected_keys))
-
-    model.to(device)
-    if args.local_rank != -1:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
-                                                          output_device=args.local_rank)
-    elif n_gpu > 1 and not args.no_cuda:
-        model = torch.nn.DataParallel(model)
-
-    if args.bert_model is not None:
-        weights = torch.load(args.bert_model, map_location='cpu')
-
-        try:
-            model.load_state_dict(weights)
-        except RuntimeError:
-            model.module.load_state_dict(weights)
-
-    return model, device
 
 def export_stat_list(n, param):
     a = param.view(-1)
@@ -411,6 +332,7 @@ def export_stat_list(n, param):
     return {'name': n, 'max': '{:.6f}'.format(torch.max(a).item()), 'min': '{:.6f}'.format(torch.min(a).item()), \
             'mean': '{:.6f}'.format(torch.mean(a).item()), 'std': '{:.6f}'.format(torch.std(a).item()), \
             'median': '{:.6f}'.format(torch.median(a).item()) }
+
 
 def save_model(model, fo='tmp.tsv'):
     data_all = [export_stat_list(n, param) for n, param in model.named_parameters()]
