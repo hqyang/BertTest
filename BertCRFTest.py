@@ -407,7 +407,7 @@ def test_ontonotes(args):
         （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
         # of students is 256.
     '''
-
+    text = '印度工商联合会副主席哈比尔９９科拉基瓦拉说，如果颁布控价举措，即便是大型制药商，也会感到研发药品的预算难以为继。'
     outputF = model.cut(text, False)
 
     outTextF = ' '.join(outputF)

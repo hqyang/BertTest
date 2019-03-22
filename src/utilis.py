@@ -281,7 +281,7 @@ def convertList2BIO(rs):
     # rs: a list
     outStr = ''
     for i, word in enumerate(rs.__iter__()):
-        if not is_chinese_char(ord(word[0])) or len(word)==1:
+        if check_english_words(word) or len(word)==1:
             seg_gt = 'O '
         else: # Chinese char and multiple words
             seg_gt = 'B ' + 'I ' * (len(word) - 1)
@@ -297,7 +297,7 @@ def convertList2BIOwithComma(rs):
     # rs: a list
     outStr = ''
     for i, word in enumerate(rs.__iter__()):
-        if not is_chinese_char(ord(word[0])) or len(word)==1:
+        if check_english_words(word) or len(word)==1:
             seg_gt = 'O,'
         else: # Chinese char and multiple words
             seg_gt = 'B,' + 'I,' * (len(word) - 1)
