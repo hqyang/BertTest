@@ -6,6 +6,7 @@ from src.TorchCRF import CRF
 from src.preprocess import tokenize_text, tokenize_list
 from src.tokenization import FullTokenizer
 import numpy as np
+from src.utilis import check_english_words
 
 class BertSelfAttention(nn.Module):
     def __init__(self, config):
@@ -380,6 +381,45 @@ class BertCRFCWS(PreTrainedBertModel):
         l = ln.strip('\r\n')
         l = l.strip()
 
+        len_max = self.max_length-2
+        wls = self.tokenizer.tokenize(l)
+
+        wls_used = wls
+        if not procAll:
+            if len(wls_used)>len_max:
+                wls = wls[:len_max]
+                wls_used = wls
+
+        decode_output = ''
+        while len(wls_used) > 0:
+            # _seg_wordslist: 02xxx
+            decode_output += self._seg_wordslist(wls_used)
+
+            if len(wls_used) > len_max:
+                wls_used = wls_used[len_max:]
+            else:
+                wls_used = []
+
+        result_str = ''
+        #pre_word_is_english = False
+        cur_word_is_english = False
+        for text, tag in zip(wls, decode_output):
+            text = text.replace('##', '')
+            cur_word_is_english = check_english_words(text)
+
+            if int(tag) > 1: # and (cur_word_is_english)
+                # int(tag)>1: tokens of 'E' and 'S'
+                # current word is english
+                result_str += text + ' '
+            else:
+                result_str += text
+
+            #pre_word_is_english = cur_word_is_english
+
+        return result_str.strip().split()
+
+
+        '''Fix bug in the following
         if not procAll:
             sl = l.split()
             select_len = self.max_length-2
@@ -427,6 +467,6 @@ class BertCRFCWS(PreTrainedBertModel):
                     result_str += text
 
         return result_str.strip().split()
-
+    ''' #end fix bugs
 
 

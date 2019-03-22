@@ -270,3 +270,4 @@ def remove_trace(t):
 
 def is_terminal(d):
     return not isinstance(d, Tree)
+
