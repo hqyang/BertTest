@@ -467,10 +467,10 @@ def main(**kwargs):
                 +'_nbs'+str(args.train_batch_size) 
         print(args.output_dir)
         os.makedirs(args.output_dir, exist_ok=True)
-        processor.save_labelidmap(args.output_dir)
+        #processor.save_labelidmap(args.output_dir)
 
-    
-    if args.do_eval:
+    #pdb.set_trace()    
+    if args.do_eval and not args.do_train:
         args.init_checkpoint = args.init_checkpoint + '/nhl' \
                 +str(args.num_hidden_layers)+'_nte'+str(args.num_train_epochs) \
                 +'_nbs'+str(args.train_batch_size) 
