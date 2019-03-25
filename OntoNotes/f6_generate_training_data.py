@@ -567,7 +567,7 @@ if __name__ == '__main__':
     print('bert_seg:'+out_dict['bert_seg'])
     print('bert_ner:'+out_dict['bert_ner'])
 
-    TEST_FLAG = True
+    TEST_FLAG = False
     if TEST_FLAG:
         out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/valid/'
         in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/valid/test_data_ori.txt'

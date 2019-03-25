@@ -203,6 +203,7 @@ if __name__=='__main__':
     pre_out_dir = '../tmp_2019_3_12/ontonotes/'
     pre_out_dir = '../tmp_2019_3_20/ontonotes/'
     pre_out_dir = '../tmp_2019_3_22/ontonotes/'
+    pre_out_dir = '../tmp_2019_3_23/ontonotes/'
     saveScore2File(pre_out_dir, num_epochs=[15])
 
     pre_dir = pre_out_dir + 'out/'
