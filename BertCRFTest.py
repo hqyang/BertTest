@@ -144,6 +144,7 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
 
     for i, data in tqdm(enumerate(df.itertuples())):
         sentence = data.text
+        sentence = re.sub('“|”', '"', sentence)
         #rs_full = jieba.lcut(sentence, cut_all=True) # Full mode, all possible cuts
         #rs_ser = jieba.lcut_for_search(sentence) # search engine mode, similar to Full mode
 
@@ -157,7 +158,7 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
         bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
-        str_BIO = convertList2BIOwithComma(rs_precision)
+        str_BIO = convertList2BIOwithComma(rs_precision, model.tokenizer)
         bertCRFList.append(str_BIO)
 
         tl = BMES2BIO(data.label)
@@ -234,7 +235,7 @@ def do_eval_with_file_model(model, infile, output_dir, otag, tagMode, mode=False
         bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
-        str_BIO = convertList2BIOwithComma(rs_precision)
+        str_BIO = convertList2BIOwithComma(rs_precision, model.tokenizerxxx)
 
         bertCRFList.append(str_BIO)
         trueLabelList.append(tl)
@@ -499,6 +500,7 @@ def set_server_eval_param():
             }
 
 LOCAL_FLAG = False
+#LOCAL_FLAG = True
 
 if __name__=='__main__':
     if LOCAL_FLAG:

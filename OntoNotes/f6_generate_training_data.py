@@ -216,6 +216,7 @@ def parse_one2BERTformat(s, full_tokenizer, basic_tokenizer): # store into lists
                     assert len(p) > 1
                     word = p[:-1]
                     text.append(word)
+                    word = re.sub('“|”', '"', word)
                     innermost = False
                     p = p[-1]
 
