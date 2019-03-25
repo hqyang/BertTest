@@ -418,7 +418,64 @@ class BertCRFCWS(PreTrainedBertModel):
 
         return result_str.strip().split()
 
+    def cut2(self, ln):
+        """
+        # Example usage:
+            text = '''
+            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
+            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
+            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
+            # of students is 256.
+            '''
 
+            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = model.cut(text)
+        """
+        l = ln.strip('\r\n')
+        l = l.strip()
+        l = l.replace('。', '。 ')
+
+        len_max = self.max_length-2
+
+        ls = l.split() # process English
+
+        result_str = ''
+        for wl in ls:
+            wls = self.tokenizer.tokenize(wl)
+
+            wls_used = wls
+            if len(wls_used) > len_max:
+                wls = wls[:len_max]
+                wls_used = wls
+
+            decode_output = ''
+            while len(wls_used) > 0:
+                # _seg_wordslist: 02xxx
+                decode_output += self._seg_wordslist(wls_used)
+
+                if len(wls_used) > len_max:
+                    wls_used = wls_used[len_max:]
+                else:
+                    wls_used = []
+
+            #cur_word_is_english = False
+            for text, tag in zip(wls, decode_output):
+                text = text.replace('##', '')
+                #cur_word_is_english = check_english_words(text)
+
+                if int(tag) == 0: # 'B'
+                    result_str += ' ' + text
+                elif int(tag) > 1: # and (cur_word_is_english)
+                    # int(tag)>1: tokens of 'E' and 'S'
+                    # current word is english
+                    result_str += text + ' '
+                else:
+                    result_str += text
+
+            result_str += ' ' # separate bcz english issue
+                #pre_word_is_english = cur_word_is_english
+
+        return result_str.strip().split()
         '''Fix bug in the following
         if not procAll:
             sl = l.split()

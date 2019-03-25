@@ -155,7 +155,8 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
         # jieba_rs = ' '.join(rs_precision)
         #   jieba_rs = '台湾 的 公视 今天 主办 的 台北 市长 候选人 辩论会 ，'
 
-        rs_precision = model.cut(sentence, mode)
+        #rs_precision = model.cut(sentence, mode)
+        rs_precision = model.cut2(sentence)
         bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
@@ -410,12 +411,12 @@ def test_ontonotes(args):
         # of students is 256.
     '''
     text = '印度工商联合会副主席哈比尔９９科拉基瓦拉说，如果颁布控价举措，即便是大型制药商，也会感到研发药品的预算难以为继。'
-    outputF = model.cut(text, False)
+    outputF = model.cut2(text)
 
     outTextF = ' '.join(outputF)
     print(outTextF)
 
-    outputT = model.cut(text)
+    outputT = model.cut2(text)
 
     outTextT = ' '.join(outputT)
     print(outTextT)
@@ -423,9 +424,31 @@ def test_ontonotes(args):
     t2 = '''
     在朝野各界为核四事件吵嚷不休之际，发生在一月中旬的垦丁龙坑生态油污事件，直到二月底才受到初步控制，加上近来台湾山区森林火灾屡扑屡起，显现台湾生态的危机，已不容人们将焦点放在单一的开发事件上，全面性的大地破坏与自然反扑更值得关注。
     '''
-    outputT2 = model.cut(t2)
+    outputT2 = model.cut2(t2)
     outTextT2 = ' '.join(outputT2)
     print(outTextT2)
+
+    t3 = '''
+      创维又一波黑科技。  尸体卡通风管。  这次撞上海底了。  欢迎新老师生前来就餐。  工信处女干事每月经过下属科室都亲口交代24口交换机等技术性器件的安装工程。  
+      结婚和尚未结婚的的确在干扰分词哈。  商品和服务。  买水果然后来世博会最后去世博会。  中国的首都是北京。  
+      随着页游兴起到现在页游繁盛，依赖于存档进行逻辑判断的设计减少了，但这块都不能完全忽略掉。  
+    '''
+    outputT3 = model.cut2(t3)
+    outTextT3 = ' '.join(outputT3)
+    print(outTextT3)
+
+    t4 = '''
+      兰心餐厅\n作为一个无辣不欢的妹子，对上海菜的偏清淡偏甜真的是各种吃不惯。
+            每次出门和闺蜜越饭局都是避开本帮菜。后来听很多朋友说上海有几家特别正宗味道做
+            的很好的餐厅于是这周末和闺蜜们准备一起去尝一尝正宗的本帮菜。\n进贤路是我在上
+            海比较喜欢的一条街啦，这家餐厅就开在这条路上。已经开了三十多年的老餐厅了，地
+            方很小，就五六张桌子。但是翻桌率比较快。二楼之前的居民间也改成了餐厅，但是在
+            上海的名气却非常大。烧的就是家常菜，普通到和家里烧的一样，生意非常好，外面排
+            队的比里面吃的人还要多。
+    '''
+    outputT4 = model.cut2(t4)
+    outTextT4 = ' '.join(outputT4)
+    print(outTextT4)
 
     output_eval_file = os.path.join(output_dir, "eval_results.txt")
     with open(output_eval_file, "a+") as writer:
@@ -450,7 +473,7 @@ def test_CWS(args):
     fnames = ['as', 'cityu', 'msr', 'pku']
     modes = ['train', 'test']
     tagMode = 'BIO'
-    data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
+    #data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
     data_dir += tagMode + '/'
 
     output_dir='./tmp/cws/jieba/'
@@ -471,13 +494,13 @@ def set_local_eval_param():
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
             'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
             'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
-            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_20/rs/nhl3/',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/rs/nhl3/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_20/models/nhl3/weights_epoch03.pt',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3/weights_epoch03.pt',
             'override_output': True,
             'tensorboardWriter': False
             }
@@ -501,7 +524,7 @@ def set_server_eval_param():
             }
 
 LOCAL_FLAG = False
-#LOCAL_FLAG = True
+LOCAL_FLAG = True
 
 if __name__=='__main__':
     if LOCAL_FLAG:
