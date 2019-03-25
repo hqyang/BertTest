@@ -21,6 +21,7 @@ import time
 import numpy as np
 import torch
 import pdb
+import re
 
 from src.BERT.modeling import BertConfig
 from src.customize_modeling import BertCRFCWS
@@ -493,7 +494,7 @@ def set_server_eval_param():
             'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '../models/bert-base-chinese/',
-            'bert_model': './tmp_2019_3_22/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
+            'bert_model': './tmp_2019_3_23/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
             'no_cuda': True,
             'override_output': True,
             'tensorboardWriter': False
