@@ -240,7 +240,7 @@ def batch_gendata():
         gen_data(infile, outfile, tagType)
 
 TESTFLAG = False
-#TESTFLAG = True
+TESTFLAG = True
 
 if __name__ == '__main__':
     #remove_u3000('tmp_input.txt', 'tmp_output.txt')
@@ -268,6 +268,10 @@ if __name__ == '__main__':
         #gen_data(infile, outfile, 'BMES')
 
         outfile = 'tmp_outBIO.txt'
+        gen_data(infile, outfile, 'BIO')
+
+        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/cityu_test.tsv'
+        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/BIO/cityu_test.tsv'
         gen_data(infile, outfile, 'BIO')
     else:
         batch_gendata()
