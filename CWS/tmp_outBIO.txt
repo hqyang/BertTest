@@ -1,25 +1,26 @@
-bert_seg	src_seg	text	text_seg
-B I B I O B I O B I O	B,I,B,I,O,B,I,O,B,I,O,	激起人們對社區的渴望…	激起 人們 對 社區 的 渴望 …
-O	O,	…	…
-B I O B I B I B I B I I O B I B I O	B,I,O,B,I,B,I,B,I,B,I,I,O,B,I,B,I,O,	轉而從別的地方尋找歸屬感和情感深度。	轉而 從 別的 地方 尋找 歸屬感 和 情感 深度 。
-O B I B I O B I O	O,B,I,B,I,O,B,I,O,	」至於發生在何處，	」 至於 發生 在 何處 ，
-B I O B I B I B I O	B,I,O,B,I,B,I,B,I,O,	必須讓讀者自己作主。	必須 讓 讀者 自己 作主 。
-O B I B I O O B I O	O,B,I,B,I,O,O,B,I,O,	在鄰近街坊、在學校，	在 鄰近 街坊 、 在 學校 ，
-B I O B I O O	B,I,O,B,I,O,O,	或許最重要的，	或許 最 重要 的 ，
-O B I B I O B I O O	O,B,I,B,I,O,B,I,O,O,	在家庭關係的壕溝裡。	在 家庭 關係 的 壕溝 裡 。
-B I O B I O O	B,I,O,B,I,O,O,	不過在掩卷前，	不過 在 掩卷 前 ，
-B I O O B I I B I B I O	B,I,O,O,B,I,I,B,I,B,I,O,	我們會和賽內特一樣相信，	我們 會 和 賽內特 一樣 相信 ，
-B I B I O O B I O	B,I,B,I,O,O,B,I,O,	這些反應終將來到。	這些 反應 終 將 來到 。
-B I I I I I I O	B,I,I,I,I,I,I,O,	奧立佛．薩克斯，	奧立佛．薩克斯 ，
-O O B I O O O O O	O,O,B,I,O,O,O,O,O,	本書其實是兩本書，	本 書 其實 是 兩 本 書 ，
-B I B I O O B I O B I B I O B I I I I I O O O	B,I,B,I,O,O,B,I,O,B,I,B,I,O,B,I,I,I,I,I,O,O,O,	分別記述兩次平行但各自獨立的密克羅尼西亞之旅。	分別 記述 兩 次 平行 但 各自 獨立 的 密克羅尼西亞 之 旅 。
-O O B I B I B I O	O,O,B,I,B,I,B,I,O,	我到這些列島訪問，	我 到 這些 列島 訪問 ，
-B I O O B I O O B I O	B,I,O,O,B,I,O,O,B,I,O,	為期很短而且事出偶然，	為期 很 短 而且 事 出 偶然 ，
-O O B I B I B I O B I O	O,O,B,I,B,I,B,I,O,B,I,O,	既不屬於任何計畫或安排，	既 不 屬於 任何 計畫 或 安排 ，
-O O B I B I O B I B I B I O	O,O,B,I,B,I,O,B,I,B,I,B,I,O,	也沒打算證明或推翻什麼論點，	也 沒 打算 證明 或 推翻 什麼 論點 ，
-B I B I O B I O	B,I,B,I,O,B,I,O,	只是單純的觀察。	只是 單純 的 觀察 。
-B I I O O B I B I B I O O B I B I I I O B I B I O	B,I,I,O,O,B,I,B,I,B,I,O,O,B,I,B,I,I,I,O,B,I,B,I,O,	如果說我的這些島嶼經驗未能免於感情用事和缺乏系統，	如果說 我 的 這些 島嶼 經驗 未 能 免於 感情用事 和 缺乏 系統 ，
-B I O B I B I O	B,I,O,B,I,B,I,O,	然而它緊湊豐富，	然而 它 緊湊 豐富 ，
-B I B I O B I B I B I O O B I B I O	B,I,B,I,O,B,I,B,I,B,I,O,O,B,I,B,I,O,	從而衍生的多方發展不時令我為之稱奇。	從而 衍生 的 多方 發展 不時 令 我 為之 稱奇 。
-O O B I I I I I O	O,O,B,I,I,I,I,I,O,	我到密克羅尼西亞，	我 到 密克羅尼西亞 ，
-B I O B I I O B I O B I I I I I O B I I I I I I I B I I I I I O O	B,I,O,O,O,B,I,O,O,O,O,O,O,O,	目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ Ｆｅｌｌｏｗ），	目前 由 ２３２ 位 院士 （ Ｆｅｌｌｏｗ 及 Ｆｏｕｎｄｉｎｇ Ｆｅｌｌｏｗ ） ，
+bert_ner	bert_seg	full_pos	src_ner	src_seg	text	text_seg
+	O O O B I I I O B I O O B I			O,O,O,B,I,I,I,O,B,I,O,O,B,I,	「練得銅皮鐵骨」露宿早慣蚊叮	「 練 得 銅皮鐵骨 」 露宿 早 慣 蚊叮
+	B I B I O B I O B I O			B,I,B,I,O,B,I,O,B,I,O,	激起人們對社區的渴望…	激起 人們 對 社區 的 渴望 …
+	O			O,	…	…
+	B I O B I B I B I B I I O B I B I O			B,I,O,B,I,B,I,B,I,B,I,I,O,B,I,B,I,O,	轉而從別的地方尋找歸屬感和情感深度。	轉而 從 別的 地方 尋找 歸屬感 和 情感 深度 。
+	O B I B I O B I O			O,B,I,B,I,O,B,I,O,	」至於發生在何處，	」 至於 發生 在 何處 ，
+	B I O B I B I B I O			B,I,O,B,I,B,I,B,I,O,	必須讓讀者自己作主。	必須 讓 讀者 自己 作主 。
+	O B I B I O O B I O			O,B,I,B,I,O,O,B,I,O,	在鄰近街坊、在學校，	在 鄰近 街坊 、 在 學校 ，
+	B I O B I O O			B,I,O,B,I,O,O,	或許最重要的，	或許 最 重要 的 ，
+	O B I B I O B I O O			O,B,I,B,I,O,B,I,O,O,	在家庭關係的壕溝裡。	在 家庭 關係 的 壕溝 裡 。
+	B I O B I O O			B,I,O,B,I,O,O,	不過在掩卷前，	不過 在 掩卷 前 ，
+	B I O O B I I B I B I O			B,I,O,O,B,I,I,B,I,B,I,O,	我們會和賽內特一樣相信，	我們 會 和 賽內特 一樣 相信 ，
+	B I B I O O B I O			B,I,B,I,O,O,B,I,O,	這些反應終將來到。	這些 反應 終 將 來到 。
+	B I I I I I I O			B,I,I,I,I,I,I,O,	奧立佛．薩克斯，	奧立佛．薩克斯 ，
+	O O B I O O O O O			O,O,B,I,O,O,O,O,O,	本書其實是兩本書，	本 書 其實 是 兩 本 書 ，
+	B I B I O O B I O B I B I O B I I I I I O O O			B,I,B,I,O,O,B,I,O,B,I,B,I,O,B,I,I,I,I,I,O,O,O,	分別記述兩次平行但各自獨立的密克羅尼西亞之旅。	分別 記述 兩 次 平行 但 各自 獨立 的 密克羅尼西亞 之 旅 。
+	O O B I B I B I O			O,O,B,I,B,I,B,I,O,	我到這些列島訪問，	我 到 這些 列島 訪問 ，
+	B I O O B I O O B I O			B,I,O,O,B,I,O,O,B,I,O,	為期很短而且事出偶然，	為期 很 短 而且 事 出 偶然 ，
+	O O B I B I B I O B I O			O,O,B,I,B,I,B,I,O,B,I,O,	既不屬於任何計畫或安排，	既 不 屬於 任何 計畫 或 安排 ，
+	O O B I B I O B I B I B I O			O,O,B,I,B,I,O,B,I,B,I,B,I,O,	也沒打算證明或推翻什麼論點，	也 沒 打算 證明 或 推翻 什麼 論點 ，
+	B I B I O B I O			B,I,B,I,O,B,I,O,	只是單純的觀察。	只是 單純 的 觀察 。
+	B I I O O B I B I B I O O B I B I I I O B I B I O			B,I,I,O,O,B,I,B,I,B,I,O,O,B,I,B,I,I,I,O,B,I,B,I,O,	如果說我的這些島嶼經驗未能免於感情用事和缺乏系統，	如果說 我 的 這些 島嶼 經驗 未 能 免於 感情用事 和 缺乏 系統 ，
+	B I O B I B I O			B,I,O,B,I,B,I,O,	然而它緊湊豐富，	然而 它 緊湊 豐富 ，
+	B I B I O B I B I B I O O B I B I O			B,I,B,I,O,B,I,B,I,B,I,O,O,B,I,B,I,O,	從而衍生的多方發展不時令我為之稱奇。	從而 衍生 的 多方 發展 不時 令 我 為之 稱奇 。
+	O O B I I I I I O			O,O,B,I,I,I,I,I,O,	我到密克羅尼西亞，	我 到 密克羅尼西亞 ，
+	B I O B I I O B I O B I I I I I O B I I I I I I I B I I I I I O O			B,I,O,B,I,I,O,B,I,O,O,O,O,O,O,O,	目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ Ｆｅｌｌｏｗ），	目前 由 ２３２ 位 院士 （ Ｆｅｌｌｏｗ 及 Ｆｏｕｎｄｉｎｇ Ｆｅｌｌｏｗ ） ，

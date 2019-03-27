@@ -96,7 +96,7 @@ def list2BIOList(text_list, full_tokenizer, basic_tokenizer):
                 bert_seg = ['B'] + ['I'] * (len_wl - 1)
         else: # Chinese or numerical
             len_text = len(text)
-            wl = full_tokenizer.tokenize(text)
+            wl = full_tokenizer.tokenize(text) # a list
             len_wl = len(wl)
 
             if len_text==1:
@@ -104,7 +104,7 @@ def list2BIOList(text_list, full_tokenizer, basic_tokenizer):
             else:
                 src_seg = ['B'] + ['I'] * (len_text - 1)
 
-            if len_text == len_wl:
+            if len_text == len_wl or len_wl==1: # len_wl may be a string of numbers
                 bert_seg = src_seg
             else:
                 bert_seg = ['B'] + ['I'] * (len_wl - 1)
@@ -159,7 +159,7 @@ def list2BMESList(text_list, full_tokenizer, basic_tokenizer):
             else:
                 src_seg = ['B'] + ['M'] * (len_text - 2) + ['E']
 
-            if len_text == len_wl:
+            if len_text == len_wl or len_wl==1: # len_wl may be a string of numbers
                 bert_seg = src_seg
             else:
                 bert_seg = ['B'] + ['M'] * (len_wl - 2) + ['E']
@@ -240,10 +240,15 @@ def batch_gendata():
         gen_data(infile, outfile, tagType)
 
 TESTFLAG = False
+#TESTFLAG = True
+
 if __name__ == '__main__':
     #remove_u3000('tmp_input.txt', 'tmp_output.txt')
     #batch_remove_u3000()
     if TESTFLAG:
+        vocab_file = '../vocab/bert-base-chinese.txt'
+        full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
+        basic_tokenizer = BasicTokenizer(do_lower_case=True)
         sent = """
             目前　由　２３２　位　院士　（　Ｆｅｌｌｏｗ　及　Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ　）　，
             ６６　位　協院士　（　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ　）　２４　位　通信　院士　
@@ -251,15 +256,16 @@ if __name__ == '__main__':
             （　Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ　）　組成　
             （　不　包括　一九九四年　當選　者　）　，
             """
-        print(preprocess2dict(sent, 'BIO'))
-        print(preprocess2dict(sent, 'BMES'))
+        print(preprocess2dict(sent, 'BIO', full_tokenizer, basic_tokenizer))
+        print(preprocess2dict(sent, 'BMES', full_tokenizer, basic_tokenizer))
+        print(preprocess2dict(sent, 'BMES', full_tokenizer, basic_tokenizer))
         sent = '目前 由 ２３２ 位 院士 （ Ｆｅｌｌｏｗ 及 Ｆｏｕｎｄｉｎｇ Ｆｅｌｌｏｗ ） ，'
-        print(preprocess2dict(sent, 'BIO'))
-        print(preprocess2dict(sent, 'BMES'))
+        print(preprocess2dict(sent, 'BIO', full_tokenizer, basic_tokenizer))
+        print(preprocess2dict(sent, 'BMES', full_tokenizer, basic_tokenizer))
 
         infile = 'tmp_output.txt'
         outfile = 'tmp_outBMES.txt'
-        gen_data(infile, outfile, 'BMES')
+        #gen_data(infile, outfile, 'BMES')
 
         outfile = 'tmp_outBIO.txt'
         gen_data(infile, outfile, 'BIO')
