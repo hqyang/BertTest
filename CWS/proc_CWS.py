@@ -15,6 +15,15 @@ import re
 import pandas as pd
 from src.tokenization import BasicTokenizer, FullTokenizer
 from tqdm import tqdm
+from src.utilis import check_english_words
+
+'''
+def check_English_words(word, basic_tokenizer):
+    for idx in range(len(word)):
+        if not basic_tokenizer._is_english_char(ord(word[idx])):
+            return False # one char is not English, it is not an English word
+    return True
+'''
 
 def preprocess_file(origin_path, output_path):
     with open(origin_path, 'r') as fr:
@@ -66,7 +75,7 @@ def len_to_bio(length):
         return 'B' + 'I' * (length - 1)
 
 def list2BIOList(text_list, full_tokenizer, basic_tokenizer):
-    mode_status_list = [basic_tokenizer._mode_type(ord(text[0])) for text in text_list]
+    mode_status_list = [check_english_words(text) for text in text_list]
 
     src_seg_List = []
     bert_seg_list = []
@@ -76,14 +85,7 @@ def list2BIOList(text_list, full_tokenizer, basic_tokenizer):
         text = text_list[idx]
         src_seg = ''
         bert_seg = ''
-        if mode_status_list[idx]=='C':
-            len_text = len(text)
-            if len_text==1:
-                src_seg = ['O']
-            else:
-                src_seg = ['B'] + ['I'] * (len_text - 1)
-            bert_seg = src_seg
-        else: # non-Chiense
+        if mode_status_list[idx]: # English
             src_seg = ['O']
 
             wl = full_tokenizer.tokenize(text)
@@ -92,8 +94,22 @@ def list2BIOList(text_list, full_tokenizer, basic_tokenizer):
                 bert_seg = src_seg
             else:
                 bert_seg = ['B'] + ['I'] * (len_wl - 1)
+        else: # Chinese or numerical
+            len_text = len(text)
+            wl = full_tokenizer.tokenize(text)
+            len_wl = len(wl)
 
-        if idx>1 and mode_status_list[idx-1]=='E' and mode_status_list[idx]=='E':
+            if len_text==1:
+                src_seg = ['O']
+            else:
+                src_seg = ['B'] + ['I'] * (len_text - 1)
+
+            if len_text == len_wl:
+                bert_seg = src_seg
+            else:
+                bert_seg = ['B'] + ['I'] * (len_wl - 1)
+
+        if idx>1 and mode_status_list[idx-1] and mode_status_list[idx]:
             outText += ' ' + text
         else:
             outText += text
@@ -115,7 +131,7 @@ def list2BMESList(text_list, full_tokenizer, basic_tokenizer):
     #full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
     #basic_tokenizer = BasicTokenizer(do_lower_case=True)
 
-    mode_status_list = [basic_tokenizer._mode_type(ord(text[0])) for text in text_list]
+    mode_status_list = [check_english_words(text) for text in text_list]
 
     src_seg_List = []
     bert_seg_list = []
@@ -123,14 +139,8 @@ def list2BMESList(text_list, full_tokenizer, basic_tokenizer):
     outText = ''
     for idx in range(len(text_list)):
         text = text_list[idx]
-        if mode_status_list[idx]=='C':
-            len_text = len(text)
-            if len_text==1:
-                src_seg = ['S']
-            else:
-                src_seg = ['B'] + ['M'] * (len_text - 2) + ['E']
-            bert_seg = src_seg
-        else: # non-Chiense
+
+        if mode_status_list[idx]: # English
             src_seg = ['S']
 
             wl = full_tokenizer.tokenize(text)
@@ -139,8 +149,22 @@ def list2BMESList(text_list, full_tokenizer, basic_tokenizer):
                 bert_seg = src_seg
             else:
                 bert_seg = ['B'] + ['M'] * (len_wl - 2) + ['E']
+        else: # Chinese or numerical
+            len_text = len(text)
+            wl = full_tokenizer.tokenize(text)
+            len_wl = len(wl)
 
-        if idx>1 and mode_status_list[idx-1]=='E' and mode_status_list[idx]=='E':
+            if len_text==1:
+                src_seg = ['S']
+            else:
+                src_seg = ['B'] + ['M'] * (len_text - 2) + ['E']
+
+            if len_text == len_wl:
+                bert_seg = src_seg
+            else:
+                bert_seg = ['B'] + ['M'] * (len_wl - 2) + ['E']
+
+        if idx>1 and mode_status_list[idx-1] and mode_status_list[idx]:
             outText += ' ' + text
         else:
             outText += text

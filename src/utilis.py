@@ -81,6 +81,9 @@ def is_english_char(cp):
 
 
 def check_english_words(word):
+    if word in '[UNK]': # detecting unknown token
+        return True
+
     for idx in range(len(word)):
         if not is_english_char(ord(word[idx])):
             return False # one char is not English, it is not an English word

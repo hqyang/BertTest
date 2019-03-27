@@ -209,7 +209,7 @@ def do_eval_with_file_model(model, infile, output_dir, otag, tagMode, mode=False
 
     df = pd.read_csv(infile, sep='\t')
 
-    jiebaList = []
+    bertCRFList = []
     trueLabelList = []
 
     output_diff_file = os.path.join(output_dir, otag+"_diff.txt")
@@ -233,18 +233,20 @@ def do_eval_with_file_model(model, infile, output_dir, otag, tagMode, mode=False
             tl = BMES2BIO(data.src_seg)
             tl = space2Comma(tl)
 
-        rs_precision = model.cut(sentence, mode)
+        rs_precision = model.cut2(sentence)
         bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
-        str_BIO = convertList2BIOwithComma(rs_precision, model.tokenizerxxx)
+        str_BIO = convertList2BIOwithComma(rs_precision, model.tokenizer)
 
         bertCRFList.append(str_BIO)
         trueLabelList.append(tl)
 
-        if i % 20000 == 0:
+        if str_BIO != tl:
             print('{:d}: '.format(i))
             print(sentence)
+            print(data.text_seg)
+            print(bertCRF_rs)
             print(tl)
             print(str_BIO)
             print('\n')
@@ -474,9 +476,10 @@ def test_CWS(args):
     modes = ['train', 'test']
     tagMode = 'BIO'
     #data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
-    data_dir += tagMode + '/'
+    data_dir = args.data_dir + tagMode + '/'
 
-    output_dir='./tmp/cws/jieba/'
+    #output_dir='./tmp/cws/jieba/'
+    output_dir = args.output_dir
     os.makedirs(output_dir, exist_ok=True)
 
     model = preload(args)
@@ -505,6 +508,23 @@ def set_local_eval_param():
             'tensorboardWriter': False
             }
 
+def set_local_eval_4CWS_param():
+    return {'task_name': 'ontonotes_CWS',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes_2019_3_23_nhl3/',
+            'do_lower_case': True,
+            'train_batch_size': 128,
+            'max_seq_length': 128,
+            'num_hidden_layers': 3,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3/weights_epoch03.pt',
+            'override_output': True,
+            'tensorboardWriter': False
+            #             'model_type': 'sequencelabeling',
+            }
+
 def set_server_eval_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
@@ -529,11 +549,12 @@ LOCAL_FLAG = True
 if __name__=='__main__':
     if LOCAL_FLAG:
         kwargs = set_local_eval_param()
+        kwargs = set_local_eval_4CWS_param()
     else:
         kwargs = set_server_eval_param()
 
     args._parse(kwargs)
-    test_ontonotes(args)
-    #test_CWS()
+    #test_ontonotes(args)
+    test_CWS(args)
     #do_eval_with_file('tmp/cws/tmp.txt', 'tmp', '', 'BIO')
     #test_CWS()

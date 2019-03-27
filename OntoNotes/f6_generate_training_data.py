@@ -15,6 +15,7 @@ import re
 import csv
 from src.tokenization import BasicTokenizer, FullTokenizer
 import numpy as np
+from src.utilis import check_english_words
 
 
 def parse_one(s): # store into lists
@@ -102,18 +103,20 @@ def parse_one(s): # store into lists
 
     return seg, ner, full_pos, text_str, text_seg, is_chinese_char
 
+'''
 def check_English_words(word, basic_tokenizer):
     for idx in range(len(word)):
         if not basic_tokenizer._is_english_char(ord(word[idx])):
             return False # one char is not English, it is not an English word
     return True
+'''
 
 def output_seg_tokens(word, full_tokenizer, basic_tokenizer, ner_type=''):
     # only one word, e.g., director, 日子， 在
     # ner_type
     # cws format: BMES
     # ner format: BMEWO
-    isEnglish = check_English_words(word, basic_tokenizer)
+    isEnglish = check_english_words(word)
 
     if isEnglish:
         src_seg_gt = ['S']
