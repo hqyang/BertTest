@@ -270,8 +270,10 @@ if __name__ == '__main__':
         outfile = 'tmp_outBIO.txt'
         gen_data(infile, outfile, 'BIO')
 
-        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/cityu_test.tsv'
-        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/BIO/cityu_test.tsv'
+        #infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/cityu_test.tsv'
+        #outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/BIO/cityu_test.tsv'
+        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/tmp_test.tsv'
+        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/BIO/tmp_test.tsv'
         gen_data(infile, outfile, 'BIO')
     else:
         batch_gendata()
