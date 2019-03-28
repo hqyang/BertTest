@@ -264,18 +264,15 @@ def get_Ontonotes(data_dir, type='train'):
 
     return df
 
-def convertList2BMES(rs, full_tokenizer):
+def convertList2BMES(rs):
     # rs: a list
     outStr = ''
     for i, word in enumerate(rs.__iter__()):
-        wl = full_tokenizer.tokenize(word)
-        len_word = len(wl)
-
-        if check_english_words(word) or len_word:
+        len_word = len(word)
+        if len_word==1 or check_english_words(word):
             seg_gt = 'S '
-        else: # Chinese char and multiple words
+        else: # Chinese word with multiple chars or numerical values
             seg_gt = 'B ' + 'M ' * (len_word - 2) + 'E '
-
         outStr += seg_gt
 
         if i==len(rs)-1: # remove the additional space
@@ -283,17 +280,15 @@ def convertList2BMES(rs, full_tokenizer):
 
     return outStr
 
-def convertList2BIO(rs, full_tokenizer):
+def convertList2BIO(rs): # full_tokenizer
     # rs: a list
     outStr = ''
     for i, word in enumerate(rs.__iter__()):
-        wl = full_tokenizer.tokenize(word)
-        len_word = len(wl)
-
-        if check_english_words(word) or len_word:
-            seg_gt = 'O '
-        else: # Chinese char and multiple words
-            seg_gt = 'B ' + 'I ' * (len_word - 1)
+        len_word = len(word)
+        if len_word==1 or check_english_words(word):
+            seg_gt = 'O,'
+        else: # Chinese word with multiple chars or numerical values
+            seg_gt = 'B,' + 'I,' * (len_word - 1)
 
         outStr += seg_gt
 
@@ -302,22 +297,18 @@ def convertList2BIO(rs, full_tokenizer):
 
     return outStr
 
-def convertList2BIOwithComma(rs, full_tokenizer):
+def convertList2BIOwithComma(rs):
     # rs: a list
     outStr = ''
     for i, word in enumerate(rs.__iter__()):
-        wl = full_tokenizer.tokenize(word)
-        len_word = len(wl)
-        if check_english_words(word) or len_word==1:
+        word = word.replace('[UNK]', ' ') # tackle unknown tokens
+        len_word = len(word)
+        if len_word==1 or check_english_words(word):
             seg_gt = 'O,'
-        else: # Chinese char and multiple words
+        else: # Chinese word with multiple chars or numerical values
             seg_gt = 'B,' + 'I,' * (len_word - 1)
 
         outStr += seg_gt
-
-        #if i==len(rs)-1: # remove the additional space
-        #    outStr = outStr[:-1]
-
     return outStr
 
 def BMES2BIO(text):

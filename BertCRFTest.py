@@ -156,7 +156,7 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
         #   jieba_rs = '台湾 的 公视 今天 主办 的 台北 市长 候选人 辩论会 ，'
 
         #rs_precision = model.cut(sentence, mode)
-        rs_precision = model.cut2(sentence)
+        rs_precision = model.cutlist(sentence)
         bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
@@ -197,7 +197,78 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
         writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, No. Tags: {:d}\n\n".format(score[0], \
                                                 score[1], score[2], score[3], scoreInfo[-1]))
 
-    return score
+    return score, scoreInfo
+
+
+def do_eval_list_with_model(model, data_dir, type, output_dir):
+    df = get_Ontonotes(data_dir, type)
+
+    bertCRFList = []
+    trueLabelList = []
+
+    output_diff_file = os.path.join(output_dir, type+"_diff.txt")
+
+    sent_list = []
+    truelabelstr = ''
+
+
+    for i, data in tqdm(enumerate(df.itertuples())):
+        sentence = data.text
+        sentence = re.sub('“|”', '"', sentence)
+
+        sent_list.append(sentence)
+
+        tl = BMES2BIO(data.label)
+        tl = space2Comma(tl)
+        trueLabelList.append(tl)
+        truelabelstr += tl
+
+    rs_precision_all = model.cutlist(sent_list)
+    #bertCRF_rs = ' '.join(rs_precision[0])
+
+    for idx in tqdm(range(len(rs_precision_all))):
+        rs_precision = rs_precision_all[idx]
+        bertCRF_rs = ' '.join(rs_precision)
+
+        str_BIO = convertList2BIOwithComma(rs_precision)
+        bertCRFList.append(str_BIO)
+
+        tl = trueLabelList[idx]
+
+        sentence = df.text[idx]
+        text_seg = df.text_seg[idx]
+        if str_BIO != tl:
+            print('{:d}: '.format(idx))
+            print(sentence)
+            print(text_seg)
+            print(bertCRF_rs)
+            print(tl)
+            print(str_BIO)
+            print('\n')
+            #pdb.set_trace()
+
+        with open(output_diff_file, "a+") as writer:
+            writer.write('{:d}: '.format(i))
+            writer.write(sentence+'\n')
+            writer.write(text_seg+'\n')
+            writer.write(bertCRF_rs+'\n')
+            writer.write(tl+'\n')
+            writer.write(str_BIO+'\n\n')
+
+    #score, scoreInfo = getFscoreFromBIOTagList([truelabelstr], [str_BIO])
+    score, scoreInfo = getFscoreFromBIOTagList(trueLabelList, bertCRFList)
+
+    print('Eval ' + type + ' results:')
+    print('Test F1, Precision, Recall, Acc, No. Tags: {:.3f}, {:.3f}, {:.3f}, {:.3f}, {:d}'.format(score[0], \
+                                                  score[1], score[2], score[3], scoreInfo[-1]))
+
+    output_eval_file = os.path.join(output_dir, "eval_results.txt")
+    with open(output_eval_file, "a+") as writer:
+        writer.write('Eval ' + type + ' results: ')
+        writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, No. Tags: {:d}\n\n".format(score[0], \
+                                                score[1], score[2], score[3], scoreInfo[-1]))
+
+    return score, scoreInfo
 
 
 def do_eval_with_file_model(model, infile, output_dir, otag, tagMode, mode=False):
@@ -215,7 +286,7 @@ def do_eval_with_file_model(model, infile, output_dir, otag, tagMode, mode=False
     output_diff_file = os.path.join(output_dir, otag+"_diff.txt")
 
     with open(output_diff_file, "a+") as writer:
-        writer.write('order: source, true, jieba\n')
+        writer.write('order: source, true, prediction\n')
 
     for i, data in tqdm(enumerate(df.itertuples())):
         sentence = data.text
@@ -233,7 +304,7 @@ def do_eval_with_file_model(model, infile, output_dir, otag, tagMode, mode=False
             tl = BMES2BIO(data.src_seg)
             tl = space2Comma(tl)
 
-        rs_precision = model.cut2(sentence)
+        rs_precision = model.cutlist(sentence)
         bertCRF_rs = ' '.join(rs_precision)
 
         #str_precision = convertList2BMES(rs_precision)
@@ -406,40 +477,45 @@ def test_ontonotes(args):
 
     model = preload(args)
 
-    text = '''
+    text1 = '''
         目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
         ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
         （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
         # of students is 256.
     '''
-    text = '印度工商联合会副主席哈比尔９９科拉基瓦拉说，如果颁布控价举措，即便是大型制药商，也会感到研发药品的预算难以为继。'
-    outputF = model.cut2(text)
+    outputT1 = model.cutlist([text1])
+    output1 = [' '.join(lst) for lst in outputT1]
+    print(text1)
+    print(output1[0]+'\n')
 
-    outTextF = ' '.join(outputF)
-    print(outTextF)
+    text2 = '印度工商联合会副主席哈比尔９９科拉基瓦拉说，如果颁布控价举措，即便是大型制药商，也会感到研发药品的预算难以为继。'
+    outputT2 = model.cutlist([text2])
+    output2 = [' '.join(lst) for lst in outputT2]
+    print(text2)
+    print(output2[0]+'\n')
 
-    outputT = model.cut2(text)
 
-    outTextT = ' '.join(outputT)
-    print(outTextT)
-
-    t2 = '''
+    text3 = '''
     在朝野各界为核四事件吵嚷不休之际，发生在一月中旬的垦丁龙坑生态油污事件，直到二月底才受到初步控制，加上近来台湾山区森林火灾屡扑屡起，显现台湾生态的危机，已不容人们将焦点放在单一的开发事件上，全面性的大地破坏与自然反扑更值得关注。
     '''
-    outputT2 = model.cut2(t2)
-    outTextT2 = ' '.join(outputT2)
-    print(outTextT2)
+    outputT3 = model.cutlist([text3])
+    output3 = [' '.join(lst) for lst in outputT3]
+    print(text3)
+    print(output3[0]+'\n')
 
-    t3 = '''
+    text4 = '''
       创维又一波黑科技。  尸体卡通风管。  这次撞上海底了。  欢迎新老师生前来就餐。  工信处女干事每月经过下属科室都亲口交代24口交换机等技术性器件的安装工程。  
       结婚和尚未结婚的的确在干扰分词哈。  商品和服务。  买水果然后来世博会最后去世博会。  中国的首都是北京。  
       随着页游兴起到现在页游繁盛，依赖于存档进行逻辑判断的设计减少了，但这块都不能完全忽略掉。  
     '''
-    outputT3 = model.cut2(t3)
-    outTextT3 = ' '.join(outputT3)
-    print(outTextT3)
+    outputT4 = model.cutlist([text1, text2, text3, text4])
+    output4 = [' '.join(lst) for lst in outputT4]
+    print(text1+'\t'+text2+'\t'+text3+'\t'+text4)
+    o4 = ''
+    for x in output4: o4 += x + '\t'
+    print(o4+'\n')
 
-    t4 = '''
+    t5 = '''
       兰心餐厅\n作为一个无辣不欢的妹子，对上海菜的偏清淡偏甜真的是各种吃不惯。
             每次出门和闺蜜越饭局都是避开本帮菜。后来听很多朋友说上海有几家特别正宗味道做
             的很好的餐厅于是这周末和闺蜜们准备一起去尝一尝正宗的本帮菜。\n进贤路是我在上
@@ -448,19 +524,21 @@ def test_ontonotes(args):
             上海的名气却非常大。烧的就是家常菜，普通到和家里烧的一样，生意非常好，外面排
             队的比里面吃的人还要多。
     '''
-    outputT4 = model.cut2(t4)
-    outTextT4 = ' '.join(outputT4)
-    print(outTextT4)
+    outputT5 = model.cutlist([t5])
+    output5 = [' '.join(lst) for lst in outputT5]
+    print(t5)
+    print(output5[0]+'\n')
 
     output_eval_file = os.path.join(output_dir, "eval_results.txt")
     with open(output_eval_file, "a+") as writer:
-        writer.write(args.bert_model + '\n')  
+        writer.write(args.bert_model + '\n')
         writer.write(str(args.num_hidden_layers) + '\n')
-     
+
     mode = False
     #mode = True
     type = 'tmp_test'
-    do_eval_with_model(model, data_dir, type, output_dir, mode)
+    #do_eval_with_model(model, data_dir, type, output_dir, mode)
+    do_eval_list_with_model(model, data_dir, type, output_dir)
 
     type = 'test'
     do_eval_with_model(model, data_dir, type, output_dir, mode)
@@ -545,16 +623,23 @@ def set_server_eval_param():
 
 LOCAL_FLAG = False
 LOCAL_FLAG = True
+TEST_CWS = False
 
 if __name__=='__main__':
     if LOCAL_FLAG:
         kwargs = set_local_eval_param()
-        kwargs = set_local_eval_4CWS_param()
+
+        if TEST_CWS:
+            kwargs = set_local_eval_4CWS_param()
     else:
         kwargs = set_server_eval_param()
 
     args._parse(kwargs)
-    #test_ontonotes(args)
-    test_CWS(args)
+
+    if TEST_CWS:
+        test_CWS(args)
+    else:
+        test_ontonotes(args)
+
     #do_eval_with_file('tmp/cws/tmp.txt', 'tmp', '', 'BIO')
     #test_CWS()
