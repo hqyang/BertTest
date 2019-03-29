@@ -511,7 +511,7 @@ class BertCRFCWS(PreTrainedBertModel):
 
         return text_chunk_list
 
-    def cutlist(self, input_list):
+    def cutlist(self, input_list, batch_size=64):
         """
         # Example usage:
             text = '''
@@ -561,7 +561,12 @@ class BertCRFCWS(PreTrainedBertModel):
             merge_index_list.append(merge_index_tuple)
         processed_text_list = [self.tokenizer.tokenize(
             t) for t in processed_text_list]
-        decode_output_list = self._seg_wordslist(processed_text_list)
+
+        decode_output_list = []
+        for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
+            decode_output_list.extend(self._seg_wordslist(p_t_l))
+
+        #decode_output_list = self._seg_wordslist(processed_text_list)
 
         # restoring processed_text_list to list of strings
         #processed_text_list = [''.join(char_list) for char_list in processed_text_list]

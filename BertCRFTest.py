@@ -219,7 +219,7 @@ def do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type):
         trueLabelList.append(tl)
         truelabelstr += tl
 
-    rs_precision_all = model.cutlist(sent_list)
+    rs_precision_all = model.cutlist(sent_list, 256)
 
     for idx in tqdm(range(len(rs_precision_all))):
         rs_precision = rs_precision_all[idx]
@@ -735,7 +735,7 @@ def set_server_eval_4CWS_param():
 
 
 LOCAL_FLAG = False
-#LOCAL_FLAG = True
+LOCAL_FLAG = True
 #TEST_CWS = False
 TEST_ONTONOTES = True
 TEST_CWS = True
