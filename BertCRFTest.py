@@ -200,13 +200,9 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
     return score, scoreInfo
 
 
-def do_eval_list_with_model(model, data_dir, type, output_dir):
-    df = get_Ontonotes(data_dir, type)
-
+def do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type):
     bertCRFList = []
     trueLabelList = []
-
-    output_diff_file = os.path.join(output_dir, type+"_diff.txt")
 
     sent_list = []
     truelabelstr = ''
@@ -224,7 +220,6 @@ def do_eval_list_with_model(model, data_dir, type, output_dir):
         truelabelstr += tl
 
     rs_precision_all = model.cutlist(sent_list)
-    #bertCRF_rs = ' '.join(rs_precision[0])
 
     for idx in tqdm(range(len(rs_precision_all))):
         rs_precision = rs_precision_all[idx]
@@ -262,7 +257,6 @@ def do_eval_list_with_model(model, data_dir, type, output_dir):
     print('Test F1, Precision, Recall, Acc, No. Tags: {:.3f}, {:.3f}, {:.3f}, {:.3f}, {:d}'.format(score[0], \
                                                   score[1], score[2], score[3], scoreInfo[-1]))
 
-    output_eval_file = os.path.join(output_dir, "eval_results.txt")
     with open(output_eval_file, "a+") as writer:
         writer.write('Eval ' + type + ' results: ')
         writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, No. Tags: {:d}\n\n".format(score[0], \
@@ -344,6 +338,78 @@ def do_eval_with_file_model(model, infile, output_dir, otag, tagMode, mode=False
 
     return score
 
+def do_eval_list_with_file_model(model, infile, output_dir, otag, tagMode, mode=False):
+    # model: BertCRF model
+    # infile: input file in tsv format
+    # output_dir: the directory to store evaluation file
+    # otag: to denote what type of file should be stored
+    # tagMode: to indicate the label coding is 'BIO' or 'BMES'
+
+    df = pd.read_csv(infile, sep='\t')
+
+    bertCRFList = []
+    trueLabelList = []
+
+    output_diff_file = os.path.join(output_dir, otag+"_diff.txt")
+
+    with open(output_diff_file, "a+") as writer:
+        writer.write('order: source, true, prediction\n')
+
+    for i, data in tqdm(enumerate(df.itertuples())):
+        sentence = data.text
+        #rs_full = jieba.lcut(sentence, cut_all=True) # Full mode, all possible cuts
+        #rs_ser = jieba.lcut_for_search(sentence) # search engine mode, similar to Full mode
+
+        # sentence = '台湾的公视今天主办的台北市长候选人辩论会，'
+        # rs_precision = jieba.lcut(sentence, cut_all=False)
+        #   rs_precision = ['台湾', '的', '公视', '今天', '主办', '的', '台北', '市长', '候选人', '辩论会', '，']
+        # jieba_rs = ' '.join(rs_precision)
+        #   jieba_rs = '台湾 的 公视 今天 主办 的 台北 市长 候选人 辩论会 ，'
+        if tagMode=='BIO':
+            tl = data.src_seg
+        elif tagMode=='BMES':
+            tl = BMES2BIO(data.src_seg)
+            tl = space2Comma(tl)
+
+        rs_precision = model.cutlist(sentence)
+        bertCRF_rs = ' '.join(rs_precision)
+
+        #str_precision = convertList2BMES(rs_precision)
+        str_BIO = convertList2BIOwithComma(rs_precision, model.tokenizer)
+
+        bertCRFList.append(str_BIO)
+        trueLabelList.append(tl)
+
+        if str_BIO != tl:
+            print('{:d}: '.format(i))
+            print(sentence)
+            print(data.text_seg)
+            print(bertCRF_rs)
+            print(tl)
+            print(str_BIO)
+            print('\n')
+
+        with open(output_diff_file, "a+") as writer:
+            writer.write('{:d}: '.format(i))
+            writer.write(sentence+'\n')
+            writer.write(data.text_seg+'\n')
+            writer.write(bertCRF_rs+'\n')
+            writer.write(tl+'\n')
+            writer.write(str_BIO+'\n\n')
+
+    score, sInfo = getFscoreFromBIOTagList(trueLabelList, bertCRFList)
+
+    print('Eval ' + otag + ' results:')
+    print("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Token: {:d}\n\n".format(score[0], \
+                                              score[1], score[2], score[3], sInfo[-1]))
+
+    output_eval_file = os.path.join(output_dir, "eval_results.txt")
+    with open(output_eval_file, "a+") as writer:
+        writer.write('Eval ' + otag + ' results: ')
+        writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Token: {:d}\n\n".format(score[0], \
+                                             score[1], score[2], score[3], sInfo[-1]))
+
+    return score
 
 def load_model(label_list, args):
     if args.visible_device is not None:
@@ -464,7 +530,7 @@ def preload(args):
     return model
 
 
-def test_ontonotes(args):
+def eval_ontonotes(args):
     #data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data'
 
     #output_dir='./tmp/ontonotes/BerTCRF/'
@@ -529,6 +595,12 @@ def test_ontonotes(args):
     print(t5)
     print(output5[0]+'\n')
 
+    t6 = '中国队以１１：１战胜伊朗队。中国队在当晚的另一场对阵巴勒斯坦队的比赛中同样获胜，比分是９９：２０。'
+    outputT6 = model.cutlist([t6])
+    output6 = [' '.join(lst) for lst in outputT6]
+    print(t6)
+    print(output6[0]+'\n')
+
     output_eval_file = os.path.join(output_dir, "eval_results.txt")
     with open(output_eval_file, "a+") as writer:
         writer.write(args.bert_model + '\n')
@@ -537,19 +609,36 @@ def test_ontonotes(args):
     mode = False
     #mode = True
     type = 'tmp_test'
-    #do_eval_with_model(model, data_dir, type, output_dir, mode)
-    do_eval_list_with_model(model, data_dir, type, output_dir)
+    df = get_Ontonotes(data_dir, type)
+    output_diff_file = os.path.join(output_dir, type+"_diff.txt")
+    output_eval_file = os.path.join(output_dir, "eval_results.txt")
+    do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type)
 
     type = 'test'
-    do_eval_with_model(model, data_dir, type, output_dir, mode)
+    df = get_Ontonotes(data_dir, type)
+    output_diff_file = os.path.join(output_dir, type+"_diff.txt")
+    output_eval_file = os.path.join(output_dir, "eval_results.txt")
+
+    do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type)
+
+    #do_eval_with_model(model, data_dir, type, output_dir, mode)
 
     type = 'dev'
-    do_eval_with_model(model, data_dir, type, output_dir, mode)
+    df = get_Ontonotes(data_dir, type)
+    output_diff_file = os.path.join(output_dir, type+"_diff.txt")
+    output_eval_file = os.path.join(output_dir, "eval_results.txt")
+    do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type)
+    #do_eval_with_model(model, data_dir, type, output_dir, mode)
 
     type = 'train'
-    do_eval_with_model(model, data_dir, type, output_dir, mode)
+    df = get_Ontonotes(data_dir, type)
+    output_diff_file = os.path.join(output_dir, type+"_diff.txt")
+    output_eval_file = os.path.join(output_dir, "eval_results.txt")
+    do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type)
+    #do_eval_with_model(model, data_dir, type, output_dir, mode)
 
-def test_CWS(args):
+
+def eval_CWS(args):
     fnames = ['as', 'cityu', 'msr', 'pku']
     modes = ['train', 'test']
     tagMode = 'BIO'
@@ -566,10 +655,15 @@ def test_CWS(args):
         for md in modes:
             infile = data_dir + wt + '_' + md + '.tsv'
             otag = wt + '_' + md
-            do_eval_with_file_model(model, infile, output_dir, otag, tagMode)
+
+            df = pd.read_csv(infile, sep='\t')
+            output_diff_file = os.path.join(output_dir, otag+"_diff.txt")
+            output_eval_file = os.path.join(output_dir, "eval_results.txt")
+            do_eval_df_with_model(model, df, output_diff_file, output_eval_file, otag)
+            #do_eval_with_file_model(model, infile, output_dir, otag, tagMode)
 
 
-def set_local_eval_param():
+def set_local_eval_ontonotes_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
@@ -603,7 +697,7 @@ def set_local_eval_4CWS_param():
             #             'model_type': 'sequencelabeling',
             }
 
-def set_server_eval_param():
+def set_server_eval_ontonotes_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
             'data_dir': '../data/ontonotes5/4ner_data/',
@@ -621,25 +715,48 @@ def set_server_eval_param():
             'tensorboardWriter': False
             }
 
+def set_server_eval_4CWS_param():
+    return {'task_name': 'ontonotes_CWS',
+            'model_type': 'sequencelabeling',
+            'data_dir': '../data/CWS/',
+            'vocab_file': '../models/bert-base-chinese/vocab.txt',
+            'bert_config_file': '../models/bert-base-chinese/bert_config.json',
+            'output_dir': './tmp_2019_3_22/out/',
+            'do_lower_case': True,
+            'train_batch_size': 128,
+            'max_seq_length': 128,
+            'num_hidden_layers': 3,
+            'init_checkpoint': '../models/bert-base-chinese/',
+            'bert_model': './tmp_2019_3_23/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
+            'no_cuda': True,
+            'override_output': True,
+            'tensorboardWriter': False
+            }
+
+
 LOCAL_FLAG = False
-LOCAL_FLAG = True
-TEST_CWS = False
+#LOCAL_FLAG = True
+#TEST_CWS = False
+TEST_ONTONOTES = True
+TEST_CWS = True
 
 if __name__=='__main__':
-    if LOCAL_FLAG:
-        kwargs = set_local_eval_param()
+    if TEST_ONTONOTES:
+        if LOCAL_FLAG:
+            kwargs = set_local_eval_ontonotes_param()
+        else:
+            kwargs = set_server_eval_ontonotes_param()
 
-        if TEST_CWS:
-            kwargs = set_local_eval_4CWS_param()
-    else:
-        kwargs = set_server_eval_param()
+        args._parse(kwargs)
+        eval_ontonotes(args)
 
-    args._parse(kwargs)
 
     if TEST_CWS:
-        test_CWS(args)
-    else:
-        test_ontonotes(args)
+        if LOCAL_FLAG:
+            kwargs = set_local_eval_4CWS_param()
+        else:
+            kwargs = set_server_eval_4CWS_param()
 
-    #do_eval_with_file('tmp/cws/tmp.txt', 'tmp', '', 'BIO')
-    #test_CWS()
+        args._parse(kwargs)
+        eval_CWS(args)
+
