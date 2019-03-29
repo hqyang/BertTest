@@ -139,27 +139,31 @@ def output_seg_tokens(word, full_tokenizer, basic_tokenizer, ner_type=''):
                 bert_ner_gt = ['B' + ner_type] + ['M' + ner_type] * (len_wl - 2) + ['E' + ner_type]
             else:
                 bert_ner_gt = ['O'] * len_wl
-    else:
-        wl = full_tokenizer.tokenize(word)
-        len_wl = len(wl)
+    else: # chinese or with numerical values
+        len_w = len(word)
 
-        if len_wl == 1:
+        if len_w == 1: # only one character
             src_seg_gt = ['S']
 
             if len(ner_type)>0:
                 src_ner_gt = ['W' + ner_type]
             else:
                 src_ner_gt = ['O']
-        else:
-            src_seg_gt = ['B'] + ['M'] * (len_wl - 2) + ['E']
+            bert_seg_gt = src_seg_gt # the same when there is no English
+            bert_ner_gt = src_ner_gt # the same when there is no English
+        else: #multiple chars
+            wl = full_tokenizer.tokenize(word)
+            len_wl = len(wl)
+
+            src_seg_gt = ['B'] + ['M'] * (len_w - 2) + ['E']
+            bert_seg_gt = ['B'] + ['M'] * (len_wl - 2) + ['E'] # different if the length of len_w!=len_wl
 
             if len(ner_type)>0:
-                src_ner_gt = ['B' + ner_type] + ['M' + ner_type] * (len_wl - 2) + ['E' + ner_type]
+                src_ner_gt = ['B' + ner_type] + ['M' + ner_type] * (len_w - 2) + ['E' + ner_type]
+                bert_ner_gt = ['B' + ner_type] + ['M' + ner_type] * (len_wl - 2) + ['E' + ner_type]
             else:
-                src_ner_gt = ['O'] * len_wl
-
-        bert_seg_gt = src_seg_gt # the same when there is no English
-        bert_ner_gt = src_ner_gt # the same when there is no English
+                src_ner_gt = ['O'] * len_w
+                bert_ner_gt = ['O'] * len_wl
 
     return bert_ner_gt, bert_seg_gt, src_ner_gt, src_seg_gt, isEnglish
 
@@ -551,6 +555,7 @@ if __name__ == '__main__':
 
     s = '(NP (CP (IP (NP (DNP (NER-GPE (NR Taiwan)) (DEG 的)) (NER-ORG (NR 公视))) (VP (NT 今天) (VV 主办))) (DEC 的)) (NP-m (NP (NR 台北) (NN 市长)) (NP-m (NP (NN candidate) (NN defence)) (PU ，))))'
     s = '(IP (NP (NP (NER-ORG (NR 新华社)) (NP-m (NER-GPE (NR 开罗)) (NP-m (NP (NT １１月) (NT ２４日)) (NN 电)))) (PRN (PRN-m (PU （) (NP (NN 记者) (NP (NER-PER (NR 郭春菊)) (NER-PER (NR 林建杨))))) (PU ）))) (IP-m (NP (NP (NP (NER-ORG (NR 阿拉伯) (NN 国家) (NN 联盟)) (PRN (PRN-m (PU （) (NER-ORG (NR 阿盟))) (PU ）))) (NN 秘书长)) (NER-PER (NR 穆萨))) (IP-m (VP (NT ２４日) (VP (VP-m (VP (VV 发表) (NN 声明)) (PU ，)) (VP (VV 谴责) (NP (CP (IP (NP (NP (NP (NER-GPE (NR 伊拉克)) (NN 首都)) (NER-GPE (NR 巴格达))) (NP-m (NN 东部) (NER-GPE (NR 萨德尔城)))) (VP (NT ２３日) (VV 发生))) (DEC 的)) (NP-m (JJ 连环) (NP-m (NP (NN 汽车) (NP-m (NN 炸弹) (NN 袭击))) (NN 事件))))))) (PU 。))))'
+    s = '(IP (IP (NP (NP (NER-ORG (NR 新华社)) (NP-m (NER-GPE (NR 吉隆坡)) (NP-m (NP (NT １１月) (NT ２４日)) (NN 电)))) (PRN (PRN-m (PU （) (NP (NN 记者) (NP (NER-PER (NR 公兵)) (NP-m (PU 、) (NER-PER (NR 熊平)))))) (PU ）))) (IP-m (CP (CS 尽管) (IP (NP (QP (OD 第九) (M 届)) (NP-m (NR 远南) (NN 运动会))) (VP (NT ２５日) (VP-m (AD 才) (VP-m (AD 正式) (VV 开幕)))))) (IP-m (PU ，) (IP-m (AD 但) (IP-m (NN 比赛) (VP (PP (P 在) (NT ２４日)) (VP-m (AD 已经) (VV 打响)))))))) (IP-m (PU ，) (IP-m (IP (NP (NER-GPE (NR 中国)) (NN 代表团)) (VP (PP (P 在) (LCP (NP (DNP (NT 当日) (DEG 的)) (NP-m (QP (CD 三) (M 场)) (NN 比赛))) (LC 中))) (VP-m (AD 均) (VP (VV 取得) (NN 胜利))))) (PU 。))))'
     src_seg, src_ner, full_pos, text_str, text_seg, bert_seg, bert_ner = parse_one2BERTformat(s, full_tokenizer, basic_tokenizer)
     print(s)
     print(src_seg)
@@ -571,12 +576,11 @@ if __name__ == '__main__':
     print('bert_ner:'+out_dict['bert_ner'])
 
     TEST_FLAG = False
+    #TEST_FLAG = True
     if TEST_FLAG:
         out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/valid/'
         in_file = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/valid/test_data_ori.txt'
         genDataWithBERTSeg(in_file, out_dir, 'data_proc')
-
-
     else:
         gen_4ner_type()
 
