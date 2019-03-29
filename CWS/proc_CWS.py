@@ -240,7 +240,7 @@ def batch_gendata():
         gen_data(infile, outfile, tagType)
 
 TESTFLAG = False
-TESTFLAG = True
+#TESTFLAG = True
 
 if __name__ == '__main__':
     #remove_u3000('tmp_input.txt', 'tmp_output.txt')
