@@ -264,6 +264,20 @@ def get_Ontonotes(data_dir, type='train'):
 
     return df
 
+def load_4CWS(infile):
+    """See base class."""
+    df = pd.read_csv(infile, sep='\t')
+
+    # full_pos (chunk), ner, seg, text
+    # need parameter inplace=True
+    df.drop(columns=['bert_ner', 'bert_seg', 'full_pos', 'src_ner'], inplace=True)
+
+    # change name to tag for consistently processing
+    df.rename(columns={'src_seg': 'label'}, inplace=True)
+
+    return df
+
+
 def convertList2BMES(rs):
     # rs: a list
     outStr = ''

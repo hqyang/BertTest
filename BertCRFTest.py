@@ -12,7 +12,7 @@ import os
 
 from src.pkuseg.metrics import getFscoreFromBIOTagList
 from tqdm import tqdm
-from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma
+from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma, load_4CWS
 import pandas as pd
 from src.config import args
 from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
@@ -656,7 +656,7 @@ def eval_CWS(args):
             infile = data_dir + wt + '_' + md + '.tsv'
             otag = wt + '_' + md
 
-            df = pd.read_csv(infile, sep='\t')
+            df = load_4CWS(infile) #pd.read_csv(infile, sep='\t')        
             output_diff_file = os.path.join(output_dir, otag+"_diff.txt")
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
             do_eval_df_with_model(model, df, output_diff_file, output_eval_file, otag)
@@ -735,9 +735,10 @@ def set_server_eval_4CWS_param():
 
 
 LOCAL_FLAG = False
-LOCAL_FLAG = True
+#LOCAL_FLAG = True
 #TEST_CWS = False
 TEST_ONTONOTES = True
+TEST_ONTONOTES = False
 TEST_CWS = True
 
 if __name__=='__main__':

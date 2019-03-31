@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 def set_server_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
-            'data_dir': '../data/ontonotes5/',
+            'data_dir': '../data/ontonotes5/4ner_data/',
             'bert_model_dir': '../models/bert-base-chinese/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'output_dir': './tmp/ontonotes/',
@@ -54,15 +54,15 @@ def set_server_param():
             'init_checkpoint': '../models/bert-base-chinese/pytorch_model.bin',
             'do_eval': True,
             'do_lower_case': True,
-            'train_batch_size': 128,
+            'train_batch_size': 32,
             'append_dir': True, 
             'override_output': True,
             'tensorboardWriter': False,
-            'visible_device': (0,1,2),
-            #'visible_device': 0,
-            'num_train_epochs': 1,
+            #'visible_device': (0,1,2),
+            'visible_device': 0,
+            'num_train_epochs': 15,
             'max_seq_length': 128,
-	    'num_hidden_layers': 3
+	    'num_hidden_layers': 12
             }
 
 def set_test_param():
@@ -452,8 +452,10 @@ TEST_FLAG = False
 def main(**kwargs):
     if TEST_FLAG:
         kwargs = set_test_param()
-    #else:
+    else:
         #kwargs = set_server_param()
+        print('load parameters from .sh')
+
     #kwargs = set_eval_param()
     args._parse(kwargs)
 
