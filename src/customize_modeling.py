@@ -364,9 +364,10 @@ class BertCRFCWS(PreTrainedBertModel):
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, device, config, vocab_file, max_length, num_tags=6):
+    def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64):
         super(BertCRFCWS, self).__init__(config)
         self.device = device
+        self.batch_size = batch_size
         self.tokenizer = FullTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
         self.num_tags = num_tags
@@ -513,7 +514,7 @@ class BertCRFCWS(PreTrainedBertModel):
 
         return text_chunk_list
 
-    def cutlist(self, input_list, batch_size=64):
+    def cutlist(self, input_list):
         """
         # Example usage:
             text = '''
@@ -568,6 +569,7 @@ class BertCRFCWS(PreTrainedBertModel):
             t) for t in processed_text_list]
 
         decode_output_list = []
+        batch_size = self.batch_size
         for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
             decode_output_list.extend(self._seg_wordslist(p_t_l))
 

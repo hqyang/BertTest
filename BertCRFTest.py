@@ -81,7 +81,7 @@ def load_eval_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list), args.train_batch_size)
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
@@ -175,7 +175,6 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
             print(tl)
             print(str_BIO)
             print('\n')
-            #pdb.set_trace()
 
         with open(output_diff_file, "a+") as writer:
             writer.write('{:d}: '.format(i))
@@ -219,7 +218,7 @@ def do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type):
         trueLabelList.append(tl)
         truelabelstr += tl
 
-    rs_precision_all = model.cutlist(sent_list, 256)
+    rs_precision_all = model.cutlist(sent_list)
 
     for idx in tqdm(range(len(rs_precision_all))):
         rs_precision = rs_precision_all[idx]
@@ -240,7 +239,6 @@ def do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type):
             print(tl)
             print(str_BIO)
             print('\n')
-            #pdb.set_trace()
 
         with open(output_diff_file, "a+") as writer:
             writer.write('{:d}: '.format(i))
@@ -706,9 +704,10 @@ def set_server_eval_ontonotes_param():
             'data_dir': '../data/ontonotes5/4ner_data/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp_2019_3_22/out/',
+            'output_dir': './tmp_2019_3_22/out/ontonotes/',
             'do_lower_case': True,
             'train_batch_size': 128,
+            'visible_device': 0,
             'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '../models/bert-base-chinese/',
@@ -723,13 +722,14 @@ def set_server_eval_4CWS_param():
             'data_dir': '../data/CWS/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp_2019_3_22/CWS/',
+            'output_dir': './tmp_2019_3_22/out/4CWS/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '../models/bert-base-chinese/',
             'bert_model': './tmp_2019_3_23/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
+            'visible_device': 0,
             'override_output': True,
             'tensorboardWriter': False
             }
