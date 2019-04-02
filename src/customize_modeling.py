@@ -364,8 +364,9 @@ class BertCRFCWS(PreTrainedBertModel):
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, vocab_file, max_length, num_tags=6):
+    def __init__(self, device, config, vocab_file, max_length, num_tags=6):
         super(BertCRFCWS, self).__init__(config)
+        self.device = device
         self.tokenizer = FullTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
         self.num_tags = num_tags
@@ -391,8 +392,8 @@ class BertCRFCWS(PreTrainedBertModel):
     def _seg_text(self, words):#->str
         input_ids, segment_ids, input_mask = tokenize_list(words, self.max_length, self.tokenizer)
 
-        input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()])).cuda()
-        input_mask_torch = torch.from_numpy(np.array([input_mask.tolist()])).cuda()
+        input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()])).to(self.device)
+        input_mask_torch = torch.from_numpy(np.array([input_mask.tolist()])).to(self.device)
 
         sequence_output, _ = self.bert(input_ids_torch, input_mask_torch, output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
@@ -425,9 +426,9 @@ class BertCRFCWS(PreTrainedBertModel):
             *[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
 
 
-        input_id_torch = torch.from_numpy(np.array(input_ids)).cuda()
-        segment_ids_torch = torch.from_numpy(np.array(segment_ids)).cuda()
-        input_masks_torch = torch.from_numpy(np.array(input_masks)).cuda()
+        input_id_torch = torch.from_numpy(np.array(input_ids)).to(self.device)
+        segment_ids_torch = torch.from_numpy(np.array(segment_ids)).to(self.device)
+        input_masks_torch = torch.from_numpy(np.array(input_masks)).to(self.device)
 
         decode_rs = self.decode(input_id_torch, segment_ids_torch, input_masks_torch)
 

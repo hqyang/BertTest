@@ -81,7 +81,7 @@ def load_eval_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCRFCWS(bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
@@ -455,7 +455,7 @@ def load_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCRFCWS(bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
@@ -516,17 +516,19 @@ def preload(args):
     model, device = load_model(label_list, args)
 
     if args.bert_model is not None:
-        weights = torch.load(args.bert_model)
+        if torch.cuda.is_available():
+            weights = torch.load(args.bert_model)
+        else:
+            weights = torch.load(args.bert_model, map_location='cpu')
 
         try:
             model.load_state_dict(weights)
         except RuntimeError:
             model.module.load_state_dict(weights)
 
-    model.cuda()
+    model.to(device)
     model.eval()
     save_model(model, args.output_dir + 'model_eval.tsv')
-    #pdb.set_trace()
 
     return model
 
@@ -711,7 +713,6 @@ def set_server_eval_ontonotes_param():
             'num_hidden_layers': 3,
             'init_checkpoint': '../models/bert-base-chinese/',
             'bert_model': './tmp_2019_3_23/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
-            'no_cuda': True,
             'override_output': True,
             'tensorboardWriter': False
             }
@@ -729,7 +730,6 @@ def set_server_eval_4CWS_param():
             'num_hidden_layers': 3,
             'init_checkpoint': '../models/bert-base-chinese/',
             'bert_model': './tmp_2019_3_23/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
-            'no_cuda': True,
             'override_output': True,
             'tensorboardWriter': False
             }
@@ -739,7 +739,7 @@ LOCAL_FLAG = False
 #LOCAL_FLAG = True
 #TEST_CWS = False
 TEST_ONTONOTES = True
-TEST_ONTONOTES = False
+#TEST_ONTONOTES = False
 TEST_CWS = True
 
 if __name__=='__main__':
