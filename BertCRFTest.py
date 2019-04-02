@@ -145,7 +145,7 @@ def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
 
     for i, data in tqdm(enumerate(df.itertuples())):
         sentence = data.text
-        sentence = re.sub('“|”', '"', sentence)
+        #sentence = re.sub('“|”', '"', sentence)
         #rs_full = jieba.lcut(sentence, cut_all=True) # Full mode, all possible cuts
         #rs_ser = jieba.lcut_for_search(sentence) # search engine mode, similar to Full mode
 
@@ -516,13 +516,14 @@ def preload(args):
     model, device = load_model(label_list, args)
 
     if args.bert_model is not None:
-        weights = torch.load(args.bert_model, map_location='cpu')
+        weights = torch.load(args.bert_model)
 
         try:
             model.load_state_dict(weights)
         except RuntimeError:
             model.module.load_state_dict(weights)
 
+    model.cuda()
     model.eval()
     save_model(model, args.output_dir + 'model_eval.tsv')
     #pdb.set_trace()
@@ -721,7 +722,7 @@ def set_server_eval_4CWS_param():
             'data_dir': '../data/CWS/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp_2019_3_22/out/',
+            'output_dir': './tmp_2019_3_22/CWS/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'max_seq_length': 128,
