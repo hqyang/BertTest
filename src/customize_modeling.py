@@ -6,7 +6,7 @@ from src.TorchCRF import CRF
 from src.preprocess import tokenize_text, tokenize_list
 from src.tokenization import FullTokenizer
 import numpy as np
-from src.utilis import check_english_words
+from src.utilis import check_english_words, restore_unknown_tokens
 import re
 import pdb
 
@@ -608,7 +608,7 @@ class BertCRFCWS(PreTrainedBertModel):
         #result_str += ' '  # separate bcz english issue
         # pre_word_is_english = cur_word_is_english
 
-    def cutlist_in_device(self, input_list, device, batch_size=64):
+    def cutlist_noUNK(self, input_list):
         """
         # Example usage:
             text = '''
@@ -619,7 +619,7 @@ class BertCRFCWS(PreTrainedBertModel):
             '''
 
             model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cut(text)
+            output = model.cutlist_noUNK([text])
         """
         processed_text_list = []
         merge_index_list = []
@@ -637,6 +637,9 @@ class BertCRFCWS(PreTrainedBertModel):
         for l_ind, text in enumerate(input_list):
             merge_index_tuple = [merge_index]
             buff = ''
+
+            if isinstance(text, float): continue # process problem of empty line, which is converted to nan
+
             text_chunk_list = self.split_text_by_punc(text)
             len_max = self.max_length-2
 
@@ -653,13 +656,17 @@ class BertCRFCWS(PreTrainedBertModel):
                         buff, text_chunk, len_max, merge_index)
             if buff:
                 processed_text_list.append(buff)
+                #original_text_list.append(buff)
                 merge_index += 1
             merge_index_tuple.append(merge_index)
             merge_index_list.append(merge_index_tuple)
+
+        original_text_list = processed_text_list
         processed_text_list = [self.tokenizer.tokenize(
             t) for t in processed_text_list]
 
         decode_output_list = []
+        batch_size = self.batch_size
         for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
             decode_output_list.extend(self._seg_wordslist(p_t_l))
 
@@ -670,14 +677,15 @@ class BertCRFCWS(PreTrainedBertModel):
         result_str_list = []
         for merge_start, merge_end in merge_index_list:
             result_str = ''
+            original_str = ''
 
             tag = ''.join(decode_output_list[merge_start:merge_end])
             text = []
             for a in processed_text_list[merge_start:merge_end]:
                 text.extend(a)
 
-            #text = text.replace('##', '')
-            # cur_word_is_english = check_english_words(text)
+            for a in original_text_list[merge_start:merge_end]:
+                original_str += a.strip('\r\n').strip()
 
             for idx in range(len(tag)):
                 tt = text[idx]
@@ -692,13 +700,16 @@ class BertCRFCWS(PreTrainedBertModel):
                 else:
                     result_str += tt
 
+            if '[UNK]' in result_str:
+                result_str = restore_unknown_tokens(original_str, result_str)
+
             result_str_list.append(result_str.strip().split())
 
         return result_str_list
         #result_str += ' '  # separate bcz english issue
         # pre_word_is_english = cur_word_is_english
 
-    def cut2_old(self, ln):
+    def cut2(self, ln):
         """
         # Example usage:
             text = '''
@@ -711,26 +722,12 @@ class BertCRFCWS(PreTrainedBertModel):
             model = BertCRFCWS(config, num_tags, vocab_file, max_length)
             output = model.cut(text)
         """
-        l = ln.strip('\r\n')
-        l = l.strip()
-
-        if '。' in l:
-            l = l.replace('。', '。 ')
-
-        if '，' in l:
-            l = l.replace('，', '， ')
-
-        if '：' in l:
-            l = l.replace('：', '： ')
-
-
+        ls = self.split_text_by_punc(ln)
         len_max = self.max_length-2
-
-        ls = l.split() # process English
 
         result_str = ''
         for wl in ls:
-            wls = self.tokenizer.tokenize(wl)
+            wls, wls_ori = self.tokenizer.tokenize_with_original(wl)
 
             wls_used = wls
             if len(wls_used) > len_max:
@@ -740,7 +737,7 @@ class BertCRFCWS(PreTrainedBertModel):
             decode_output = ''
             while len(wls_used) > 0:
                 # _seg_wordslist: 02xxx
-                decode_output += self._seg_wordslist(wls_used)
+                decode_output += self._seg_text(wls_used)
 
                 if len(wls_used) > len_max:
                     wls_used = wls_used[len_max:]
@@ -748,7 +745,7 @@ class BertCRFCWS(PreTrainedBertModel):
                     wls_used = []
 
             #cur_word_is_english = False
-            for text, tag in zip(wls, decode_output):
+            for text, tag in zip(wls_ori, decode_output):
                 text = text.replace('##', '')
                 #cur_word_is_english = check_english_words(text)
 
@@ -761,58 +758,11 @@ class BertCRFCWS(PreTrainedBertModel):
                 else:
                     result_str += text
 
-            result_str += ' ' # separate bcz english issue
+            #result_str += ' ' # separate bcz english issue
                 #pre_word_is_english = cur_word_is_english
 
-        return result_str.strip().split()
-        '''Fix bug in the following
-        if not procAll:
-            sl = l.split()
-            select_len = self.max_length-2
-
-            pl = ''
-
-            for v in sl:
-                words = self.tokenizer.tokenize(v)
-
-                if len(words)<select_len:
-                    pl += v + ' '
-                    select_len -= len(words)
-                else: # only select part of the string
-                    ws = ''.join(words[:select_len])
-                    pl += ws
-                    break
-        else: # process all string
-            pl = l
-
-        #ls = pl.split('，,。.!！')
-        ls = pl.split()
-
-        result_str = ''
-
-        for plu in ls:
-            wls = self.tokenizer.tokenize(plu)
-
-            #input_ids, segment_ids, input_mask = tokenize_text(plu, self.max_length, self.tokenizer)
-            wls_used = wls
-            decode_output = ''
-            len_max = self.max_length-2
-            while len(wls_used) > 0:
-                decode_output += self._seg_wordslist(wls_used)
-
-                if len(wls_used) > len_max:
-                    wls_used = wls_used[len_max:]
-                else:
-                    wls_used = []
-
-            for text, tag in zip(wls, decode_output):
-                text = text.replace('##', '')
-                if int(tag) > 1: # tokens of 'E' and 'S'
-                    result_str += text + ' '
-                else:
-                    result_str += text
+        if '[UNK]' in result_str:
+            original_str = ''.join([text.strip('\r\n').strip() for text in ls])
+            result_str = restore_unknown_tokens(original_str, result_str)
 
         return result_str.strip().split()
-    ''' #end fix bugs
-
-

@@ -99,7 +99,7 @@ def whitespace_tokenize(text):
 
 
 class FullTokenizer(object):
-    """Runs end-to-end tokenziation."""
+    """Runs end-to-end tokenization."""
 
     def __init__(self, vocab_file, do_lower_case=True):
         self.vocab = load_vocab(vocab_file)
@@ -113,6 +113,20 @@ class FullTokenizer(object):
                 split_tokens.append(sub_token)
 
         return split_tokens
+
+    def tokenize_with_original(self, text):
+        split_tokens = []
+        original_tokens = []
+        for token in self.basic_tokenizer.tokenize(text):
+            for sub_token in self.wordpiece_tokenizer.tokenize(token):
+                split_tokens.append(sub_token)
+
+                if sub_token=='[UNK]':
+                    original_tokens.append(token)
+                else:
+                    original_tokens.append(sub_token)
+
+        return split_tokens, original_tokens
 
     def convert_tokens_to_ids(self, tokens):
         return convert_tokens_to_ids(self.vocab, tokens)
