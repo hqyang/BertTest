@@ -510,7 +510,7 @@ class BertCRFCWS(PreTrainedBertModel):
         text = text.strip()
         text = text.replace('\u3000', ' ')
 
-        text_chunk_list = re.split('(。|，|：|\n)', text)
+        text_chunk_list = re.split('(。|，|：|\n|#)', text)
 
         return text_chunk_list
 
