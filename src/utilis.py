@@ -372,10 +372,11 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
 
     for text in text_ls:
         if text!='[UNK]':
-            if text == '[' or text == '(' or text == ')':
+            try:
+                idx_obj = re.search(text, strOut[used_idx:])
+            except:
                 text = '\\' + text
-
-            idx_obj = re.search(text, strOut[used_idx:].lower())
+                idx_obj = re.search(text, strOut[used_idx:])
 
             if idx_obj:
                 start_idx, end_idx = idx_obj.span()

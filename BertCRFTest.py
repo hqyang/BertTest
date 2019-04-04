@@ -209,7 +209,7 @@ def do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type):
 
     for i, data in tqdm(enumerate(df.itertuples())):
         sentence = data.text
-        sentence = re.sub('“|”', '"', sentence)
+        #sentence = re.sub('“|”', '"', sentence)
 
         sent_list.append(sentence)
 
@@ -218,7 +218,7 @@ def do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type):
         trueLabelList.append(tl)
         truelabelstr += tl
 
-    rs_precision_all = model.cutlist(sent_list)
+    rs_precision_all = model.cutlist_noUNK(sent_list)
 
     for idx in tqdm(range(len(rs_precision_all))):
         rs_precision = rs_precision_all[idx]
