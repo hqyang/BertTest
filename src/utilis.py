@@ -371,7 +371,7 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
     used_idx = 0
 
     for text in text_ls:
-        if text!='[UNK]':
+        if '[UNK]' not in text:
             try:
                 idx_obj = re.search(text, strOut[used_idx:])
             except:
