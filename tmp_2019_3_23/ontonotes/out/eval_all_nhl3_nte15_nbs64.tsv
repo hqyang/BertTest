@@ -1,0 +1,91 @@
+Eval test results: F1: 92.754, P: 91.269, R: 94.287, Acc: 94.822, No. Tags: 214097
+
+Eval dev results: F1: 92.385, P: 90.771, R: 94.057, Acc: 94.492, No. Tags: 204437
+
+Eval train results: F1: 94.614, P: 94.043, R: 95.192, Acc: 96.414, No. Tags: 1186704
+
+Eval test results: F1: 93.819, P: 92.389, R: 95.294, Acc: 95.384, No. Tags: 214097
+
+Eval dev results: F1: 93.365, P: 91.746, R: 95.042, Acc: 95.034, No. Tags: 204437
+
+Eval train results: F1: 96.158, P: 95.529, R: 96.795, Acc: 97.384, No. Tags: 1186704
+
+Eval test results: F1: 93.988, P: 92.691, R: 95.321, Acc: 95.545, No. Tags: 214097
+
+Eval dev results: F1: 93.782, P: 92.352, R: 95.256, Acc: 95.344, No. Tags: 204437
+
+Eval train results: F1: 96.976, P: 96.521, R: 97.436, Acc: 97.904, No. Tags: 1186704
+
+Eval test results: F1: 94.303, P: 93.415, R: 95.208, Acc: 95.790, No. Tags: 214097
+
+Eval dev results: F1: 94.004, P: 93.021, R: 95.009, Acc: 95.492, No. Tags: 204437
+
+Eval train results: F1: 97.369, P: 97.264, R: 97.474, Acc: 98.162, No. Tags: 1186704
+
+Eval test results: F1: 94.364, P: 93.365, R: 95.385, Acc: 95.828, No. Tags: 214097
+
+Eval dev results: F1: 93.972, P: 92.882, R: 95.087, Acc: 95.515, No. Tags: 204437
+
+Eval train results: F1: 97.765, P: 97.648, R: 97.882, Acc: 98.428, No. Tags: 1186704
+
+Eval test results: F1: 94.497, P: 93.428, R: 95.590, Acc: 95.908, No. Tags: 214097
+
+Eval dev results: F1: 94.117, P: 92.975, R: 95.288, Acc: 95.570, No. Tags: 204437
+
+Eval train results: F1: 98.066, P: 97.924, R: 98.209, Acc: 98.613, No. Tags: 1186704
+
+Eval test results: F1: 94.392, P: 93.405, R: 95.400, Acc: 95.857, No. Tags: 214097
+
+Eval dev results: F1: 94.130, P: 93.043, R: 95.244, Acc: 95.599, No. Tags: 204437
+
+Eval train results: F1: 98.207, P: 98.041, R: 98.373, Acc: 98.733, No. Tags: 1186704
+
+Eval test results: F1: 94.504, P: 93.517, R: 95.512, Acc: 95.887, No. Tags: 214097
+
+Eval dev results: F1: 94.102, P: 93.013, R: 95.217, Acc: 95.592, No. Tags: 204437
+
+Eval train results: F1: 98.359, P: 98.228, R: 98.490, Acc: 98.818, No. Tags: 1186704
+
+Eval test results: F1: 94.486, P: 93.685, R: 95.300, Acc: 95.932, No. Tags: 214097
+
+Eval dev results: F1: 94.002, P: 93.050, R: 94.974, Acc: 95.559, No. Tags: 204437
+
+Eval train results: F1: 98.471, P: 98.481, R: 98.462, Acc: 98.889, No. Tags: 1186704
+
+Eval test results: F1: 94.479, P: 93.610, R: 95.363, Acc: 95.889, No. Tags: 214097
+
+Eval dev results: F1: 94.014, P: 93.014, R: 95.036, Acc: 95.550, No. Tags: 204437
+
+Eval train results: F1: 98.630, P: 98.555, R: 98.706, Acc: 99.027, No. Tags: 1186704
+
+Eval test results: F1: 94.400, P: 93.435, R: 95.384, Acc: 95.833, No. Tags: 214097
+
+Eval dev results: F1: 94.092, P: 93.021, R: 95.187, Acc: 95.610, No. Tags: 204437
+
+Eval train results: F1: 98.697, P: 98.575, R: 98.819, Acc: 99.062, No. Tags: 1186704
+
+Eval test results: F1: 94.466, P: 93.545, R: 95.405, Acc: 95.877, No. Tags: 214097
+
+Eval dev results: F1: 94.214, P: 93.189, R: 95.261, Acc: 95.672, No. Tags: 204437
+
+Eval train results: F1: 98.726, P: 98.629, R: 98.824, Acc: 99.105, No. Tags: 1186704
+
+Eval test results: F1: 94.592, P: 93.712, R: 95.490, Acc: 95.970, No. Tags: 214097
+
+Eval dev results: F1: 94.089, P: 93.090, R: 95.109, Acc: 95.601, No. Tags: 204437
+
+Eval train results: F1: 98.791, P: 98.727, R: 98.854, Acc: 99.142, No. Tags: 1186704
+
+Eval test results: F1: 94.510, P: 93.601, R: 95.436, Acc: 95.935, No. Tags: 214097
+
+Eval dev results: F1: 94.051, P: 93.038, R: 95.087, Acc: 95.613, No. Tags: 204437
+
+Eval train results: F1: 98.849, P: 98.792, R: 98.905, Acc: 99.172, No. Tags: 1186704
+
+Eval test results: F1: 94.572, P: 93.667, R: 95.494, Acc: 95.944, No. Tags: 214097
+
+Eval dev results: F1: 93.957, P: 92.934, R: 95.003, Acc: 95.513, No. Tags: 204437
+
+Eval train results: F1: 98.848, P: 98.780, R: 98.916, Acc: 99.174, No. Tags: 1186704
+
+

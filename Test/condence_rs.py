@@ -11,6 +11,30 @@ from matplotlib.legend_handler import HandlerLine2D
 import matplotlib.patches as mpatches
 import pdb
 
+
+def splitScore(infile):
+    tr_score = []
+    ts_score = []
+    dev_score = []
+
+    with open(infile) as fi:
+        for line in fi:
+            outVal = re.split(':|,', line)
+            idx_range = range(2, len(outVal), 2)
+            score = [float(outVal[i]) for i in idx_range]
+
+            if 'train' in line:
+                tr_score.append(score)
+
+            if 'test' in line:
+                ts_score.append(score)
+
+            if 'dev' in line:
+                dev_score.append(score)
+
+    return tr_score, dev_score, ts_score
+
+
 def getScore(infile):
     outScore = []
     with open(infile) as fi: 
@@ -198,7 +222,94 @@ def plotResults(pre_dir, num_epochs = [15]):
             plt.show()
 
 
-if __name__=='__main__':
+def plotResults(tr_score, dev_score, ts_score, nhl, am_dev_loss):
+    # F1, P, R, Acc
+    tr_score = np.array(tr_score)
+    dev_score = np.array(dev_score)
+    ts_score = np.array(ts_score)
+
+    xl = [v+1 for v in range(len(tr_score))]
+
+    fig2 = plt.figure()
+    p1, = plt.plot(xl, tr_score[:, 0], '-', marker='v', color='b', label='Train')
+    p2, = plt.plot(xl, dev_score[:, 0], '--', marker='o', color='c', label='Dev')
+    p3, = plt.plot(xl, ts_score[:, 0], ':', marker='p', color='r', label='Test')
+    plt.xlabel('No. of epochs')
+    plt.ylabel('F1')
+    plt.grid()
+
+    # get minimum value of dev
+    #am_dev_loss = np.argmin(dev_score[:, 0])
+    min_ts_loss = ts_score[am_dev_loss, 0]
+    plt.text(am_dev_loss+0.5, min_ts_loss-45, str(am_dev_loss+1)+': '+str(min_ts_loss), color='r')
+
+    get_test_F1 = ts_score[am_dev_loss, 0]
+    plt.text(am_dev_loss+.5, get_test_F1+1, str(am_dev_loss+1)+': '+str(get_test_F1), color='r')
+    plt.arrow(am_dev_loss+1.4, get_test_F1+0.9, -.4, -.8, color='r', length_includes_head=True,
+              head_width=0.2, head_length=0.2)
+
+    amax_test_F1 = np.argmax(ts_score[:, 0])
+    max_test_F1 = ts_score[amax_test_F1, 0]
+    plt.text(amax_test_F1+.5, max_test_F1+1, str(amax_test_F1+1)+': '+str(max_test_F1), color='r')
+    plt.arrow(amax_test_F1+1.4, max_test_F1+.9, -.4, -.8, color='r', length_includes_head=True,
+              head_width=0.2, head_length=0.2)
+
+    #plt.legend(handles=[p1, p2, p3], loc=4)
+    plt.legend(handler_map={p1: HandlerLine2D(numpoints=1)})
+    #plt.legend(handles=[p1, p2, p3], labels=types) # , types
+    plt.title('F1 on Ontonotes (No. hidden layers: {:d})'.format(nhl))
+    plt.show()
+
+    fig3 = plt.figure()
+    p1, = plt.plot(xl, tr_score[:, 1], '-', marker='v', color='b', label='Train')
+    p2, = plt.plot(xl, dev_score[:, 1], '--', marker='o', color='c', label='Dev')
+    p3, = plt.plot(xl, ts_score[:, 1], ':',  marker='p', color='r', label='Test')
+    plt.xlabel('No. of epochs')
+    plt.ylabel('Precision')
+    plt.grid()
+    plt.legend(handler_map={p1: HandlerLine2D(numpoints=1)})
+    plt.title('Precision on Ontonotes (No. hidden layers: {:d})'.format(nhl))
+    plt.show()
+
+    fig4 = plt.figure()
+    p1, = plt.plot(xl, tr_score[:, 2], '-', marker='v', color='b', label='Train')
+    p2, = plt.plot(xl, dev_score[:, 2], '--', marker='o', color='c', label='Dev')
+    p3, = plt.plot(xl, ts_score[:, 2], ':',  marker='p', color='r', label='Test')
+    plt.xlabel('No. of epochs')
+    plt.ylabel('Recall')
+    plt.grid()
+    plt.legend(handler_map={p1: HandlerLine2D(numpoints=1)})
+    plt.title('Recall on Ontonotes (No. hidden layers: {:d})'.format(nhl))
+    plt.show()
+
+    fig5 = plt.figure()
+    p1, = plt.plot(xl, tr_score[:, 3], '-', marker='v', color='b', label='Train')
+    p2, = plt.plot(xl, dev_score[:, 3], '--', marker='o', color='c', label='Dev')
+    p3, = plt.plot(xl, ts_score[:, 3], ':',  marker='p', color='r', label='Test')
+    plt.xlabel('No. of epochs')
+    plt.ylabel('Accuracy')
+    plt.grid()
+
+    get_test_Acc = ts_score[am_dev_loss, 3]
+    plt.text(am_dev_loss-1, get_test_Acc+0.5, str(am_dev_loss+1)+': '+str(get_test_Acc), color='r')
+    plt.arrow(am_dev_loss-0.1, get_test_Acc+0.4, +1., -.4, color='r', length_includes_head=True,
+              head_width=0.2, head_length=0.2)
+
+    # get maximum value of test accuracy
+    am_ts_acc = np.argmax(ts_score[:, 3])
+    max_ts_acc = ts_score[am_ts_acc, 3]
+
+    #get_test_F1 = ts_score[am_dev_loss,1]
+    plt.text(am_ts_acc+1.5, max_ts_acc+.5, str(am_ts_acc+1)+': '+str(max_ts_acc), color='r')
+    plt.arrow(am_ts_acc+1.9, max_ts_acc+0.4, -.9, -.4, color='r', length_includes_head=True,
+              head_width=0.2, head_length=0.2)
+
+    plt.legend(handler_map={p1: HandlerLine2D(numpoints=1)})
+    plt.title('Accuracy on Ontonotes (No. hidden layers: {:d})'.format(nhl))
+    plt.show()
+
+
+def output1():
     pre_out_dir = '../tmp_2019_3_11/ontonotes/'
     pre_out_dir = '../tmp_2019_3_12/ontonotes/'
     pre_out_dir = '../tmp_2019_3_20/ontonotes/'
@@ -208,3 +319,22 @@ if __name__=='__main__':
 
     pre_dir = pre_out_dir + 'out/'
     plotResults(pre_dir, num_epochs = [15])
+
+
+def output2():
+    infile = '../tmp_2019_3_23/ontonotes/out/eval_all_nhl3_nte15_nbs64.tsv'
+    tr_score, dev_score, ts_score = splitScore(infile)
+    plotResults(tr_score, dev_score, ts_score, nhl=3, am_dev_loss=3)
+
+    infile = '../tmp_2019_3_23/ontonotes/out/eval_all_nhl6_nte15_nbs64.tsv'
+    tr_score, dev_score, ts_score = splitScore(infile)
+    plotResults(tr_score, dev_score, ts_score, nhl=6, am_dev_loss=1)
+
+    infile = '../tmp_2019_3_23/ontonotes/out/eval_all_nhl12_nte15_nbs32.tsv'
+    tr_score, dev_score, ts_score = splitScore(infile)
+    plotResults(tr_score, dev_score, ts_score, nhl=12, am_dev_loss=0)
+
+
+if __name__=='__main__':
+    #output1()
+    output2()
