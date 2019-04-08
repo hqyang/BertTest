@@ -15,6 +15,7 @@ class Config:
     ##1.Basic tasks
     do_train = False
     do_eval = False
+    do_eval_df = False
     append_dir = False  # evaluate the performance of training data, work when do_eval = True
     trainBERT = True    
     bert_model = None

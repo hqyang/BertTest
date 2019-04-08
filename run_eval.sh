@@ -7,7 +7,7 @@ do
         for tbs in 64
         do 
             echo "train_batch_size $tbs, num_train_epochs $nte, num_hidden_layers $nhl"
-            python main.py \
+            python eval.py \
              --task_name ontonotes_CWS \
              --model_type sequencelabeling \
              --data_dir ../data/ontonotes5/ \
@@ -16,7 +16,7 @@ do
              --output_dir ./tmp/ontonotes \
              --do_train False \
              --init_checkpoint ./tmp_2019_3_20/ontonotes/ \
-             --do_eval True \
+             --do_eval_df True \
              --do_lower_case True \
              --train_batch_size $tbs \
              --override_output True \
