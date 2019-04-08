@@ -29,6 +29,7 @@ import pdb
 from src.BERT.modeling import BertConfig, BertForMaskedLM
 from src.customize_modeling import BertCRFCWS
 from src.BERT.optimization import BertAdam
+from src.pkuseg.metrics import getFscoreFromBIOTagList
 
 from src.preprocess import dataset_to_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO
 from src.config import args
