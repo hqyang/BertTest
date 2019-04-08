@@ -142,25 +142,23 @@ def use_sparse_qkv(model, keep_bottom_layers=4):
 
 
 class BasicBlock(nn.Module):
-    expansion = 1
-
     def __init__(self, orig_d, proj_size):
         super(BasicBlock, self).__init__()
-        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
-        self.ffdp = nn.Linear(orig_d, proj_size)
+        self.ffdp = nn.Linear(orig_d, proj_size) # feed forward down projection
         #self.bn1 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU()
-        self.ffup = nn.Linear(proj_size, orig_d)
+
+        self.relu = nn.ReLU() # non-linear transformation
+        self.ffup = nn.Linear(proj_size, orig_d) # feed forward up projection
 
     def forward(self, x):
         identity = x
 
         out = self.ffdp(x)
-        #out = self.bn1(out)
         out = self.relu(out)
+        out = self.ffup(out)
 
         out += identity
-        out = self.relu(out)
+        #out = self.relu(out)
 
         return out
 
@@ -295,10 +293,11 @@ class BertWAMCRF(PreTrainedBertModel):
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_encode, num_tags=4):
+    def __init__(self, config, encoded_size, num_tags=4):
         super(BertWAMCRF, self).__init__(config)
         self.num_tags = num_tags
         self.bert = BertModel(config)
+        self.block = BasicBlock(self.config.hidden_size, encoded_size)
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
         # Maps the output of BERT into tag space.
@@ -310,13 +309,16 @@ class BertWAMCRF(PreTrainedBertModel):
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
-        bert_feats = self.hidden2tag(sequence_output)
+
+        auto_encoder_output = self.block(sequence_output)
+        bert_feats = self.hidden2tag(auto_encoder_output)
 
         mask = attention_mask.byte()
+        loss = - np.inf
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
 
-            return loss
+        return loss
 
     def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)

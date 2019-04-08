@@ -375,6 +375,12 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
             try:
                 idx_obj = re.search(text, strOut[used_idx:])
             except:
+                if '(' in text and '\\(' not in text:
+                    tt = re.search('\(', text)
+
+                if ')' in text and '\\)' not in text:
+                    tt = re.search('\)', text)
+
                 text = '\\' + text
                 idx_obj = re.search(text, strOut[used_idx:])
 

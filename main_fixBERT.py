@@ -588,35 +588,6 @@ def main(**kwargs):
             eval_fc(model, eval_dataloader, device, args, 'test')
 
 
-    if (args.do_eval_df) and not (args.do_train):
-        output_dir = args.output_dir
-        data_dir = args.data_dir
-        if args.init_checkpoint is None:
-            raise RuntimeError('Evaluating a random initialized model is not supported...!')
-        elif os.path.isdir(args.init_checkpoint):
-            ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
-            for ckpt_file in ckpt_files:
-                print('Predicting via ' + ckpt_file)
-                weights = torch.load(ckpt_file, map_location='cpu')
-                try:
-                    model.load_state_dict(weights)
-                except RuntimeError:
-                    model.module.load_state_dict(weights)
-
-                type = 'test'
-                df = get_Ontonotes(data_dir, type)
-                output_eval_file = os.path.join(output_dir, "eval_results.txt")
-                do_eval_df_with_model(model, df, output_eval_file, type)
-
-                type = 'dev'
-                df = get_Ontonotes(data_dir, type)
-                output_eval_file = os.path.join(output_dir, "eval_results.txt")
-                do_eval_df_with_model(model, df, output_eval_file, type)
-
-                type = 'train'
-                df = get_Ontonotes(data_dir, type)
-                output_eval_file = os.path.join(output_dir, "eval_results.txt")
-                do_eval_df_with_model(model, df, output_eval_file, type)
 
 
 if __name__ == "__main__":
