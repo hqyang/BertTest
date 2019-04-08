@@ -18,6 +18,7 @@ import random
 from collections import OrderedDict
 from tqdm import tqdm, trange
 from src.metrics import outputFscoreUsedBIO
+from src.utilis import get_Ontonotes
 
 import numpy as np
 import torch
@@ -393,37 +394,61 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
 
     return results
 
-def eval_by_metrics(labels, losses, logits, label_lists, train_loss, global_step, multilabel=False):
-    if not isinstance(logits, list):
-        infos = [labels], [losses], [logits], [label_lists]
-    else:
-        infos = [labels, losses, logits, label_lists]
-    results = []
-    for task_id, info in enumerate(zip(*infos)):
-        label, loss, logit, label_list = info
-        if multilabel:
-            acc_count = accuracy_multilabel(logit, label)
-            output = predict_at_least_one(logit)
-            acc = acc_count / logit.shape[0]
-        else:
-            acc = accuracy(logit, label, ignore_index=0, reduce=True)
-            score = np.exp(logit) / np.exp(logit).sum(axis=1, keepdims=True)
-            output, label = map_score_to_multilabel(label_list, score, label)
 
-        apmeter_by_class = APMeter()
-        apmeter_by_sample = APMeter()
-        apmeter_by_class.add(output, label)
-        apmeter_by_sample.add(output.T, label.T)
-        eval_loss = loss.mean()
-        result = {'eval_loss': eval_loss,
-                  'eval_accuracy': acc,
-                  'mAP_class': apmeter_by_class.value().mean().item(),
-                  'mAP_sample': apmeter_by_sample.value().mean().item(),
-                  'global_step': global_step,
-                  'loss': train_loss,
-                  'task': task_id}
-        results.append(result)
-    return results
+def do_eval_df_with_model(model, df, output_eval_file, type):
+    bertCRFList = []
+    trueLabelList = []
+
+    sent_list = []
+    truelabelstr = ''
+
+
+    for i, data in tqdm(enumerate(df.itertuples())):
+        sentence = data.text
+
+        sent_list.append(sentence)
+
+        tl = BMES2BIO(data.label)
+        tl = space2Comma(tl)
+        trueLabelList.append(tl)
+        truelabelstr += tl
+
+    rs_precision_all = model.cutlist_noUNK(sent_list)
+
+    for idx in tqdm(range(len(rs_precision_all))):
+        rs_precision = rs_precision_all[idx]
+        bertCRF_rs = ' '.join(rs_precision)
+
+        str_BIO = convertList2BIOwithComma(rs_precision)
+        bertCRFList.append(str_BIO)
+
+        tl = trueLabelList[idx]
+
+        sentence = df.text[idx]
+        text_seg = df.text_seg[idx]
+        if str_BIO != tl:
+            print('{:d}: '.format(idx))
+            print(sentence)
+            print(text_seg)
+            print(bertCRF_rs)
+            print(tl)
+            print(str_BIO)
+            print('\n')
+
+    score, scoreInfo = getFscoreFromBIOTagList(trueLabelList, bertCRFList)
+
+    print('Eval ' + type + ' results:')
+    print('Test F1, Precision, Recall, Acc, No. Tags: {:.3f}, {:.3f}, {:.3f}, {:.3f}, {:d}'.format(score[0], \
+                                                  score[1], score[2], score[3], scoreInfo[-1]))
+
+    with open(output_eval_file, "a+") as writer:
+        writer.write('Eval ' + type + ' results: ')
+        writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, No. Tags: {:d}\n\n".format(score[0], \
+                                                score[1], score[2], score[3], scoreInfo[-1]))
+
+    model.train()
+    return score, scoreInfo
+
 
 
 def set_eval_param():
@@ -558,6 +583,38 @@ def main(**kwargs):
 
         else:
             eval_fc(model, eval_dataloader, device, args, 'test')
+
+
+    if (args.do_eval_df) and not (args.do_train):
+        output_dir = args.output_dir
+        data_dir = args.data_dir
+        if args.init_checkpoint is None:
+            raise RuntimeError('Evaluating a random initialized model is not supported...!')
+        elif os.path.isdir(args.init_checkpoint):
+            ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
+            for ckpt_file in ckpt_files:
+                print('Predicting via ' + ckpt_file)
+                weights = torch.load(ckpt_file, map_location='cpu')
+                try:
+                    model.load_state_dict(weights)
+                except RuntimeError:
+                    model.module.load_state_dict(weights)
+
+                type = 'test'
+                df = get_Ontonotes(data_dir, type)
+                output_eval_file = os.path.join(output_dir, "eval_results.txt")
+                do_eval_df_with_model(model, df, output_eval_file, type)
+
+                type = 'dev'
+                df = get_Ontonotes(data_dir, type)
+                output_eval_file = os.path.join(output_dir, "eval_results.txt")
+                do_eval_df_with_model(model, df, output_eval_file, type)
+
+                type = 'train'
+                df = get_Ontonotes(data_dir, type)
+                output_eval_file = os.path.join(output_dir, "eval_results.txt")
+                do_eval_df_with_model(model, df, output_eval_file, type)
+
 
 if __name__ == "__main__":
     import fire
