@@ -27,7 +27,7 @@ from glob import glob
 import pdb
 
 from src.BERT.modeling import BertConfig, BertForMaskedLM
-from src.customize_modeling import BertCRF
+from src.customize_modeling import BertCRFCWS
 from src.BERT.optimization import BertAdam
 
 from src.preprocess import dataset_to_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO

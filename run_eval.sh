@@ -10,17 +10,16 @@ do
             python eval.py \
              --task_name ontonotes_CWS \
              --model_type sequencelabeling \
-             --data_dir ../data/ontonotes5/ \
+             --data_dir ../data/ontonotes5/4ner_data/ \
              --bert_model_dir ../models/bert-base-chinese/ \
              --vocab_file ../models/bert-base-chinese/vocab.txt \
              --output_dir ./tmp/ontonotes \
              --do_train False \
-             --init_checkpoint ./tmp_2019_3_20/ontonotes/ \
+             --init_checkpoint ./tmp_2019_3_23/ontonotes/ \
              --do_eval_df True \
              --do_lower_case True \
              --train_batch_size $tbs \
              --override_output True \
-             --tensorboardWriter False \
              --visible_device 0 \
              --num_train_epochs $nte \
              --max_seq_length 128 \
