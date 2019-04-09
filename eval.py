@@ -148,7 +148,7 @@ def load_model(label_list, tokenizer, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list), args.train_batch_size)
 
     if args.init_checkpoint is not None:
         if os.path.isdir(args.init_checkpoint):
@@ -408,17 +408,17 @@ def main(**kwargs):
 
                 type = 'test'
                 df = get_Ontonotes(data_dir, type)
-                output_eval_file = os.path.join(output_dir, "eval_results.txt")
+                output_eval_file = os.path.join(output_dir, type+"_eval_results.txt")
                 do_eval_df_with_model(model, df, output_eval_file, type)
 
                 type = 'dev'
                 df = get_Ontonotes(data_dir, type)
-                output_eval_file = os.path.join(output_dir, "eval_results.txt")
+                output_eval_file = os.path.join(output_dir, type+"_eval_results.txt")
                 do_eval_df_with_model(model, df, output_eval_file, type)
 
                 type = 'train'
                 df = get_Ontonotes(data_dir, type)
-                output_eval_file = os.path.join(output_dir, "eval_results.txt")
+                output_eval_file = os.path.join(output_dir, type+"_eval_results.txt")
                 do_eval_df_with_model(model, df, output_eval_file, type)
 
 
