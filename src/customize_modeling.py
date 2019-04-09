@@ -687,7 +687,12 @@ class BertCRFCWS(PreTrainedBertModel):
                 text.extend(a)
 
             for a in original_text_list[merge_start:merge_end]:
-                original_str += a.strip('\r\n').strip()
+                str_used = ''
+                al = re.split('[\n\r]', a)
+
+                for aa in al: str_used += ''.join(aa.strip())
+
+                original_str += str_used
 
             for idx in range(len(tag)):
                 tt = text[idx]
@@ -702,7 +707,7 @@ class BertCRFCWS(PreTrainedBertModel):
                 else:
                     result_str += tt
 
-            if '[UNK]' in result_str:
+            if '[UNK]' in result_str or '[unused' in result_str:
                 result_str = restore_unknown_tokens(original_str, result_str)
 
             result_str_list.append(result_str.strip().split())

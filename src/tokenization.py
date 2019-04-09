@@ -81,12 +81,23 @@ def load_vocab(vocab_file):
     return vocab
 
 
+def convert_by_vocab(vocab, items):
+    """Converts a sequence of [tokens|ids] using the vocab."""
+    output = []
+    for item in items:
+        try:
+            output.append(vocab[item])
+        except KeyError:
+            output.append(vocab['[UNK]'])
+    return output
+
+
 def convert_tokens_to_ids(vocab, tokens):
-    """Converts a sequence of tokens into ids using the vocab."""
-    ids = []
-    for token in tokens:
-        ids.append(vocab[token])
-    return ids
+    return convert_by_vocab(vocab, tokens)
+
+
+def convert_ids_to_tokens(inv_vocab, ids):
+    return convert_by_vocab(inv_vocab, ids)
 
 
 def whitespace_tokenize(text):
@@ -103,6 +114,7 @@ class FullTokenizer(object):
 
     def __init__(self, vocab_file, do_lower_case=True):
         self.vocab = load_vocab(vocab_file)
+        self.inv_vocab = {v: k for k, v in self.vocab.items()}
         self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
         self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab)
 
@@ -114,22 +126,11 @@ class FullTokenizer(object):
 
         return split_tokens
 
-    def tokenize_with_original(self, text):
-        split_tokens = []
-        original_tokens = []
-        for token in self.basic_tokenizer.tokenize(text):
-            for sub_token in self.wordpiece_tokenizer.tokenize(token):
-                split_tokens.append(sub_token)
-
-                if sub_token=='[UNK]':
-                    original_tokens.append(token)
-                else:
-                    original_tokens.append(sub_token)
-
-        return split_tokens, original_tokens
-
     def convert_tokens_to_ids(self, tokens):
-        return convert_tokens_to_ids(self.vocab, tokens)
+        return convert_by_vocab(self.vocab, tokens)
+
+    def convert_ids_to_tokens(self, ids):
+        return convert_by_vocab(self.inv_vocab, ids)
 
 
 class BasicTokenizer(object):
@@ -160,6 +161,7 @@ class BasicTokenizer(object):
                 token = token.lower()
                 token = self._run_strip_accents(token)
             split_tokens.extend(self._run_split_on_punc(token))
+            #split_tokens.append(token)
 
         output_tokens = whitespace_tokenize(" ".join(split_tokens))
         return output_tokens
@@ -177,6 +179,9 @@ class BasicTokenizer(object):
 
     def _run_split_on_punc(self, text):
         """Splits punctuation on a piece of text."""
+        if text == '[unused1]' or text == '[unk]':
+            return [text]
+
         chars = list(text)
         i = 0
         start_new_word = True
@@ -257,14 +262,32 @@ class BasicTokenizer(object):
     def _clean_text(self, text):
         """Performs invalid character removal and whitespace cleanup on text."""
         output = []
+
+        bSpace = False
         for char in text:
-            cp = ord(char)
-            if cp == 0 or cp == 0xfffd or _is_control(char):
+            try:
+                cp = ord(char)
+            except:
+                for _ in char:
+                    output.append(' [UNK] ')
                 continue
+
+            if cp == 0 or cp == 0xfffd or _is_control(char):
+                output.append(' [UNK] ')
+                continue
+
+            if _is_space(char):
+                if not bSpace: # only one space
+                    output.append(" [unused1] ")
+                continue
+
             if _is_whitespace(char):
                 output.append(" ")
+                bSpace = True
             else:
                 output.append(char)
+                bSpace = False
+
         return "".join(output)
 
 
@@ -326,11 +349,18 @@ class WordpieceTokenizer(object):
         return output_tokens
 
 
+def _is_space(char):
+    if char == " ":
+        return True
+    else:
+        return False
+
+
 def _is_whitespace(char):
     """Checks whether `chars` is a whitespace character."""
     # \t, \n, and \r are technically contorl characters but we treat them
     # as whitespace since they are generally considered as such.
-    if char == " " or char == "\t" or char == "\n" or char == "\r":
+    if char == "\t" or char == "\n" or char == "\r": #
         return True
     cat = unicodedata.category(char)
     if cat == "Zs":

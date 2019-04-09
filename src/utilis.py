@@ -81,7 +81,8 @@ def is_english_char(cp):
 
 
 def check_english_words(word):
-    if word in '[UNK]': # detecting unknown token
+    word = word.lower()
+    if '[unk]' in word or '[unused' in word: # detecting unknown token
         return True
 
     for idx in range(len(word)):
@@ -362,6 +363,52 @@ def save_model(model, fo='tmp.tsv'):
     print('Finish writing model data to ' + fo + '!')
 
 
+def setspacefortext(strOut, used_idx, text):
+    try:
+        idx_obj = re.search(text, strOut[used_idx:])
+    except:
+        text = '\\' + text
+        idx_obj = re.search(text, strOut[used_idx:])
+
+    if idx_obj:
+        start_idx, end_idx = idx_obj.span()
+        start_idx += used_idx
+        end_idx += used_idx
+        strOut = strOut[:start_idx] + ' ' + strOut[start_idx:end_idx] + ' ' + strOut[end_idx:]
+        used_idx = end_idx
+
+    return strOut, used_idx
+
+def setnospacefortext(strOut, used_idx, text):
+    try:
+        idx_obj = re.search(text, strOut[used_idx:])
+    except:
+        if '['==text or '('==text or ')'==text:
+            text = '\\' + text
+        else: # text consists of not only [, (, pr )
+            text = handle_bracket(text)
+
+        idx_obj = re.search(text, strOut[used_idx:])
+
+    if idx_obj:
+        start_idx, end_idx = idx_obj.span()
+        start_idx += used_idx
+        end_idx += used_idx
+        strOut = strOut[:start_idx] + strOut[start_idx:end_idx] + strOut[end_idx:]
+        used_idx = end_idx
+
+    return strOut, used_idx
+
+
+def handle_bracket(text):
+    brackets = ['[', '(', ')']
+
+    for token in brackets:
+        if token in text:
+            text = text.replace(token, '\\'+token)
+
+    return text
+
 # original_str = '单枪匹马逛英国——伦敦篇。伦敦就是这个样子初次来到这个“老牌资本主义”的“雾都“，就像回到了上海，一幢幢不高的小楼，显得异常陈旧，很多楼房被数百年烟尘熏的就像被刷了一层黑色的油漆，油光锃亮，如果不是旁边的楼房正在清洗，很难让人相信如今的伦敦是饱经污染沧桑后及时刹车的高手，因为一座现代化的国际大都市也是有不少楼房是黑色的呢，黑色显得凝重、高雅，但是绝对不能靠油烟去熏……堵车，是所有大都市的通病，虽然不足为怪，但是，1988年的北京还没有那么多的车，也没有全城大堵车的现象，有的是刚刚开始的“靠油烟和汽车的尾气烟熏火燎美丽的古城”，有谁能够想到，短短的十年，北京就气喘吁吁的追赶上了伦敦，没有一条洁净的河流，没有清新的空气，有的是让人窒息的空气污染…….以及，让人始料未及的全城大堵车。如果，我们那些负责城市建设规划的先生们，在国外，不只只是游山玩水的话，带回别人的教训、总结别人的经验的话，我们这个被穷祖先毁的“一塌糊涂”的脆弱的生态环境也不会再经受20世纪90年代的现代化的大污染了。但是，伦敦是一座改过自新的城市，人家痛定思痛，紧急刹车，及时的治理了污染，我们在泰吾士河里可以看到鱼儿在自由的翻滚，天空湛蓝，翠绿的草地与兰天辉映着，一片“污染大战”后的和平景象'
 # str_with_uknown_tokens = '单枪匹马逛英国[UNK][UNK]伦敦篇。伦敦就是这个样子初次来到这个[UNK]老牌资本主义[UNK]的[UNK]雾都[UNK]，就像回到了上海，一幢幢不高的小楼，显得异常陈旧，很多楼房被数百年烟尘熏的就像被刷了一层黑色的油漆，油光[UNK]亮，如果不是旁边的楼房正在清洗，很难让人相信如今的伦敦是饱经污染沧桑后及时刹车的高手，因为一座现代化的国际大都市也是有不少楼房是黑色的呢，黑色显得凝重、高雅，但是绝对不能靠油烟去熏[UNK][UNK]堵车，是所有大都市的通病，虽然不足为怪，但是，1988年的北京还没有那么多的车，也没有全城大堵车的现象，有的是刚刚开始的[UNK]靠油烟和汽车的尾气烟熏火燎美丽的古城[UNK]，有谁能够想到，短短的十年，北京就气喘吁吁的追赶上了伦敦，没有一条洁净的河流，没有清新的空气，有的是让人窒息的空气污染[UNK][UNK].以及，让人始料未及的全城大堵车。如果，我们那些负责城市建设规划的先生们，在国外，不只只是游山玩水的话，带回别人的教训、总结别人的经验的话，我们这个被穷祖先毁的[UNK]一塌糊涂[UNK]的脆弱的生态环境也不会再经受20世纪90年代的现代化的大污染了。但是，伦敦是一座改过自新的城市，人家痛定思痛，紧急刹车，及时的治理了污染，我们在泰吾士河里可以看到鱼儿在自由的翻滚，天空湛蓝，翠绿的草地与兰天辉映着，一片[UNK]污染大战[UNK]后的和平景象'
 def restore_unknown_tokens(original_str, str_with_unknown_tokens):
@@ -372,24 +419,18 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
 
     for text in text_ls:
         if '[UNK]' not in text:
-            try:
-                idx_obj = re.search(text, strOut[used_idx:])
-            except:
-                if '(' in text and '\\(' not in text:
-                    tt = re.search('\(', text)
+            if '[unused1]' in text:
+                if len(text)>len('[unused1]'):
+                    idx_ts = re.search('unused1', text)
+                    s_idx, e_idx = idx_ts.span()
 
-                if ')' in text and '\\)' not in text:
-                    tt = re.search('\)', text)
+                    prestr = text[:s_idx-1]
+                    poststr = text[e_idx+1:]
 
-                text = '\\' + text
-                idx_obj = re.search(text, strOut[used_idx:])
-
-            if idx_obj:
-                start_idx, end_idx = idx_obj.span()
-                start_idx += used_idx
-                end_idx += used_idx
-                strOut = strOut[:start_idx] + ' ' + strOut[start_idx:end_idx] + ' ' + strOut[end_idx:]
-                used_idx = end_idx
+                    strOut, used_idx = setnospacefortext(strOut, used_idx, prestr)
+                    strOut, used_idx = setnospacefortext(strOut, used_idx, poststr)
+            else:
+                strOut, used_idx = setspacefortext(strOut, used_idx, text)
 
     return strOut
 

@@ -11,7 +11,7 @@ Scenario:
 from sklearn.preprocessing import LabelEncoder
 import sys
 sys.path.append('..')
-from src.utilis import load_model, save_model
+from src.utilis import save_model
 from src.config import args
 
 
@@ -39,11 +39,17 @@ def test_FullTokenizer():
 
     vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt'
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
+
+    text = '台湾!!. 比赛。今天，开始吗？  ？？！咳咳￣ ￣)σ第一次穿汉服出门🎀💞开心Laughing'
+    print(full_tokenizer.tokenize(text))
+
     text = '台湾的公视今天主办的台北市长 Candidate  Defence  ，'
     print(full_tokenizer.tokenize(text))
+    #['台', '湾', '的', '公', '视', '今', '天', '主', '办', '的', '台', '北', '市', '长', 'can', '##di', '##da', '##te', 'de', '##fe', '##nce', '，']
 
     text = 'Candidate'
     print(full_tokenizer.tokenize(text))
+    # ['can', '##di', '##da', '##te']
 
     text = '  Defence  ，'
     print(full_tokenizer.tokenize(text))
@@ -293,10 +299,11 @@ if __name__ == '__main__':
     #test_CWS_Dict()
 
     #test_pkuseg()
-    #test_FullTokenizer()
+    test_FullTokenizer()
     #check_english('candidate defence')
     #check_english('台北candidate defence')
 
     #test_parse_one2BERTformat()
 
-    test_load_model()
+    #test_load_model()
+
