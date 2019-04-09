@@ -28,7 +28,7 @@ from glob import glob
 import pdb
 
 from src.BERT.modeling import BertConfig, BertForMaskedLM
-from src.customize_modeling import BertCRF
+from src.customize_modeling import BertCRFWAM
 from src.BERT.optimization import BertAdam
 
 from src.preprocess import dataset_to_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO
@@ -147,7 +147,7 @@ def load_AdaptiveCRF_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertAMCRF(bert_config, args.projected_size, len(label_list))
+    model = BertCRFWAM(bert_config, args.projected_size, len(label_list))
 
     if args.init_checkpoint is not None:
         if os.path.isdir(args.init_checkpoint):

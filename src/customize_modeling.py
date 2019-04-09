@@ -248,7 +248,7 @@ class BertCRF(PreTrainedBertModel):
             return None, decode_rs
 
 
-class BertAMCRF(PreTrainedBertModel):
+class BertCRFWAM(PreTrainedBertModel):
     """BERT model with adaptive module of CRF for Sequence Labeling.
     This module is composed of the BERT model with a adaptive module which applies on top of
     the pooled output and the output is applied via Conditional Random Field.
@@ -289,12 +289,12 @@ class BertAMCRF(PreTrainedBertModel):
 
     num_tags = 3
 
-    model = BertAMCRF(config, encode_size, num_tags)
+    model = BertCRFWAM(config, encode_size, num_tags)
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
     def __init__(self, config, encoded_size, num_tags=4):
-        super(BertAMCRF, self).__init__(config)
+        super(BertCRFWAM, self).__init__(config)
         self.num_tags = num_tags
         self.bert = BertModel(config)
         self.block = BasicBlock(self.config.hidden_size, encoded_size)
