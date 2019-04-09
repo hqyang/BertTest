@@ -90,7 +90,7 @@ def get_dataset_and_dataloader(processor, args, training=True, type='train'):
     return dataset, dataloader
 
 
-def load_model(label_list, tokenizer, args):
+def load_AdaptiveCRF_model(label_list, args):
     #pdb.set_trace()
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
@@ -147,16 +147,7 @@ def load_model(label_list, tokenizer, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = None
-    model_type = {
-        "pre_training": lambda: BertForMaskedLM(bert_config),
-        #"multilabel": lambda: BertForSequenceMultilabelClassification(bert_config, len(label_list)),
-        #"multitask": lambda: BertForSequenceMultiTaskClassification(bert_config, [len(_) for _ in label_list]),
-        #"sequenceclassification": lambda: BertForSequenceClassification(bert_config, len(label_list))
-        "sequencelabeling": lambda: BertCRF(bert_config, len(label_list))
-    }
-
-    model = model_type[args.model_type]()
+    model = BertAMCRF(bert_config, args.projected_size, len(label_list))
 
     if args.init_checkpoint is not None:
         if os.path.isdir(args.init_checkpoint):
@@ -308,17 +299,6 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         if (args.do_eval) and (not args.pretraining):
             do_eval(model, eval_dataloader, device, args, tr_times, 'train')
 
-        if args.tensorboardWriter:
-            len_loss_all = len(loss_all)
-            labels = ["%d" % (i) for i in range(len_loss_all)]
-
-            with SummaryWriter() as writer:
-                for i in range():
-                    writer.add_embedding(
-                        mat=loss_all[i],
-                        metadata = labels,
-                        tag = "train_loss",
-                        global_step=i)
 
 def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
     model.eval()
@@ -490,8 +470,10 @@ def main(**kwargs):
 
     if args.do_train:
         args.output_dir = args.output_dir + '/nhl' \
-                +str(args.num_hidden_layers)+'_nte'+str(args.num_train_epochs) \
-                +'_nbs'+str(args.train_batch_size)
+                + str(args.num_hidden_layers) + '_nte'+str(args.num_train_epochs) \
+                + '_nbs' + str(args.train_batch_size) \
+                + '_pjs' + str(args.projected_size)
+
         print(args.output_dir)
         os.makedirs(args.output_dir, exist_ok=True)
         #processor.save_labelidmap(args.output_dir)
@@ -514,11 +496,11 @@ def main(**kwargs):
 
     # Prepare model
     processor = processors[task_name]()
-    tokenizer = FullTokenizer(
-        vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
+    #tokenizer = FullTokenizer(
+    #    vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
     label_list = processor.get_labels() # get_labels
 
-    model, device = load_model(label_list, tokenizer, args)
+    model, device = load_AdaptiveCRF_model(label_list, args)
 
     # Prepare optimizer
     if args.fp16:

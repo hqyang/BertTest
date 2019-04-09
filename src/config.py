@@ -34,6 +34,7 @@ class Config:
     num_train_epochs = 3.0
     warmup_proportion = 0.1
     num_hidden_layers = 0
+    projected_size = 6
     
     ##4.Devices
     no_cuda = False
