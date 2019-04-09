@@ -363,11 +363,25 @@ def save_model(model, fo='tmp.tsv'):
     print('Finish writing model data to ' + fo + '!')
 
 
+RE_SPECIAL_TOKENS = ['.', '^', '$', '*', '+', '?', '{', '}', '\\', '[', ']', '|', '(', ')']
+
+
+def findretokens(text):
+    for st in RE_SPECIAL_TOKENS:
+        if st in text:
+            return True, len(st)==len(text)
+    return False, False
+
+
 def setspacefortext(strOut, used_idx, text):
-    try:
+    ftoken, onlytoken = findretokens(text)
+    if not ftoken:
         idx_obj = re.search(text, strOut[used_idx:])
-    except:
-        text = '\\' + text
+    else: # find special token
+        if onlytoken: # only one token
+            text = '\\' + text
+        else: # text consists of chars with special tokens, e.g., [, (, or ), ...
+            text = handle_special_tokens(text)
         idx_obj = re.search(text, strOut[used_idx:])
 
     if idx_obj:
@@ -380,14 +394,14 @@ def setspacefortext(strOut, used_idx, text):
     return strOut, used_idx
 
 def setnospacefortext(strOut, used_idx, text):
-    try:
+    ftoken, onlytoken = findretokens(text)
+    if not ftoken:
         idx_obj = re.search(text, strOut[used_idx:])
-    except:
-        if '['==text or '('==text or ')'==text:
+    else: # find special token
+        if onlytoken: # only one token
             text = '\\' + text
-        else: # text consists of not only [, (, pr )
-            text = handle_bracket(text)
-
+        else: # text consists of chars with special tokens, e.g., [, (, or ), ...
+            text = handle_special_tokens(text)
         idx_obj = re.search(text, strOut[used_idx:])
 
     if idx_obj:
@@ -400,10 +414,8 @@ def setnospacefortext(strOut, used_idx, text):
     return strOut, used_idx
 
 
-def handle_bracket(text):
-    brackets = ['[', '(', ')']
-
-    for token in brackets:
+def handle_special_tokens(text):
+    for token in RE_SPECIAL_TOKENS:
         if token in text:
             text = text.replace(token, '\\'+token)
 
