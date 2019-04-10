@@ -420,7 +420,7 @@ class BertCRFWAMCWS(PreTrainedBertModel):
             decode_rs = self.classifier.decode(bert_feats, mask)
 
         return loss, decode_rs
-    
+
     def _seg_wordslist(self, lword):  # ->str
         # lword: list of words (list)
         # input_ids, segment_ids, input_mask = tokenize_list(

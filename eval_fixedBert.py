@@ -149,7 +149,7 @@ def load_model(label_list, args):
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
     model = BertCRFWAMCWS(device, bert_config, args.vocab_file, args.max_seq_length, args.projected_size, \
-                          len(label_list), args.train_batch_size)
+                          len(label_list), args.train_batch_size//2)
 
     if args.init_checkpoint is not None:
         if os.path.isdir(args.init_checkpoint):
