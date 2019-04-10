@@ -228,8 +228,9 @@ class BertCRF(PreTrainedBertModel):
         mask = attention_mask.byte()
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
-
             return loss
+        else:
+            raise RuntimeError('Input: labels, is missing!')
 
     def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
@@ -238,12 +239,11 @@ class BertCRF(PreTrainedBertModel):
 
         mask = attention_mask.byte()
         loss = np.inf
-        decode_rs = []
+
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
-            len_max = len(mask[0])
 
-            decode_rs = self.classifier.decode(bert_feats, mask)
+        decode_rs = self.classifier.decode(bert_feats, mask)
 
         return loss, decode_rs
 
@@ -319,6 +319,8 @@ class BertCRFWAM(PreTrainedBertModel):
         loss = np.inf
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
+        else:
+            raise RuntimeError('Input: labels, is missing!')
 
         return loss
 
@@ -333,11 +335,11 @@ class BertCRFWAM(PreTrainedBertModel):
 
         mask = attention_mask.byte()
         loss = np.inf
-        decode_rs = []
+
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
 
-            decode_rs = self.classifier.decode(bert_feats, mask)
+        decode_rs = self.classifier.decode(bert_feats, mask)
 
         return loss, decode_rs
 
@@ -415,11 +417,11 @@ class BertCRFWAMCWS(PreTrainedBertModel):
 
         mask = attention_mask.byte()
         loss = np.inf
-        decode_rs = []
+
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
 
-            decode_rs = self.classifier.decode(bert_feats, mask)
+        decode_rs = self.classifier.decode(bert_feats, mask)
 
         return loss, decode_rs
 
