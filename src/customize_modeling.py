@@ -403,6 +403,24 @@ class BertCRFWAMCWS(PreTrainedBertModel):
         self.classifier = CRF(num_tags, batch_first=True)
         self.apply(self.init_bert_weights)
 
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        sequence_output = self.dropout(sequence_output)
+
+        auto_encoder_output = self.block(sequence_output)
+        auto_encoder_output = self.dropout(auto_encoder_output)
+
+        bert_feats = self.hidden2tag(auto_encoder_output)
+
+        mask = attention_mask.byte()
+        loss = np.inf
+        if labels is not None:
+            loss = -self.classifier(bert_feats, labels, mask)
+
+            decode_rs = self.classifier.decode(bert_feats, mask)
+
+        return loss, decode_rs
+    
     def _seg_wordslist(self, lword):  # ->str
         # lword: list of words (list)
         # input_ids, segment_ids, input_mask = tokenize_list(
