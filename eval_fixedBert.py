@@ -27,7 +27,7 @@ from glob import glob
 import pdb
 
 from src.BERT.modeling import BertConfig, BertForMaskedLM
-from src.customize_modeling import BertCRFCWS
+from src.customize_modeling import BertCRFWAMCWS
 from src.BERT.optimization import BertAdam
 from src.pkuseg.metrics import getFscoreFromBIOTagList
 
