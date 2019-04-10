@@ -437,7 +437,7 @@ class BertCRFWAMCWS(PreTrainedBertModel):
         segment_ids_torch = torch.from_numpy(np.array(segment_ids)).to(self.device)
         input_masks_torch = torch.from_numpy(np.array(input_masks)).to(self.device)
 
-        decode_rs = self.decode(input_id_torch, segment_ids_torch, input_masks_torch)
+        _, decode_rs = self.decode(input_id_torch, segment_ids_torch, input_masks_torch)
 
         decode_output_list = []
         for rs in decode_rs:
