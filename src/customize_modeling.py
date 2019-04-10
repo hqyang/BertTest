@@ -237,15 +237,15 @@ class BertCRF(PreTrainedBertModel):
         bert_feats = self.hidden2tag(sequence_output)
 
         mask = attention_mask.byte()
+        loss = np.inf
+        decode_rs = []
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
             len_max = len(mask[0])
 
             decode_rs = self.classifier.decode(bert_feats, mask)
 
-            return loss, decode_rs
-        else:
-            return None, decode_rs
+        return loss, decode_rs
 
 
 class BertCRFWAM(PreTrainedBertModel):
@@ -333,6 +333,7 @@ class BertCRFWAM(PreTrainedBertModel):
 
         mask = attention_mask.byte()
         loss = np.inf
+        decode_rs = []
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
 
@@ -414,6 +415,7 @@ class BertCRFWAMCWS(PreTrainedBertModel):
 
         mask = attention_mask.byte()
         loss = np.inf
+        decode_rs = []
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
 
