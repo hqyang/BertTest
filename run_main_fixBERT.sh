@@ -1,12 +1,12 @@
 #!/bin/sh
 
-for nhl in 3
+for nhl in 12
 do
     for nte in 15
     do
-        for tbs in 64
+        for tbs in 256
         do
-            for pjs in 6, 12
+            for pjs in 6 12
             do
                 echo "train_batch_size $tbs, num_train_epochs $nte, num_hidden_layers $nhl, projected_size $pjs"
                 python main_fixBERT.py \

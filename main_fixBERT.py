@@ -91,7 +91,6 @@ def get_dataset_and_dataloader(processor, args, training=True, type='train'):
 
 
 def load_AdaptiveCRF_model(label_list, args):
-    #pdb.set_trace()
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
             args.visible_device = str(args.visible_device)
@@ -233,11 +232,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 label_ids = label_ids.to(device)
             else:
                 label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
-            #pdb.set_trace()
-            #loss, decode_rs = model(input_ids, segment_ids, input_mask, label_ids)
             loss = model(input_ids, segment_ids, input_mask, label_ids)
-            #s1 = outputFscoreUsedBIO(list(label_ids.data.numpy()), decode_rs, list(input_mask.data.numpy()))
-            #pdb.set_trace()
 
             n_gpu = torch.cuda.device_count()
             if n_gpu > 1: # or loss.shape[0] > 1:
@@ -316,7 +311,6 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
         with torch.no_grad():
             n_gpu = torch.cuda.device_count()
 
-            #pdb.set_trace()
             if n_gpu > 1: # multiple gpus
             	# model.module.decode to replace original model() since forward cannot output multiple outputs in multiple gpus
                 tmp_eval_loss, tmp_decode_rs = model.module.decode(input_ids, segment_ids, input_mask, label_ids)
@@ -324,7 +318,6 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
             else:
                 tmp_eval_loss, tmp_decode_rs = model.decode(input_ids, segment_ids, input_mask, label_ids)
 
-            #pdb.set_trace()
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
                 mask_array = input_mask.data
@@ -478,7 +471,6 @@ def main(**kwargs):
         os.makedirs(args.output_dir, exist_ok=True)
         #processor.save_labelidmap(args.output_dir)
 
-    #pdb.set_trace()
     if args.do_eval and not args.do_train:
         args.init_checkpoint = args.init_checkpoint + '/nhl' \
                 +str(args.num_hidden_layers)+'_nte'+str(args.num_train_epochs) \
@@ -510,9 +502,11 @@ def main(**kwargs):
         param_optimizer = [(n, param.clone().detach().to('cpu').requires_grad_()) \
                             for n, param in model.named_parameters()]
     else:
-        #param_optimizer = list(model.named_parameters())
+        #pdb.set_trace()
+        param_optimizer = list(model.named_parameters())
         for param in model.bert.parameters():
             param.requires_grad = False
+        #pdb.set_trace()
 
     no_decay = ['bias', 'gamma', 'beta']
     optimizer_grouped_parameters = [
