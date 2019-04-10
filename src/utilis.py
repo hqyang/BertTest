@@ -447,7 +447,7 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
     return strOut
 
 
-def append_to_buff(buff, append_text, len_max, merge_index):
+def append_to_buff(processed_text_list, buff, append_text, len_max, merge_index):
     if len(buff) + len(append_text) > len_max:
         processed_text_list.append(buff)
         merge_index += 1

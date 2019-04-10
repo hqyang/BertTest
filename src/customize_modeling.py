@@ -468,10 +468,10 @@ class BertCRFWAMCWS(PreTrainedBertModel):
                     for sub_text_chunk in [
                             text_chunk[i:i+len_max]
                             for i in range(0, len(text_chunk), len_max)]:
-                        buff, merge_index = append_to_buff(
+                        buff, merge_index = append_to_buff(processed_text_list,
                             buff, sub_text_chunk, len_max, merge_index)
                 else:
-                    buff, merge_index = append_to_buff(
+                    buff, merge_index = append_to_buff(processed_text_list,
                         buff, text_chunk, len_max, merge_index)
             if buff:
                 processed_text_list.append(buff)
@@ -735,10 +735,10 @@ class BertCRFCWS(PreTrainedBertModel):
                     for sub_text_chunk in [
                             text_chunk[i:i+len_max]
                             for i in range(0, len(text_chunk), len_max)]:
-                        buff, merge_index = append_to_buff(
+                        buff, merge_index = append_to_buff(processed_text_list,
                             buff, sub_text_chunk, len_max, merge_index)
                 else:
-                    buff, merge_index = append_to_buff(
+                    buff, merge_index = append_to_buff(processed_text_list,
                         buff, text_chunk, len_max, merge_index)
             if buff:
                 processed_text_list.append(buff)
@@ -820,10 +820,10 @@ class BertCRFCWS(PreTrainedBertModel):
                     for sub_text_chunk in [
                             text_chunk[i:i+len_max]
                             for i in range(0, len(text_chunk), len_max)]:
-                        buff, merge_index = append_to_buff(
+                        buff, merge_index = append_to_buff(processed_text_list,
                             buff, sub_text_chunk, len_max, merge_index)
                 else:
-                    buff, merge_index = append_to_buff(
+                    buff, merge_index = append_to_buff(processed_text_list,
                         buff, text_chunk, len_max, merge_index)
             if buff:
                 processed_text_list.append(buff)
