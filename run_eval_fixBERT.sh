@@ -9,7 +9,7 @@ do
             for pjs in 6 12
             do
                 echo "train_batch_size $tbs, num_train_epochs $nte, num_hidden_layers $nhl, projected_size $pjs"
-                python eval.py \
+                python eval_fixedBert.py \
                 --task_name ontonotes_CWS \
                 --data_dir ../data/ontonotes5/4ner_data/ \
                 --bert_model_dir ../models/bert-base-chinese/ \
