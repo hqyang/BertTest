@@ -446,13 +446,22 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
 
     return strOut
 
-'''
-    strOut = ''
-    used_idx = 0
-    for text in text_ls:
-        if text!='[UNK]':
-            strOut += text + ' '
-            used_idx += len(text)
-        else:
-            strOut += original_str[used_idx] + ' '
-'''
+
+def append_to_buff(buff, append_text, len_max, merge_index):
+    if len(buff) + len(append_text) > len_max:
+        processed_text_list.append(buff)
+        merge_index += 1
+        buff = append_text
+    else:
+        buff += append_text
+    return buff, merge_index
+
+
+def split_text_by_punc(text):
+    text = text.strip('\r\n')
+    text = text.strip()
+    text = text.replace('\u3000', ' ')
+
+    text_chunk_list = re.split('(。|，|：|\n|#)', text)
+
+    return text_chunk_list

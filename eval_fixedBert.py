@@ -133,9 +133,9 @@ def load_model(label_list, args):
         bert_config = BertConfig.from_json_file(config_file)
     else:
         bert_config = BertConfig.from_json_file(args.bert_config_file)
-    
+
     if args.num_hidden_layers>0 and args.num_hidden_layers<bert_config.num_hidden_layers:
-        bert_config.num_hidden_layers = args.num_hidden_layers 
+        bert_config.num_hidden_layers = args.num_hidden_layers
 
     if args.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(
@@ -148,7 +148,8 @@ def load_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list), args.train_batch_size)
+    model = BertCRFWAMCWS(device, bert_config, args.vocab_file, args.max_seq_length, args.projected_size, \
+                          len(label_list), args.train_batch_size)
 
     if args.init_checkpoint is not None:
         if os.path.isdir(args.init_checkpoint):
@@ -320,8 +321,6 @@ def main(**kwargs):
 
     # Prepare model
     processor = processors[task_name]()
-    #tokenizer = FullTokenizer(
-    #    vocab_file=args.vocab_file, do_lower_case=args.do_lower_case)
     label_list = processor.get_labels() # get_labels
 
     model, device = load_model(label_list, args)
