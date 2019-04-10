@@ -306,8 +306,10 @@ def main(**kwargs):
 
     if args.do_eval_df and not args.do_train:
         args.init_checkpoint = args.init_checkpoint + '/nhl' \
-                +str(args.num_hidden_layers)+'_nte'+str(args.num_train_epochs) \
-                +'_nbs'+str(args.train_batch_size) 
+                + str(args.num_hidden_layers) + '_nte' + str(args.num_train_epochs) \
+                + '_nbs' + str(args.train_batch_size) \
+                + '_pjs' + str(args.projected_size)
+
         args.output_dir = args.init_checkpoint + '/out'
         os.makedirs(args.output_dir, exist_ok=True)
 
