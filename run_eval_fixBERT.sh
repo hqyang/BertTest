@@ -19,7 +19,7 @@ do
                 --init_checkpoint ./tmp/ontonotes/ \
                 --do_eval_df True \
                 --do_lower_case True \
-                --train_batch_size 64 \
+                --train_batch_size $tbs \
                 --visible_device 0 \
                 --num_train_epochs $nte \
                 --max_seq_length 128 \
