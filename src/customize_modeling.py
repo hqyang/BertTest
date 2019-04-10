@@ -703,7 +703,7 @@ class BertCRFCWS(PreTrainedBertModel):
 
         return result_str.strip().split()
 
-     def cutlist(self, input_list):
+    def cutlist(self, input_list):
         """
         # Example usage:
             text = '''
