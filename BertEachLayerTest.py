@@ -39,71 +39,9 @@ CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
 
-def do_eval_with_model(model, data_dir, type, output_dir, mode=False):
-    df = get_Ontonotes(data_dir, type)
-
-    bertCRFList = []
-    trueLabelList = []
-
-    output_diff_file = os.path.join(output_dir, type+"_diff.txt")
-
-    for i, data in tqdm(enumerate(df.itertuples())):
-        sentence = data.text
-        #sentence = re.sub('“|”', '"', sentence)
-        #rs_full = jieba.lcut(sentence, cut_all=True) # Full mode, all possible cuts
-        #rs_ser = jieba.lcut_for_search(sentence) # search engine mode, similar to Full mode
-
-        # sentence = '台湾的公视今天主办的台北市长候选人辩论会，'
-        # rs_precision = jieba.lcut(sentence, cut_all=False)
-        #   rs_precision = ['台湾', '的', '公视', '今天', '主办', '的', '台北', '市长', '候选人', '辩论会', '，']
-        # jieba_rs = ' '.join(rs_precision)
-        #   jieba_rs = '台湾 的 公视 今天 主办 的 台北 市长 候选人 辩论会 ，'
-
-        #rs_precision = model.cut(sentence, mode)
-        rs_precision = model.cutlist(sentence)
-        bertCRF_rs = ' '.join(rs_precision)
-
-        #str_precision = convertList2BMES(rs_precision)
-        str_BIO = convertList2BIOwithComma(rs_precision, model.tokenizer)
-        bertCRFList.append(str_BIO)
-
-        tl = BMES2BIO(data.label)
-        tl = space2Comma(tl)
-        trueLabelList.append(tl)
-
-        if str_BIO != tl:
-            print('{:d}: '.format(i))
-            print(sentence)
-            print(data.text_seg)
-            print(bertCRF_rs)
-            print(tl)
-            print(str_BIO)
-            print('\n')
-
-        with open(output_diff_file, "a+") as writer:
-            writer.write('{:d}: '.format(i))
-            writer.write(sentence+'\n')
-            writer.write(data.text_seg+'\n')
-            writer.write(bertCRF_rs+'\n')
-            writer.write(tl+'\n')
-            writer.write(str_BIO+'\n\n')
-
-    score, scoreInfo = getFscoreFromBIOTagList(trueLabelList, bertCRFList)
-
-    print('Eval ' + type + ' results:')
-    print('Test F1, Precision, Recall, Acc, No. Tags: {:.3f}, {:.3f}, {:.3f}, {:.3f}, {:d}'.format(score[0], \
-                                                  score[1], score[2], score[3], scoreInfo[-1]))
-
-    output_eval_file = os.path.join(output_dir, "eval_results.txt")
-    with open(output_eval_file, "a+") as writer:
-        writer.write('Eval ' + type + ' results: ')
-        writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, No. Tags: {:d}\n\n".format(score[0], \
-                                                score[1], score[2], score[3], scoreInfo[-1]))
-
-    return score, scoreInfo
-
-
 def do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type):
+    model.eval()
+
     bertCRFList = []
     trueLabelList = []
 
@@ -164,6 +102,7 @@ def do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type):
         writer.write("F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, No. Tags: {:d}\n\n".format(score[0], \
                                                 score[1], score[2], score[3], scoreInfo[-1]))
 
+    model.train()
     return score, scoreInfo
 
 
@@ -258,6 +197,7 @@ def load_BertCRF_model(label_list, args):
 
 
 def do_train(model, train_dataloader, optimizer, param_optimizer, device, args):
+    model.train()
     types = ['test', 'dev', 'train']
 
     global_step = 0
