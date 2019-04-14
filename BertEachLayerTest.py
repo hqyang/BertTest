@@ -271,8 +271,8 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args):
 
         for ttype in types:
             df = get_Ontonotes(args.data_dir, ttype)
-            output_diff_file = os.path.join(output_dir, ttype + "_diff.txt")
-            output_eval_file = os.path.join(output_dir, ttype + "_eval_results.txt")
+            output_diff_file = os.path.join(args.output_dir, ttype + "_diff.txt")
+            output_eval_file = os.path.join(args.output_dir, ttype + "_eval_results.txt")
 
             do_eval_df_with_model(model, df, output_diff_file, output_eval_file, ttype)
 
