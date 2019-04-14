@@ -472,20 +472,15 @@ def set_local_eval_4CWS_param():
 
 def set_server_eval_ontonotes_param():
     return {'task_name': 'ontonotes_CWS',
-            'model_type': 'sequencelabeling',
             'data_dir': '../data/ontonotes5/4ner_data/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp_2019_3_22/out/ontonotes/',
+            'output_dir': './tmp/ontonotes/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'visible_device': 0,
             'max_seq_length': 128,
-            'num_hidden_layers': 3,
             'init_checkpoint': '../models/bert-base-chinese/',
-            'bert_model': './tmp_2019_3_23/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
-            'override_output': True,
-            'tensorboardWriter': False
             }
 
 def set_server_eval_4CWS_param():
@@ -509,10 +504,11 @@ def set_server_eval_4CWS_param():
 
 LOCAL_FLAG = False
 #LOCAL_FLAG = True
-#TEST_CWS = False
+#
 TEST_ONTONOTES = True
 #TEST_ONTONOTES = False
 #TEST_CWS = True
+TEST_CWS = False
 
 if __name__=='__main__':
     if TEST_ONTONOTES:
