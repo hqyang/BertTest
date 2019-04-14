@@ -18,7 +18,7 @@ import random
 from collections import OrderedDict
 from tqdm import tqdm, trange
 from src.metrics import outputFscoreUsedBIO
-from src.utilis import get_Ontonotes
+from src.utilis import get_dataset_and_dataloader
 
 import numpy as np
 import torch
@@ -27,13 +27,12 @@ import time
 from glob import glob
 import pdb
 
-from src.BERT.modeling import BertConfig, BertForMaskedLM
+from src.BERT.modeling import BertConfig
 from src.customize_modeling import BertCRFWAM
 from src.BERT.optimization import BertAdam
 
-from src.preprocess import dataset_to_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO
+from src.preprocess import randomly_mask_input, CWS_BMEO
 from src.config import args
-from src.tokenization import FullTokenizer
 from src.utilis import save_model
 
 CONFIG_NAME = 'bert_config.json'
@@ -82,12 +81,6 @@ def set_test_param():
             'tensorboardWriter': False
             }
 
-def get_dataset_and_dataloader(processor, args, training=True, type='train'):
-    dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
-                                 args.max_seq_length, training=training, type=type)
-    dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
-                                       args.local_rank, training=training)
-    return dataset, dataloader
 
 
 def load_AdaptiveCRF_model(label_list, args):
