@@ -307,7 +307,7 @@ def eval_eachlayer_ontonotes(args):
     for nhl in range(12):
         args.num_hidden_layers = nhl+1
         args.output_dir = output_dir + '/nhl' + str(args.num_hidden_layers)
-        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(args.output_dir, exist_ok=True)
 
         model, device = load_BertCRF_model(label_list, args)
 
