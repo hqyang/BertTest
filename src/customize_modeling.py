@@ -599,6 +599,18 @@ class BertCRFCWS(PreTrainedBertModel):
         self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
         self.classifier = CRF(num_tags, batch_first=True)
 
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, output_all_encoded_layers=False):
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
+        sequence_output = self.dropout(sequence_output)
+        bert_feats = self.hidden2tag(sequence_output)
+
+        mask = attention_mask.byte()
+        if labels is not None:
+            loss = -self.classifier(bert_feats, labels, mask)
+            return loss
+        else:
+            raise RuntimeError('Input: labels, is missing!')
+
     def decode(self, input_ids, token_type_ids=None, attention_mask=None):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
