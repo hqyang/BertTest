@@ -11,7 +11,7 @@ Scenario:
 import os
 
 from src.pkuseg.metrics import getFscoreFromBIOTagList
-from tqdm import tqdm
+from tqdm import tqdm, trange
 from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma, load_4CWS
 import pandas as pd
 from src.config import args
