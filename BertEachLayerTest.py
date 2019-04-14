@@ -18,6 +18,7 @@ from src.config import args
 from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
 from src.utilis import get_dataset_and_dataloader
+from src.BERT.optimization import BertAdam
 
 import numpy as np
 import torch
