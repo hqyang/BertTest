@@ -420,6 +420,7 @@ def set_server_eval_ontonotes_param():
             'do_lower_case': True,
             'train_batch_size': 128,
             'visible_device': 0,
+            'num_train_epochs': 15,
             'max_seq_length': 128,
             'init_checkpoint': '../models/bert-base-chinese/',
             }
