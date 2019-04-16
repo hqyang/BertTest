@@ -759,7 +759,7 @@ class BertClassifiersCWS(PreTrainedBertModel):
             # Find the tag which maximizes the score at the last timestep; this is our best tag
             # for the last timestep
             best_tags = []
-            for iseq in range(1, seq_length):
+            for iseq in range(seq_length):
                 if mask[idx, iseq]:
                     _, best_selected_tag = bert_feats[idx, iseq].max(dim=0)
                     best_tags.append(best_selected_tag.item())
