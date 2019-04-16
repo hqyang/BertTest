@@ -409,7 +409,7 @@ def set_server_eval_ontonotes_param():
             'data_dir': '../data/ontonotes5/4ner_data/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp/ontonotes/BertCRF/',
+            'output_dir': './tmp/ontonotes/BertSoftmax/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'visible_device': 1,
