@@ -248,6 +248,688 @@ class BertCRF(PreTrainedBertModel):
         return loss, decode_rs
 
 
+class BertCRFCWS(PreTrainedBertModel):
+    """BERT model with CRF for Chinese Word Segmentation.
+    This module is composed of the BERT model with a linear layer on top of
+    the pooled output via Conditional Random Field.
+
+    Params:
+        `device`: the device to set the model.
+        `config`: a BertConfig class instance with the configuration to build a new model.
+        `vocab_file`: the vocab file for tokenizing the words.
+        `max_length`: the maximum length for tokenization.
+        `num_tags`: the number of classes for the classifier. Default = 6.
+        `batch_size`: the number of mini-batch size for processing the data
+
+    Outputs:
+        if `labels` is not `None`:
+            Outputs the CrossEntropy classification loss of the output with the labels.
+        if `labels` is `None`:
+            Outputs the classification logits of shape [batch_size, num_tags].
+
+    Example usage:
+    ```python
+
+    config = BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
+        num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
+
+    num_tags = 6
+
+    model = BertCRFCWS(device, config, vocab_file, max_length, num_tags, batch_size)
+    logits = model(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64):
+        super(BertCRFCWS, self).__init__(config)
+        self.device = device
+        self.batch_size = batch_size
+        self.tokenizer = FullTokenizer(
+                vocab_file=vocab_file, do_lower_case=True)
+        self.max_length = max_length
+
+        self.num_tags = num_tags
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
+
+        # Maps the output of BERT into tag space.
+        self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
+        self.classifier = CRF(num_tags, batch_first=True)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        sequence_output = self.dropout(sequence_output)
+        bert_feats = self.hidden2tag(sequence_output)
+
+        mask = attention_mask.byte()
+        if labels is not None:
+            loss = -self.classifier(bert_feats, labels, mask)
+            return loss
+        else:
+            raise RuntimeError('Input: labels, is missing!')
+
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None):
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        sequence_output = self.dropout(sequence_output)
+        bert_feats = self.hidden2tag(sequence_output)
+
+        mask = attention_mask.byte()
+
+        decode_rs = self.classifier.decode(bert_feats, mask)
+
+        return decode_rs
+
+    def _seg_text(self, words):#->str
+        input_ids, segment_ids, input_mask = tokenize_list(words, self.max_length, self.tokenizer)
+
+        input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()])).to(self.device)
+        input_mask_torch = torch.from_numpy(np.array([input_mask.tolist()])).to(self.device)
+
+        sequence_output, _ = self.bert(input_ids_torch, input_mask_torch, output_all_encoded_layers=False)
+        sequence_output = self.dropout(sequence_output)
+        bert_feats = self.hidden2tag(sequence_output)
+
+        input_mask_byte = input_mask_torch.byte()
+        #  change input_mask_torch type to byte to avoid RuntimeError: _th_all is not implemented for type torch.LongTensor
+        #   in TorchCRF: no_empty_seq_bf = self.batch_first and mask[:, 0].all()
+        decode_rs = self.classifier.decode(bert_feats, input_mask_byte)
+        tmp_rs = ''.join(str(v) for v in decode_rs[0])
+
+        # tmp_rs[1:-1]: remove the start token and the end token
+        decode_output = tmp_rs[1:-1]
+
+
+        # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
+        #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+
+        # replace the [START] and [END] tokens
+        decode_output = decode_output.replace('4', '3') # predict those wrong tokens as a separated word
+        decode_output = decode_output.replace('5', '3') #
+
+        return decode_output # a string
+
+    def _seg_wordslist(self, lword):  # ->str
+        # lword: list of words (list)
+        # input_ids, segment_ids, input_mask = tokenize_list(
+        #     words, self.max_length, self.tokenizer)
+        input_ids, segment_ids, input_masks = zip(
+            *[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
+
+
+        input_id_torch = torch.from_numpy(np.array(input_ids)).to(self.device)
+        segment_ids_torch = torch.from_numpy(np.array(segment_ids)).to(self.device)
+        input_masks_torch = torch.from_numpy(np.array(input_masks)).to(self.device)
+
+        decode_rs = self.decode(input_id_torch, segment_ids_torch, input_masks_torch)
+
+        decode_output_list = []
+        for rs in decode_rs:
+            tmp_rs = ''.join(str(v) for v in rs)
+
+            # tmp_rs[1:-1]: remove the start token and the end token
+            decode_output = tmp_rs[1:-1]
+
+            # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
+            #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+
+            # replace the [START] and [END] tokens
+            # predict those wrong tokens as a separated word
+            # replacing 4 and 5 should not be conducted usually
+            decode_output = decode_output.replace('4', '3')
+            decode_output = decode_output.replace('5', '3')
+            decode_output_list.append(decode_output)
+
+        return decode_output_list  # list of string
+
+    def cut(self, ln, procAll=True):
+        """
+        # Example usage:
+            text = '''
+            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
+            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
+            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
+            # of students is 256.
+            '''
+
+            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = model.cut(text)
+        """
+        l = ln.strip('\r\n')
+        l = l.strip()
+
+        len_max = self.max_length-2
+        wls = self.tokenizer.tokenize(l)
+
+        wls_used = wls
+        if not procAll:
+            if len(wls_used)>len_max:
+                wls = wls[:len_max]
+                wls_used = wls
+
+        decode_output = ''
+        while len(wls_used) > 0:
+            # _seg_wordslist: 02xxx
+            decode_output += self._seg_wordslist(wls_used)
+
+            if len(wls_used) > len_max:
+                wls_used = wls_used[len_max:]
+            else:
+                wls_used = []
+
+        result_str = ''
+        #pre_word_is_english = False
+        cur_word_is_english = False
+        for text, tag in zip(wls, decode_output):
+            text = text.replace('##', '')
+            cur_word_is_english = check_english_words(text)
+
+            if int(tag) > 1: # and (cur_word_is_english)
+                # int(tag)>1: tokens of 'E' and 'S'
+                # current word is english
+                result_str += text + ' '
+            else:
+                result_str += text
+
+            #pre_word_is_english = cur_word_is_english
+
+        return result_str.strip().split()
+
+    def cutlist(self, input_list):
+        """
+        # Example usage:
+            text = '''
+            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
+            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
+            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
+            # of students is 256.
+            '''
+
+            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = model.cut(text)
+        """
+        processed_text_list = []
+        merge_index_list = []
+        merge_index = 0
+
+        for l_ind, text in enumerate(input_list):
+            merge_index_tuple = [merge_index]
+            buff = ''
+
+            if isinstance(text, float): continue # process problem of empty line, which is converted to nan
+
+            text_chunk_list = split_text_by_punc(text)
+            len_max = self.max_length-2
+
+            for text_chunk in text_chunk_list:
+                # if text chunk longer than len_max, split text_chunk
+                if len(text_chunk) > len_max:
+                    for sub_text_chunk in [
+                            text_chunk[i:i+len_max]
+                            for i in range(0, len(text_chunk), len_max)]:
+                        buff, merge_index = append_to_buff(processed_text_list,
+                            buff, sub_text_chunk, len_max, merge_index)
+                else:
+                    buff, merge_index = append_to_buff(processed_text_list,
+                        buff, text_chunk, len_max, merge_index)
+            if buff:
+                processed_text_list.append(buff)
+                merge_index += 1
+            merge_index_tuple.append(merge_index)
+            merge_index_list.append(merge_index_tuple)
+        processed_text_list = [self.tokenizer.tokenize(
+            t) for t in processed_text_list]
+
+        decode_output_list = []
+        batch_size = self.batch_size
+        for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
+            decode_output_list.extend(self._seg_wordslist(p_t_l))
+
+        #decode_output_list = self._seg_wordslist(processed_text_list)
+
+        # restoring processed_text_list to list of strings
+        #processed_text_list = [''.join(char_list) for char_list in processed_text_list]
+        result_str_list = []
+        for merge_start, merge_end in merge_index_list:
+            result_str = ''
+
+            tag = ''.join(decode_output_list[merge_start:merge_end])
+            text = []
+            for a in processed_text_list[merge_start:merge_end]:
+                text.extend(a)
+
+            #text = text.replace('##', '')
+            # cur_word_is_english = check_english_words(text)
+
+            for idx in range(len(tag)):
+                tt = text[idx]
+                tt = tt.replace('##', '')
+                ti = tag[idx]
+                if int(ti) == 0:  # 'B'
+                    result_str += ' ' + tt
+                elif int(ti) > 1:  # and (cur_word_is_english)
+                    # int(ti)>1: tokens of 'E' and 'S'
+                    # current word is english
+                    result_str += tt + ' '
+                else:
+                    result_str += tt
+
+            result_str_list.append(result_str.strip().split())
+
+        return result_str_list
+        #result_str += ' '  # separate bcz english issue
+        # pre_word_is_english = cur_word_is_english
+
+    def cutlist_noUNK(self, input_list):
+        """
+        # Example usage:
+            text = '''
+            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
+            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
+            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
+            # of students is 256.
+            '''
+
+            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = model.cutlist_noUNK([text])
+        """
+        processed_text_list = []
+        merge_index_list = []
+        merge_index = 0
+
+        for l_ind, text in enumerate(input_list):
+            merge_index_tuple = [merge_index]
+            buff = ''
+
+            if isinstance(text, float): continue # process problem of empty line, which is converted to nan
+
+            text_chunk_list = split_text_by_punc(text)
+            len_max = self.max_length-2
+
+            for text_chunk in text_chunk_list:
+                # if text chunk longer than len_max, split text_chunk
+                if len(text_chunk) > len_max:
+                    for sub_text_chunk in [
+                            text_chunk[i:i+len_max]
+                            for i in range(0, len(text_chunk), len_max)]:
+                        buff, merge_index = append_to_buff(processed_text_list,
+                            buff, sub_text_chunk, len_max, merge_index)
+                else:
+                    buff, merge_index = append_to_buff(processed_text_list,
+                        buff, text_chunk, len_max, merge_index)
+            if buff:
+                processed_text_list.append(buff)
+                #original_text_list.append(buff)
+                merge_index += 1
+            merge_index_tuple.append(merge_index)
+            merge_index_list.append(merge_index_tuple)
+
+        original_text_list = processed_text_list
+        processed_text_list = [self.tokenizer.tokenize(
+            t) for t in processed_text_list]
+
+        decode_output_list = []
+        batch_size = self.batch_size
+        for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
+            decode_output_list.extend(self._seg_wordslist(p_t_l))
+
+        #decode_output_list = self._seg_wordslist(processed_text_list)
+
+        # restoring processed_text_list to list of strings
+        #processed_text_list = [''.join(char_list) for char_list in processed_text_list]
+        result_str_list = []
+        for merge_start, merge_end in merge_index_list:
+            result_str = ''
+            original_str = ''
+
+            tag = ''.join(decode_output_list[merge_start:merge_end])
+            text = []
+            for a in processed_text_list[merge_start:merge_end]:
+                text.extend(a)
+
+            for a in original_text_list[merge_start:merge_end]:
+                str_used = ''
+                al = re.split('[\n\r]', a)
+
+                for aa in al: str_used += ''.join(aa.strip())
+
+                original_str += str_used
+
+            for idx in range(len(tag)):
+                tt = text[idx]
+                tt = tt.replace('##', '')
+                ti = tag[idx]
+                if int(ti) == 0:  # 'B'
+                    result_str += ' ' + tt
+                elif int(ti) > 1:  # and (cur_word_is_english)
+                    # int(ti)>1: tokens of 'E' and 'S'
+                    # current word is english
+                    result_str += tt + ' '
+                else:
+                    result_str += tt
+
+            if '[UNK]' in result_str or '[unused' in result_str:
+                result_str = restore_unknown_tokens(original_str, result_str)
+
+            result_str_list.append(result_str.strip().split())
+
+        return result_str_list
+        #result_str += ' '  # separate bcz english issue
+        # pre_word_is_english = cur_word_is_english
+
+    def cut2(self, ln):
+        """
+        # Example usage:
+            text = '''
+            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
+            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
+            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
+            # of students is 256.
+            '''
+
+            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = model.cut(text)
+        """
+        ls = split_text_by_punc(ln)
+        len_max = self.max_length-2
+
+        result_str = ''
+        for wl in ls:
+            wls, wls_ori = self.tokenizer.tokenize_with_original(wl)
+
+            wls_used = wls
+            if len(wls_used) > len_max:
+                wls = wls[:len_max]
+                wls_used = wls
+
+            decode_output = ''
+            while len(wls_used) > 0:
+                # _seg_wordslist: 02xxx
+                decode_output += self._seg_text(wls_used)
+
+                if len(wls_used) > len_max:
+                    wls_used = wls_used[len_max:]
+                else:
+                    wls_used = []
+
+            #cur_word_is_english = False
+            for text, tag in zip(wls_ori, decode_output):
+                text = text.replace('##', '')
+                #cur_word_is_english = check_english_words(text)
+
+                if int(tag) == 0: # 'B'
+                    result_str += ' ' + text
+                elif int(tag) > 1: # and (cur_word_is_english)
+                    # int(tag)>1: tokens of 'E' and 'S'
+                    # current word is english
+                    result_str += text + ' '
+                else:
+                    result_str += text
+
+            #result_str += ' ' # separate bcz english issue
+                #pre_word_is_english = cur_word_is_english
+
+        if '[UNK]' in result_str:
+            original_str = ''.join([text.strip('\r\n').strip() for text in ls])
+            result_str = restore_unknown_tokens(original_str, result_str)
+
+        return result_str.strip().split()
+
+
+class BertClassifiersCWS(PreTrainedBertModel):
+    """BERT model with Multiple Classifiers for Chinese Word Segmentation.
+    This module is composed of the BERT model with a linear layer on top of
+    the full hidden state of the last layer for Chinese Word Segmentation.
+
+    Params:
+        `device`: the device to set the model.
+        `config`: a BertConfig class instance with the configuration to build a new model.
+        `vocab_file`: the vocab file for tokenizing the words.
+        `max_length`: the maximum length for tokenization.
+        `num_tags`: the number of classes for the classifier. Default = 6.
+        `batch_size`: the number of mini-batch size for processing the data
+
+    Inputs:
+        `input_ids`: a torch.LongTensor of shape [batch_size, sequence_length]
+            with the word token indices in the vocabulary (see the tokens preprocessing logic in the scripts
+            `extract_features.py`, `run_classifier.py` and `run_squad.py`)
+        `token_type_ids`: an optional torch.LongTensor of shape [batch_size, sequence_length] with the token
+            types indices selected in [0, 1]. Type 0 corresponds to a `sentence A` and type 1 corresponds to
+            a `sentence B` token (see BERT paper for more details).
+        `attention_mask`: an optional torch.LongTensor of shape [batch_size, sequence_length] with indices
+            selected in [0, 1]. It's a mask to be used if the input sequence length is smaller than the max
+            input sequence length in the current batch. It's the mask that we typically use for attention when
+            a batch has varying length sentences.
+        `labels`: labels for the classification output: torch.LongTensor of shape [batch_size]
+            with indices selected in [0, ..., num_labels].
+
+    Outputs:
+        if `labels` is not `None`:
+            Outputs the CrossEntropy classification loss of the output with the labels.
+        if `labels` is `None`:
+            Outputs the classification logits of shape [batch_size, num_tags].
+
+    Example usage:
+    ```python
+
+    config = BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
+        num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
+
+    model = BertClassifiersCWS(device, config, vocab_file, max_length, num_tags, batch_size)
+    logits = model(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64):
+        super(BertClassifiersCWS, self).__init__(config)
+        self.device = device
+        self.batch_size = batch_size
+        self.tokenizer = FullTokenizer(
+                vocab_file=vocab_file, do_lower_case=True)
+        self.max_length = max_length
+
+        self.num_tags = num_tags
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
+
+        # Maps the output of BERT into tag space.
+        self.classifier = nn.Linear(self.config.hidden_size, num_tags)
+        self.apply(self.init_bert_weights)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+        # Utilize the code from BertForTokenClassification
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        sequence_output = self.dropout(sequence_output)
+        logits = self.classifier(sequence_output)
+
+        if labels is not None:
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            return loss
+        else:
+            return logits
+
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None):
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
+        sequence_output = self.dropout(sequence_output)
+        bert_feats = self.classifier(sequence_output)
+
+        mask = attention_mask.byte()
+        batch_size, seq_length = mask.shape
+
+        best_tags_list = []
+        for idx in range(batch_size):
+            # Find the tag which maximizes the score at the last timestep; this is our best tag
+            # for the last timestep
+            best_tags = []
+            for iseq in range(1, seq_length):
+                if mask[idx, iseq]:
+                    _, best_selected_tag = bert_feats[idx, iseq].max(dim=0)
+                    best_tags.append(best_selected_tag.item())
+
+            best_tags_list.append(best_tags)
+
+        return best_tags_list
+
+    def _seg_text(self, words):#->str
+        input_ids, segment_ids, input_mask = tokenize_list(words, self.max_length, self.tokenizer)
+
+        input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()])).to(self.device)
+        input_mask_torch = torch.from_numpy(np.array([input_mask.tolist()])).to(self.device)
+
+        sequence_output, _ = self.bert(input_ids_torch, input_mask_torch, output_all_encoded_layers=False)
+        sequence_output = self.dropout(sequence_output)
+        bert_feats = self.hidden2tag(sequence_output)
+
+        input_mask_byte = input_mask_torch.byte()
+        #  change input_mask_torch type to byte to avoid RuntimeError: _th_all is not implemented for type torch.LongTensor
+        #   in TorchCRF: no_empty_seq_bf = self.batch_first and mask[:, 0].all()
+        decode_rs = self.classifier.decode(bert_feats, input_mask_byte)
+        tmp_rs = ''.join(str(v) for v in decode_rs[0])
+
+        # tmp_rs[1:-1]: remove the start token and the end token
+        decode_output = tmp_rs[1:-1]
+
+
+        # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
+        #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+
+        # replace the [START] and [END] tokens
+        decode_output = decode_output.replace('4', '3') # predict those wrong tokens as a separated word
+        decode_output = decode_output.replace('5', '3') #
+
+        return decode_output # a string
+
+    def _seg_wordslist(self, lword):  # ->str
+        # lword: list of words (list)
+        # input_ids, segment_ids, input_mask = tokenize_list(
+        #     words, self.max_length, self.tokenizer)
+        input_ids, segment_ids, input_masks = zip(
+            *[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
+
+
+        input_id_torch = torch.from_numpy(np.array(input_ids)).to(self.device)
+        segment_ids_torch = torch.from_numpy(np.array(segment_ids)).to(self.device)
+        input_masks_torch = torch.from_numpy(np.array(input_masks)).to(self.device)
+
+        decode_rs = self.decode(input_id_torch, segment_ids_torch, input_masks_torch)
+
+        decode_output_list = []
+        for rs in decode_rs:
+            tmp_rs = ''.join(str(v) for v in rs)
+
+            # tmp_rs[1:-1]: remove the start token and the end token
+            decode_output = tmp_rs[1:-1]
+
+            # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
+            #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+
+            # replace the [START] and [END] tokens
+            # predict those wrong tokens as a separated word
+            # replacing 4 and 5 should not be conducted usually
+            decode_output = decode_output.replace('4', '3')
+            decode_output = decode_output.replace('5', '3')
+            decode_output_list.append(decode_output)
+
+        return decode_output_list  # list of string
+
+    def cutlist_noUNK(self, input_list):
+        """
+        # Example usage:
+            text = '''
+            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
+            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
+            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
+            # of students is 256.
+            '''
+
+            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = model.cutlist_noUNK([text])
+        """
+        processed_text_list = []
+        merge_index_list = []
+        merge_index = 0
+
+        for l_ind, text in enumerate(input_list):
+            merge_index_tuple = [merge_index]
+            buff = ''
+
+            if isinstance(text, float): continue # process problem of empty line, which is converted to nan
+
+            text_chunk_list = split_text_by_punc(text)
+            len_max = self.max_length-2
+
+            for text_chunk in text_chunk_list:
+                # if text chunk longer than len_max, split text_chunk
+                if len(text_chunk) > len_max:
+                    for sub_text_chunk in [
+                            text_chunk[i:i+len_max]
+                            for i in range(0, len(text_chunk), len_max)]:
+                        buff, merge_index = append_to_buff(processed_text_list,
+                            buff, sub_text_chunk, len_max, merge_index)
+                else:
+                    buff, merge_index = append_to_buff(processed_text_list,
+                        buff, text_chunk, len_max, merge_index)
+            if buff:
+                processed_text_list.append(buff)
+                #original_text_list.append(buff)
+                merge_index += 1
+            merge_index_tuple.append(merge_index)
+            merge_index_list.append(merge_index_tuple)
+
+        original_text_list = processed_text_list
+        processed_text_list = [self.tokenizer.tokenize(
+            t) for t in processed_text_list]
+
+        decode_output_list = []
+        batch_size = self.batch_size
+        for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
+            decode_output_list.extend(self._seg_wordslist(p_t_l))
+
+        #decode_output_list = self._seg_wordslist(processed_text_list)
+
+        # restoring processed_text_list to list of strings
+        #processed_text_list = [''.join(char_list) for char_list in processed_text_list]
+        result_str_list = []
+        for merge_start, merge_end in merge_index_list:
+            result_str = ''
+            original_str = ''
+
+            tag = ''.join(decode_output_list[merge_start:merge_end])
+            text = []
+            for a in processed_text_list[merge_start:merge_end]:
+                text.extend(a)
+
+            for a in original_text_list[merge_start:merge_end]:
+                str_used = ''
+                al = re.split('[\n\r]', a)
+
+                for aa in al: str_used += ''.join(aa.strip())
+
+                original_str += str_used
+
+            for idx in range(len(tag)):
+                tt = text[idx]
+                tt = tt.replace('##', '')
+                ti = tag[idx]
+                if int(ti) == 0:  # 'B'
+                    result_str += ' ' + tt
+                elif int(ti) > 1:  # and (cur_word_is_english)
+                    # int(ti)>1: tokens of 'E' and 'S'
+                    # current word is english
+                    result_str += tt + ' '
+                else:
+                    result_str += tt
+
+            if '[UNK]' in result_str or '[unused' in result_str:
+                result_str = restore_unknown_tokens(original_str, result_str)
+
+            result_str_list.append(result_str.strip().split())
+
+        return result_str_list
+        #result_str += ' '  # separate bcz english issue
+        # pre_word_is_english = cur_word_is_english
+
+
+
+# The following classes are useless
 class BertCRFWAM(PreTrainedBertModel):
     """BERT model with adaptive module of CRF for Sequence Labeling.
     This module is composed of the BERT model with a adaptive module which applies on top of
@@ -553,426 +1235,3 @@ class BertCRFWAMCWS(PreTrainedBertModel):
 
         return result_str_list
 
-
-class BertCRFCWS(PreTrainedBertModel):
-    """BERT model with CRF for Chinese Word Segmentation.
-    This module is composed of the BERT model with a linear layer on top of
-    the pooled output via Conditional Random Field.
-
-    Params:
-        `config`: a BertConfig class instance with the configuration to build a new model.
-        `num_labels`: the number of classes for the classifier. Default = 2.
-
-    Inputs:
-
-    Outputs:
-        if `labels` is not `None`:
-            Outputs the CrossEntropy classification loss of the output with the labels.
-        if `labels` is `None`:
-            Outputs the classification logits of shape [batch_size, num_labels].
-
-    Example usage:
-    ```python
-
-    config = BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
-        num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
-
-    num_tags = 4
-
-    model = BertCRFCWS(config, num_tags)
-    logits = model(input_ids, token_type_ids, input_mask)
-    ```
-    """
-    def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64):
-        super(BertCRFCWS, self).__init__(config)
-        self.device = device
-        self.batch_size = batch_size
-        self.tokenizer = FullTokenizer(
-                vocab_file=vocab_file, do_lower_case=True)
-        self.max_length = max_length
-
-        self.num_tags = num_tags
-        self.bert = BertModel(config)
-        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
-
-        # Maps the output of BERT into tag space.
-        self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
-        self.classifier = CRF(num_tags, batch_first=True)
-
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None, output_all_encoded_layers=False):
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
-        sequence_output = self.dropout(sequence_output)
-        bert_feats = self.hidden2tag(sequence_output)
-
-        mask = attention_mask.byte()
-        if labels is not None:
-            loss = -self.classifier(bert_feats, labels, mask)
-            return loss
-        else:
-            raise RuntimeError('Input: labels, is missing!')
-
-    def decode(self, input_ids, token_type_ids=None, attention_mask=None):
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-        sequence_output = self.dropout(sequence_output)
-        bert_feats = self.hidden2tag(sequence_output)
-
-        mask = attention_mask.byte()
-
-        decode_rs = self.classifier.decode(bert_feats, mask)
-
-        return decode_rs
-
-    def _seg_text(self, words):#->str
-        input_ids, segment_ids, input_mask = tokenize_list(words, self.max_length, self.tokenizer)
-
-        input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()])).to(self.device)
-        input_mask_torch = torch.from_numpy(np.array([input_mask.tolist()])).to(self.device)
-
-        sequence_output, _ = self.bert(input_ids_torch, input_mask_torch, output_all_encoded_layers=False)
-        sequence_output = self.dropout(sequence_output)
-        bert_feats = self.hidden2tag(sequence_output)
-
-        input_mask_byte = input_mask_torch.byte()
-        #  change input_mask_torch type to byte to avoid RuntimeError: _th_all is not implemented for type torch.LongTensor
-        #   in TorchCRF: no_empty_seq_bf = self.batch_first and mask[:, 0].all()
-        decode_rs = self.classifier.decode(bert_feats, input_mask_byte)
-        tmp_rs = ''.join(str(v) for v in decode_rs[0])
-
-        # tmp_rs[1:-1]: remove the start token and the end token
-        decode_output = tmp_rs[1:-1]
-
-
-        # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
-        #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
-
-        # replace the [START] and [END] tokens
-        decode_output = decode_output.replace('4', '3') # predict those wrong tokens as a separated word
-        decode_output = decode_output.replace('5', '3') #
-
-        return decode_output # a string
-
-    def _seg_wordslist(self, lword):  # ->str
-        # lword: list of words (list)
-        # input_ids, segment_ids, input_mask = tokenize_list(
-        #     words, self.max_length, self.tokenizer)
-        input_ids, segment_ids, input_masks = zip(
-            *[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
-
-
-        input_id_torch = torch.from_numpy(np.array(input_ids)).to(self.device)
-        segment_ids_torch = torch.from_numpy(np.array(segment_ids)).to(self.device)
-        input_masks_torch = torch.from_numpy(np.array(input_masks)).to(self.device)
-
-        decode_rs = self.decode(input_id_torch, segment_ids_torch, input_masks_torch)
-
-        decode_output_list = []
-        for rs in decode_rs:
-            tmp_rs = ''.join(str(v) for v in rs)
-
-            # tmp_rs[1:-1]: remove the start token and the end token
-            decode_output = tmp_rs[1:-1]
-
-            # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
-            #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
-
-            # replace the [START] and [END] tokens
-            # predict those wrong tokens as a separated word
-            # replacing 4 and 5 should not be conducted usually
-            decode_output = decode_output.replace('4', '3')
-            decode_output = decode_output.replace('5', '3')
-            decode_output_list.append(decode_output)
-
-        return decode_output_list  # list of string
-
-    def cut(self, ln, procAll=True):
-        """
-        # Example usage:
-            text = '''
-            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
-            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
-            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
-            # of students is 256.
-            '''
-
-            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cut(text)
-        """
-        l = ln.strip('\r\n')
-        l = l.strip()
-
-        len_max = self.max_length-2
-        wls = self.tokenizer.tokenize(l)
-
-        wls_used = wls
-        if not procAll:
-            if len(wls_used)>len_max:
-                wls = wls[:len_max]
-                wls_used = wls
-
-        decode_output = ''
-        while len(wls_used) > 0:
-            # _seg_wordslist: 02xxx
-            decode_output += self._seg_wordslist(wls_used)
-
-            if len(wls_used) > len_max:
-                wls_used = wls_used[len_max:]
-            else:
-                wls_used = []
-
-        result_str = ''
-        #pre_word_is_english = False
-        cur_word_is_english = False
-        for text, tag in zip(wls, decode_output):
-            text = text.replace('##', '')
-            cur_word_is_english = check_english_words(text)
-
-            if int(tag) > 1: # and (cur_word_is_english)
-                # int(tag)>1: tokens of 'E' and 'S'
-                # current word is english
-                result_str += text + ' '
-            else:
-                result_str += text
-
-            #pre_word_is_english = cur_word_is_english
-
-        return result_str.strip().split()
-
-    def cutlist(self, input_list):
-        """
-        # Example usage:
-            text = '''
-            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
-            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
-            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
-            # of students is 256.
-            '''
-
-            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cut(text)
-        """
-        processed_text_list = []
-        merge_index_list = []
-        merge_index = 0
-
-        for l_ind, text in enumerate(input_list):
-            merge_index_tuple = [merge_index]
-            buff = ''
-
-            if isinstance(text, float): continue # process problem of empty line, which is converted to nan
-            
-            text_chunk_list = split_text_by_punc(text)
-            len_max = self.max_length-2
-
-            for text_chunk in text_chunk_list:
-                # if text chunk longer than len_max, split text_chunk
-                if len(text_chunk) > len_max:
-                    for sub_text_chunk in [
-                            text_chunk[i:i+len_max]
-                            for i in range(0, len(text_chunk), len_max)]:
-                        buff, merge_index = append_to_buff(processed_text_list,
-                            buff, sub_text_chunk, len_max, merge_index)
-                else:
-                    buff, merge_index = append_to_buff(processed_text_list,
-                        buff, text_chunk, len_max, merge_index)
-            if buff:
-                processed_text_list.append(buff)
-                merge_index += 1
-            merge_index_tuple.append(merge_index)
-            merge_index_list.append(merge_index_tuple)
-        processed_text_list = [self.tokenizer.tokenize(
-            t) for t in processed_text_list]
-
-        decode_output_list = []
-        batch_size = self.batch_size
-        for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
-            decode_output_list.extend(self._seg_wordslist(p_t_l))
-
-        #decode_output_list = self._seg_wordslist(processed_text_list)
-
-        # restoring processed_text_list to list of strings
-        #processed_text_list = [''.join(char_list) for char_list in processed_text_list]
-        result_str_list = []
-        for merge_start, merge_end in merge_index_list:
-            result_str = ''
-
-            tag = ''.join(decode_output_list[merge_start:merge_end])
-            text = []
-            for a in processed_text_list[merge_start:merge_end]:
-                text.extend(a)
-
-            #text = text.replace('##', '')
-            # cur_word_is_english = check_english_words(text)
-
-            for idx in range(len(tag)):
-                tt = text[idx]
-                tt = tt.replace('##', '')
-                ti = tag[idx]
-                if int(ti) == 0:  # 'B'
-                    result_str += ' ' + tt
-                elif int(ti) > 1:  # and (cur_word_is_english)
-                    # int(ti)>1: tokens of 'E' and 'S'
-                    # current word is english
-                    result_str += tt + ' '
-                else:
-                    result_str += tt
-
-            result_str_list.append(result_str.strip().split())
-
-        return result_str_list
-        #result_str += ' '  # separate bcz english issue
-        # pre_word_is_english = cur_word_is_english
-
-    def cutlist_noUNK(self, input_list):
-        """
-        # Example usage:
-            text = '''
-            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
-            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
-            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
-            # of students is 256.
-            '''
-
-            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cutlist_noUNK([text])
-        """
-        processed_text_list = []
-        merge_index_list = []
-        merge_index = 0
-
-        for l_ind, text in enumerate(input_list):
-            merge_index_tuple = [merge_index]
-            buff = ''
-
-            if isinstance(text, float): continue # process problem of empty line, which is converted to nan
-
-            text_chunk_list = split_text_by_punc(text)
-            len_max = self.max_length-2
-
-            for text_chunk in text_chunk_list:
-                # if text chunk longer than len_max, split text_chunk
-                if len(text_chunk) > len_max:
-                    for sub_text_chunk in [
-                            text_chunk[i:i+len_max]
-                            for i in range(0, len(text_chunk), len_max)]:
-                        buff, merge_index = append_to_buff(processed_text_list,
-                            buff, sub_text_chunk, len_max, merge_index)
-                else:
-                    buff, merge_index = append_to_buff(processed_text_list,
-                        buff, text_chunk, len_max, merge_index)
-            if buff:
-                processed_text_list.append(buff)
-                #original_text_list.append(buff)
-                merge_index += 1
-            merge_index_tuple.append(merge_index)
-            merge_index_list.append(merge_index_tuple)
-
-        original_text_list = processed_text_list
-        processed_text_list = [self.tokenizer.tokenize(
-            t) for t in processed_text_list]
-
-        decode_output_list = []
-        batch_size = self.batch_size
-        for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
-            decode_output_list.extend(self._seg_wordslist(p_t_l))
-
-        #decode_output_list = self._seg_wordslist(processed_text_list)
-
-        # restoring processed_text_list to list of strings
-        #processed_text_list = [''.join(char_list) for char_list in processed_text_list]
-        result_str_list = []
-        for merge_start, merge_end in merge_index_list:
-            result_str = ''
-            original_str = ''
-
-            tag = ''.join(decode_output_list[merge_start:merge_end])
-            text = []
-            for a in processed_text_list[merge_start:merge_end]:
-                text.extend(a)
-
-            for a in original_text_list[merge_start:merge_end]:
-                str_used = ''
-                al = re.split('[\n\r]', a)
-
-                for aa in al: str_used += ''.join(aa.strip())
-
-                original_str += str_used
-
-            for idx in range(len(tag)):
-                tt = text[idx]
-                tt = tt.replace('##', '')
-                ti = tag[idx]
-                if int(ti) == 0:  # 'B'
-                    result_str += ' ' + tt
-                elif int(ti) > 1:  # and (cur_word_is_english)
-                    # int(ti)>1: tokens of 'E' and 'S'
-                    # current word is english
-                    result_str += tt + ' '
-                else:
-                    result_str += tt
-
-            if '[UNK]' in result_str or '[unused' in result_str:
-                result_str = restore_unknown_tokens(original_str, result_str)
-
-            result_str_list.append(result_str.strip().split())
-
-        return result_str_list
-        #result_str += ' '  # separate bcz english issue
-        # pre_word_is_english = cur_word_is_english
-
-    def cut2(self, ln):
-        """
-        # Example usage:
-            text = '''
-            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
-            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
-            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
-            # of students is 256.
-            '''
-
-            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cut(text)
-        """
-        ls = split_text_by_punc(ln)
-        len_max = self.max_length-2
-
-        result_str = ''
-        for wl in ls:
-            wls, wls_ori = self.tokenizer.tokenize_with_original(wl)
-
-            wls_used = wls
-            if len(wls_used) > len_max:
-                wls = wls[:len_max]
-                wls_used = wls
-
-            decode_output = ''
-            while len(wls_used) > 0:
-                # _seg_wordslist: 02xxx
-                decode_output += self._seg_text(wls_used)
-
-                if len(wls_used) > len_max:
-                    wls_used = wls_used[len_max:]
-                else:
-                    wls_used = []
-
-            #cur_word_is_english = False
-            for text, tag in zip(wls_ori, decode_output):
-                text = text.replace('##', '')
-                #cur_word_is_english = check_english_words(text)
-
-                if int(tag) == 0: # 'B'
-                    result_str += ' ' + text
-                elif int(tag) > 1: # and (cur_word_is_english)
-                    # int(tag)>1: tokens of 'E' and 'S'
-                    # current word is english
-                    result_str += text + ' '
-                else:
-                    result_str += text
-
-            #result_str += ' ' # separate bcz english issue
-                #pre_word_is_english = cur_word_is_english
-
-        if '[UNK]' in result_str:
-            original_str = ''.join([text.strip('\r\n').strip() for text in ls])
-            result_str = restore_unknown_tokens(original_str, result_str)
-
-        return result_str.strip().split()

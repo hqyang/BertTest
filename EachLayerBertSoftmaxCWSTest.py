@@ -106,7 +106,7 @@ def do_eval_df_with_model(model, df, output_diff_file, output_eval_file, type):
     return score, scoreInfo
 
 
-def load_BertCRF_model(label_list, args):
+def load_BertSoftmax_model(label_list, args):
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
             args.visible_device = str(args.visible_device)
@@ -150,7 +150,7 @@ def load_BertCRF_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+    model = BertSoftmaxCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
