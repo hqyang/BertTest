@@ -412,7 +412,7 @@ def set_server_eval_ontonotes_param():
             'output_dir': './tmp/ontonotes/BertCRF/',
             'do_lower_case': True,
             'train_batch_size': 128,
-            'visible_device': 0,
+            'visible_device': 1,
             'num_train_epochs': 30,
             'max_seq_length': 128,
             'init_checkpoint': '../models/bert-base-chinese/',
