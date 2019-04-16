@@ -197,8 +197,8 @@ def load_BertCRF_model(label_list, args):
             model.load_state_dict(weights)
         except RuntimeError:
             model.module.load_state_dict(weights)
-    pdb.set_trace()
-    
+    #pdb.set_trace()
+
     model.to(device)
     if args.local_rank != -1:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
@@ -276,7 +276,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args):
             output_weight_file = os.path.join(args.output_dir, 'weights_epoch%02d.pt'%ep)
 
         print('save model to '+output_weight_file)
-        pbd.set_trace()
+        #pdb.set_trace()
         state_dict = model.state_dict()
         if isinstance(model, torch.nn.DataParallel):
             #The model is in a DataParallel container.
@@ -340,7 +340,6 @@ def eval_eachlayer_ontonotes(args):
             param_optimizer = [(n, param.clone().detach().to('cpu').requires_grad_()) \
                                 for n, param in model.named_parameters()]
         else:
-            #pdb.set_trace()
             param_optimizer = list(model.named_parameters())
             for param in model.bert.parameters():
                 param.requires_grad = False

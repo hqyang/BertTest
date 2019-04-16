@@ -26,7 +26,7 @@ import pdb
 import re
 
 from src.BERT.modeling import BertConfig
-from src.customize_modeling import BertCRFCWS
+from src.customize_modeling import BertClassifiersCWS
 from src.utilis import save_model
 
 import logging
@@ -150,7 +150,7 @@ def load_BertSoftmax_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertSoftmaxCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+    model = BertClassifiersCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
@@ -294,6 +294,7 @@ def eval_eachlayer_ontonotes(args):
     processor = processors[task_name]()
 
     train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
+    #train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'test')
     train_dataset._tokenize()
 
     label_list = processor.get_labels() # get_labels
@@ -309,7 +310,7 @@ def eval_eachlayer_ontonotes(args):
         args.output_dir = output_dir + '/nhl' + str(args.num_hidden_layers)
         os.makedirs(args.output_dir, exist_ok=True)
 
-        model, device = load_BertCRF_model(label_list, args)
+        model, device = load_BertSoftmax_model(label_list, args)
 
         # Prepare optimizer
         if args.fp16:
@@ -379,19 +380,15 @@ def eval_CWS(args):
 
 def set_local_eval_ontonotes_param():
     return {'task_name': 'ontonotes_CWS',
-            'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
             'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
             'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
-            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/rs/nhl3/',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/BertSoft/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'max_seq_length': 128,
-            'num_hidden_layers': 3,
+            'num_train_epochs': 25,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3/weights_epoch03.pt',
-            'override_output': True,
-            'tensorboardWriter': False
             }
 
 def set_local_eval_4CWS_param():
@@ -405,10 +402,6 @@ def set_local_eval_4CWS_param():
             'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3/weights_epoch03.pt',
-            'override_output': True,
-            'tensorboardWriter': False
-            #             'model_type': 'sequencelabeling',
             }
 
 def set_server_eval_ontonotes_param():
@@ -420,7 +413,7 @@ def set_server_eval_ontonotes_param():
             'do_lower_case': True,
             'train_batch_size': 128,
             'visible_device': 0,
-            'num_train_epochs': 15,
+            'num_train_epochs': 30,
             'max_seq_length': 128,
             'init_checkpoint': '../models/bert-base-chinese/',
             }
