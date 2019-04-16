@@ -148,7 +148,8 @@ def load_BertCRF_model(label_list, args):
         if not args.override_output:
             raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
         else:
-            os.system("rm %s" % os.path.join(args.output_dir, '*'))
+            #os.system("rm %s" % os.path.join(args.output_dir, '*'))
+            print("Output directory ({}) already exists and is not empty.".format(args.output_dir))
 
     model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
 
@@ -186,6 +187,18 @@ def load_BertCRF_model(label_list, args):
             logger.info("Weights from pretrained model not used in {}: {}".format(
                 model.__class__.__name__, unexpected_keys))
 
+    if args.isResume:
+        ckpt_file = os.path.join(args.output_dir, 'weights_epoch'+str(args.modelIdx-1)+'.pt')
+        print(ckpt_file)
+
+        weights = torch.load(ckpt_file, map_location='cpu')
+
+        try:
+            model.load_state_dict(weights)
+        except RuntimeError:
+            model.module.load_state_dict(weights)
+    pdb.set_trace()
+    
     model.to(device)
     if args.local_rank != -1:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
@@ -257,8 +270,13 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args):
         tr_times.append(tr_time)
         logger.info('Training time is {:.3f} seconds.'.format(tr_time))
 
-        output_weight_file = os.path.join(args.output_dir, 'weights_epoch%02d.pt'%ep)
+        if args.isResume:
+            output_weight_file = os.path.join(args.output_dir, 'weights_epoch%02d.pt'%(args.modelIdx+ep))
+        else:
+            output_weight_file = os.path.join(args.output_dir, 'weights_epoch%02d.pt'%ep)
 
+        print('save model to '+output_weight_file)
+        pbd.set_trace()
         state_dict = model.state_dict()
         if isinstance(model, torch.nn.DataParallel):
             #The model is in a DataParallel container.
@@ -266,7 +284,10 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args):
             state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
         torch.save(state_dict, output_weight_file)
 
-        output_model_file = os.path.join(args.output_dir, 'weights_epoch%02d_nhl%d.tsv'%(ep, args.num_hidden_layers))
+        if args.isResume:
+             output_model_file = os.path.join(args.output_dir, 'weights_epoch%02d_nhl%d.tsv'%(args.modelIdx+ep, args.num_hidden_layers))
+        else:
+            output_model_file = os.path.join(args.output_dir, 'weights_epoch%02d_nhl%d.tsv'%(ep, args.num_hidden_layers))
         save_model(model, output_model_file)
 
         for ttype in types:
@@ -422,8 +443,11 @@ def set_server_eval_ontonotes_param():
             'do_lower_case': True,
             'train_batch_size': 128,
             'visible_device': 0,
-            'num_train_epochs': 15,
+            'num_train_epochs': 10,
             'max_seq_length': 128,
+            'override_output': True,
+            'isResume': True,
+            'modelIdx': 15,
             'init_checkpoint': '../models/bert-base-chinese/',
             }
 

@@ -46,6 +46,8 @@ class Config:
     visible_device = None
     
     #5.Task options
+    isResume = False
+    modelIdx = 0
     override_output = False
     multilabel = False
     multitask = False
