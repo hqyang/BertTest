@@ -298,7 +298,7 @@ def eval_eachlayer_ontonotes(args):
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
-    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'tmp_test')
+    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
 
     eval_dataloaders = get_ontonotes_eval_dataloaders(processor, args)
 
