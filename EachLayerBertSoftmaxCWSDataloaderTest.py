@@ -213,7 +213,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 do_eval(model, eval_dataloaders[ttype], device, args, times=tr_time, type=ttype)
 
 
-def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
+def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
     model.eval()
 
     all_label_ids = []
@@ -260,7 +260,7 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
     logger.info('Eval time: %.2fmin' % eval_time)
     output_eval_file = os.path.join(args.output_dir, type+"_eval_results.txt")
 
-    if times!=[]:
+    if times is not None:
         np_times = np.array(times)
         avg_times = np.mean(np_times)
 
@@ -269,7 +269,7 @@ def do_eval(model, eval_dataloader, device, args, times=[], type='test'):
 
     with open(output_eval_file, "a+") as writer:
         logger.info("***** Eval results *****")
-        if times!=[]:
+        if times is not None:
             logger.info(type + ': train time: {:.3f}, test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
                                avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
             writer.write(type + ': train time: {:.3f}, test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}\n'.format( \
