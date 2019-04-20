@@ -263,6 +263,9 @@ class CWS_BMEO(MeituProcessor):
     def get_test_examples(self, data_dir):
         return self.get_examples(os.path.join(data_dir, "test.tsv"))
 
+    def get_other_examples(self, data_dir, fn):
+        return self.get_examples(os.path.join(data_dir, fn))
+
     def get_labels(self):
         return self.label_list
 
@@ -356,6 +359,8 @@ class OntoNotesDataset(Dataset):
             if self.test_df is None:
                 self.test_df = self.processor.get_test_examples(self.data_dir)
             self.df = self.test_df
+        else:
+            self.df = self.processor.get_other_examples(self.data_dir, ty+".tsv")
         
         return self
 
@@ -381,7 +386,7 @@ class OntoNotesDataset(Dataset):
         logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
 
     def __getitem__(self, i):
-        if 'token' not in self.df.columns:
+        if 'token' not in self.df.columns: # encode is here
             self._tokenize()
         data = self.df.iloc[i]
         token, labelid = data.token, data.labelid
@@ -417,24 +422,6 @@ def tokenize_text(text, max_length, tokenizer):
     segment = np.array([0] * max_length)
     return [tokens, segment, mask]
 
-def tokenize_text(text, max_length, tokenizer):
-    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
-    # words = list(filter(lambda x: x!=' ', words))
-    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
-    words = tokenizer.tokenize(text)
-    if len(words) > max_length - 2:
-        words = words[:max_length - 2]
-    words = ['[CLS]'] + words + ['[SEP]']
-    # vocab = tokenizer.vocab
-    # tokens = [vocab[_] if _ in vocab.keys() else vocab['[UNK]'] for _ in words]
-    # tokens = [vocab['[CLS]']] + tokens + [vocab['[SEP]']]
-    tokens = tokenizer.convert_tokens_to_ids(words)
-    if len(tokens) < max_length:
-        tokens.extend([0] * (max_length - len(tokens)))
-    tokens = np.array(tokens)
-    mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
-    segment = np.array([0] * max_length)
-    return [tokens, segment, mask]
 
 def tokenize_list(words, max_length, tokenizer):
     # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
@@ -471,6 +458,7 @@ def tokenize_text_tag(text, tag, max_length, tokenizer):
     segment = np.zeros(max_length)
     segment[2+len(text_words): 3+len(text_words)+len(tag_words)] = 1
     return [tokens, segment, mask]
+
 
 def tokenize_label(label, label_map):
     assert isinstance(label_map, (dict, list))

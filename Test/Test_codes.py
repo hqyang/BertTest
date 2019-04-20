@@ -13,7 +13,9 @@ import sys
 sys.path.append('..')
 from src.utilis import save_model
 from src.config import args
-
+from src.utilis import get_dataset_and_dataloader, get_ontonotes_eval_dataloaders
+from src.preprocess import CWS_BMEO
+from tqdm import tqdm
 
 def test_BertCRF_constructor():
     from src.BERT.modeling import BertCRF
@@ -87,6 +89,9 @@ def test_FullTokenizer():
     print(full_tokenizer.tokenize(text))
 
     text = '2424位通信院士'
+    print(full_tokenizer.tokenize(text))
+
+    text = '下一波DVD及用于可携式小型资讯用品的微型光碟（Minidisk），也已迫不及待地等着敲开消费者的荷包。'
     print(full_tokenizer.tokenize(text))
 
     test_text = '第三世界科學院（Ｔｈｅ　Ｔｈｉｒｄ　Ｗｏｒｌｄ　Ａｃａｄｅｍｙ　ｏｆ　Ｓｃｉｅｎｃｅｓ，簡稱ＴＷＡＳ）'
@@ -189,6 +194,7 @@ def test_CWS_Dict():
     q_eng = cws_dict._findEng(sent)
     print(list(q_eng.queue))
 
+
 def test_pkuseg():
     from src.metrics import getChunks, getFscore
     tag_list = ['BBIBBIIBIIIB', 'BBBBIBBBIIIB']
@@ -233,11 +239,13 @@ def test_pkuseg():
     print(scoreList)
     print(infoList)
 
+
 def calSize(H, vs, mpe, L):
     for l in L:
         # embedding: (vs+mpe)*H; # Query, Key, value: 3*H*H; Intermediate: 4*H *H; Pooler: H*H
         sz = (vs+mpe)*H + ((3+4)*H*H)*l + H*H
         print('# layer: '+str(l)+', #para: '+str(sz))
+
 
 def verifyModelSize():
     H = 768
@@ -290,6 +298,28 @@ def test_load_model():
     save_model(model, args.output_dir + 'tmp.tsv')
 
 
+def test_dataloader():
+    kwargs = set_local_eval_param()
+    args._parse(kwargs)
+
+    processors = {
+        "ontonotes_cws": lambda: CWS_BMEO(nopunc=args.nopunc),
+    }
+
+    task_name = args.task_name.lower()
+
+    # Prepare model
+    processor = processors[task_name]()
+    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=False, type = 'tmp_test')
+
+    eval_dataloaders = get_ontonotes_eval_dataloaders(processor, args)
+
+    for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
+        input_ids, segment_ids, input_mask = batch[:3]
+        label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
+
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -299,7 +329,7 @@ if __name__ == '__main__':
     #test_CWS_Dict()
 
     #test_pkuseg()
-    test_FullTokenizer()
+    #test_FullTokenizer()
     #check_english('candidate defence')
     #check_english('台北candidate defence')
 
@@ -307,3 +337,4 @@ if __name__ == '__main__':
 
     #test_load_model()
 
+    test_dataloader()

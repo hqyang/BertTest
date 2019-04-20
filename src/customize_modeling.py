@@ -746,10 +746,16 @@ class BertClassifiersCWS(PreTrainedBertModel):
         else:
             return logits
 
-    def decode(self, input_ids, token_type_ids=None, attention_mask=None):
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
         bert_feats = self.classifier(sequence_output)
+
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(bert_feats.view(-1, self.num_tags), labels.view(-1))
+        else:
+            loss = None
 
         mask = attention_mask.byte()
         batch_size, seq_length = mask.shape
@@ -766,7 +772,7 @@ class BertClassifiersCWS(PreTrainedBertModel):
 
             best_tags_list.append(best_tags)
 
-        return best_tags_list
+        return loss, best_tags_list
 
     def _seg_text(self, words):#->str
         input_ids, segment_ids, input_mask = tokenize_list(words, self.max_length, self.tokenizer)

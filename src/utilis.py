@@ -37,6 +37,16 @@ def get_dataset_and_dataloader(processor, args, training=True, type='train'):
     return dataset, dataloader
 
 
+def get_ontonotes_eval_dataloaders(processor, args):
+    types = ['test', 'dev', 'train']
+    eval_dataloaders = {}
+    for ttype in types:
+        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type=ttype)
+        eval_dataloaders[ttype] = eval_dataloader
+
+    return eval_dataloaders
+
+
 # copy from https://github.com/supercoderhawk/DNN_CWS/blob/master/utils.py
 def strQ2B(ustring):
     '''全角转半角'''
