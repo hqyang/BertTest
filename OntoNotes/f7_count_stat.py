@@ -8,21 +8,23 @@ Feature:
 
 Scenario: 
 """
-import pandas as pd
-from src.tokenization import FullTokenizer
-import numpy as np
 from tqdm import tqdm
-
-#import matplotlib.pyplot as plt
-import numpy as np
-
 from itertools import chain
-from collections import Counter, OrderedDict, namedtuple
-
-#from pomegranate import State, HiddenMarkovModel, DiscreteDistribution
+from collections import Counter, OrderedDict, namedtuple, UserString
 import random
+import re
+import os
+from src.utilis import check_english_words
+import numpy as np
 
 Sentence = namedtuple("Sentence", "words tags")
+
+def split_filename(filename):
+    #print(filename)
+    name, ext = os.path.splitext(filename)
+    num = name.split('_')[-1]
+    word = '_'.join(name.split('_')[:-1])
+    return word, int(num), ext
 
 
 def read_data(filename):
@@ -88,60 +90,186 @@ class Dataset(namedtuple("_Dataset", "sentences keys vocab X tagset Y training_s
         return iter(self.sentences.items())
 
 
-def count_stat(infile, vocab_file):
-    tokenizer = FullTokenizer(
-                vocab_file=vocab_file, do_lower_case=True)
+def read_name_lines(file):
+    lines = open(file, encoding='utf-8').readlines()
+    return lines[1:-1]
 
-    df = pd.read_csv(infile, sep='\t')
 
-    len_words = []
-    #words_pos = [0]
-    for i, data in tqdm(enumerate(df.itertuples())):
-        texts = data.text.split('，')
-        #words_pos.append(np.sum(words_pos)+len(texts))
+def read_parse_lines(file):
+    content = open(file, encoding='utf-8').read()
+    trees = [t for t in content.split('\n\n') if len(t) > 0]
+    trees = [t.replace('\n', ' ') for t in trees]
+    trees = [re.sub(' {2,}', ' ', t) + '\n' for t in trees]
+    return trees
 
-        for text in texts:
-            word = tokenizer.tokenize(text)
-            len_words.append(len(word))
 
-    print('min:', np.min(len_words), '; max:', np.max(len_words), '; avg: ', np.mean(len_words), '; median:', np.median(len_words))
+def which_part(domain, source, filename):
+    word, num, ext = split_filename(filename)
+    if domain in ['mz', 'nw'] and source in ['sinorama', 'xinhua']:
+        if word == 'chtb' and (1 <= num <= 325 or 1001 <= num <= 1078):
+            if num % 2 == 0:
+                return 'test'
+            else:
+                return 'dev'
+        else:
+            assert False
+    else:
+        return 'train'
 
-    '''
-    argmin = np.argmin(len_words)
-    argmax = np.argmax(len_words)
-    print('argmin:', argmin, 'argmax:', argmax)
 
-    print('min:', df.loc[argmin, ['text']])
-    print('max:', df.loc[argmax, ['text']])
-    '''
+def savestat2file(stat, data_stat, out_file):
+    parts = ['train', 'dev', 'test']
 
-    return len_words
+    with open(out_file, 'a', encoding='utf-8') as f:
+        f.writelines('Total: num_docs: {:d}, num_lines: {:d}\n'.format(
+            stat['train', 'file']+stat['dev', 'file']+stat['test', 'file'],
+            stat['train', 'line']+stat['dev', 'line']+stat['test', 'line']))
+
+    for part in parts:
+        with open(out_file, 'a', encoding='utf-8') as f:
+            f.writelines('Type: {:s}, num_docs: {:d}, num_lines: {:d}, avg. lines per doc: {:.3f}\n'.format(part,
+                                stat[part, 'file'], stat[part, 'line'], stat[part, 'line']*1./stat[part, 'file']))
+            f.writelines('Unique tokens: {:d}, Total tokens: {:d}, num_chi: {:d}, num_eng: {:d}\n'.format(
+                data_stat[part, 'unique_tokens'], data_stat[part, 'total_tokens'], data_stat[part, 'num_chi'],
+                data_stat[part, 'num_eng']))
+            f.writelines('Per sent.: max. tokens: {:d}, min. tokens: {:d}, mean tokens: {:.3f}\n'.format(
+                data_stat[part, 'max_tokens_per_sent'], data_stat[part, 'min_tokens_per_sent'], data_stat[part, 'mean_tokens_per_sent']))
+
+            f.writelines('Per token.: max. len: {:d}, min. len: {:d}, mean len: {:.3f}\n'.format(
+                data_stat[part, 'max_len_per_token'], data_stat[part, 'min_len_per_token'], data_stat[part, 'mean_len_per_token']))
+            f.writelines('\n')
+
+    with open(out_file, 'a', encoding='utf-8') as f:
+        f.writelines('num_oov_dev: {:d}, num_oov_test: {:d}, ratio_oov_dev: {:.3f}, ratio_oov_test: {:.3f}'.format(
+            data_stat['oov_dev'], data_stat['oov_test'], data_stat['ratio_oov_dev'], data_stat['ratio_oov_test']))
+
+
+def savefilenamelist(info_all, out_dir):
+    parts = ['train', 'dev', 'test']
+
+    for part in parts:
+        out_file = os.path.join(out_dir, part+'_fn.txt')
+
+        for fn in info_all[part, 'filename']:
+            with open(out_file, 'a', encoding='utf-8') as f:
+                f.writelines(fn+'\n')
+
+
+def count_stat_data(info_all):
+    # input: sentence list
+
+    parts = ['train', 'dev', 'test']
+
+    data_count = {('dev', 'num_words'): [], ('test', 'num_words'): [], ('train', 'num_words'): [],
+                  ('dev', 'len_words'): [], ('test', 'len_words'): [], ('train', 'len_words'): []}
+
+    data_stat = {('dev', 'num_eng'): 0, ('test', 'num_eng'): 0, ('train', 'num_eng'): 0,
+                  ('dev', 'num_chi'): 0, ('test', 'num_chi'): 0, ('train', 'num_chi'): 0}
+
+    store_dicts = {'dev': set(), 'test': set(), 'train': set()}
+
+    for part in parts:
+        for line in info_all[part, 'sent']:
+            words = line.split()
+
+            data_count[part, 'num_words'].append(len(words))
+
+            for word in words:
+                store_dicts[part].add(word)
+
+                if check_english_words(word):
+                    data_count[part, 'len_words'].append(1)
+                    data_stat[part, 'num_eng'] += 1
+                else: # non-English word
+                    data_count[part, 'len_words'].append(len(word))
+                    data_stat[part, 'num_chi'] += 1
+
+        np_sents = np.array(data_count[part, 'num_words'])
+        data_stat[part, 'total_tokens'] = np_sents.sum()
+        data_stat[part, 'max_tokens_per_sent'] = np_sents.max()
+        data_stat[part, 'min_tokens_per_sent'] = np_sents.min()
+        data_stat[part, 'mean_tokens_per_sent'] = np_sents.mean()
+
+        np_words = np.array(data_count[part, 'len_words'])
+        data_stat[part, 'max_len_per_token'] = np_words.max()
+        data_stat[part, 'min_len_per_token'] = np_words.min()
+        data_stat[part, 'mean_len_per_token'] = np_words.mean()
+
+        data_stat[part, 'unique_tokens'] = len(store_dicts[part])
+
+    set_diff_dev = store_dicts['dev'] - store_dicts['train']
+    set_diff_test = store_dicts['test'] - store_dicts['train']
+    data_stat['oov_dev'] = len(set_diff_dev)
+    data_stat['oov_test'] = len(set_diff_test)
+    data_stat['ratio_oov_dev'] = len(set_diff_dev) * 1. / len(store_dicts['train'])
+    data_stat['ratio_oov_test'] = len(set_diff_test) * 1. / len(store_dicts['train'])
+
+    return data_stat
+
+
+DEV_DROP = [
+    '（ 完 ）\n',
+    '（ <ENAMEX TYPE="PERSON">杨桂林</ENAMEX> <ENAMEX TYPE="PERSON">常新华</ENAMEX> （ 完 ）\n',
+    '<ENAMEX TYPE="ORG">新华社</ENAMEX> 记者 <ENAMEX TYPE="PERSON">郭庆华</ENAMEX> （ 完 ）\n']
+TEST_DROP = ['（ 完 ）\n']
+
+
+def list_and_stat_docs(anno_dir, out_dir):
+    out_file = os.path.join(out_dir, 'data_stat.txt')
+    drop = {'dev': set(DEV_DROP), 'test': set(TEST_DROP), 'train': set()}
+
+    stat = Counter()
+    info_all = {('dev', 'sent'): [], ('test', 'sent'): [], ('train', 'sent'): [],
+                ('dev', 'filename'): [], ('test', 'filename'): [], ('train', 'filename'): []}
+
+    for domain in os.listdir(anno_dir):
+        domain_dir = os.path.join(anno_dir, domain)
+        if os.path.isfile(domain_dir): continue
+
+        for source in os.listdir(domain_dir):
+            source_dir = os.path.join(domain_dir, source)
+            if os.path.isfile(source_dir): continue
+
+            for group in os.listdir(source_dir):
+                group_dir = os.path.join(source_dir, group)
+                if os.path.isfile(group_dir): continue
+
+                for filename in tqdm(os.listdir(group_dir)):
+                    if filename == '.DS_Store': continue # add by haiqin for ignoring .DS_Store
+                    part = which_part(domain, source, filename)
+                    root, ext = os.path.splitext(filename)
+                    if ext == '.name':
+                        info_all[part, 'filename'].append(root)
+
+                        name_lines = read_name_lines(os.path.join(group_dir, filename))
+                        parse_lines = read_parse_lines(os.path.join(group_dir, root + '.parse'))
+                        assert len(name_lines) == len(parse_lines)
+
+                        for name_line, parse_line in zip(name_lines, parse_lines):
+                            if name_line in drop[part]: continue
+
+                            sent = re.sub('<.*?>', ' ', name_line).strip()
+                            info_all[part, 'sent'].append(sent)
+
+                            stat[part, 'line'] += 1
+                        stat[part, 'file'] += 1
+
+                print('finish g', group)
+            print('finish s', source)
+        print('finish d', domain)
+
+    print(stat)
+    data_stat = count_stat_data(info_all)
+    print(data_stat)
+
+    savestat2file(stat, data_stat, out_file)
+    savefilenamelist(info_all, out_dir)
+# end listdocs
 
 
 if __name__=='__main__':
-    if 0:
-        infile = "/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/train.tsv"
-        vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt'
-
-        print('\ntraining set')
-        len_train_words = count_stat(infile, vocab_file)
-        # min: 0 ; max: 205 ; avg:  13.002189806802528 ; median: 11.0
-
-        print('\ndev set')
-        infile = "/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/dev.tsv"
-        len_train_words = count_stat(infile, vocab_file)
-        # min: 1 ; max: 264 ; avg:  14.431172559685706 ; median: 13.0
-
-        print('\ntest set')
-        infile = "/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/test.tsv"
-        len_train_words = count_stat(infile, vocab_file)
-        # min: 1 ; max: 148 ; avg:  14.359896618565582 ; median: 13.0
-
-    infile = "/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/train.tsv"
+    PRE_DIR = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/'
+    ANNOTATION_DIR = PRE_DIR+'raw_data/annotations'
+    OUTPUT_DIR = PRE_DIR+'proc_data/data_stat/Ontonotes/'
     vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt'
-    data = Dataset(vocab_file, infile, train_test_split=1)
-
-    print('Train set of Ontonotes')
-    print("There are {} sentences in the corpus.".format(len(data)))
-    print("There are {} sentences in the training set.".format(len(data.training_set)))
-    print("There are {} sentences in the testing set.".format(len(data.testing_set)))
+    list_and_stat_docs(anno_dir=ANNOTATION_DIR, out_dir=OUTPUT_DIR)

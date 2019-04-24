@@ -42,6 +42,9 @@ def test_FullTokenizer():
     vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt'
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
 
+    text = '任天堂游戏商店的加入被业界视为android的革命。'
+    print(full_tokenizer.tokenize(text))
+
     text = '台湾!!. 比赛。今天，开始吗？  ？？！咳咳￣ ￣)σ第一次穿汉服出门🎀💞开心Laughing'
     print(full_tokenizer.tokenize(text))
 
@@ -329,7 +332,7 @@ if __name__ == '__main__':
     #test_CWS_Dict()
 
     #test_pkuseg()
-    #test_FullTokenizer()
+    test_FullTokenizer()
     #check_english('candidate defence')
     #check_english('台北candidate defence')
 
@@ -337,4 +340,4 @@ if __name__ == '__main__':
 
     #test_load_model()
 
-    test_dataloader()
+    #test_dataloader()
