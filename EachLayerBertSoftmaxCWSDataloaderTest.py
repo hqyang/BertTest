@@ -298,7 +298,7 @@ def eval_eachlayer_ontonotes(args):
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
-    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'tmp_test')
+    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
 
     eval_dataloaders = get_ontonotes_eval_dataloaders(processor, args)
 
@@ -402,7 +402,7 @@ def set_server_eval_ontonotes_param():
             'output_dir': './tmp/ontonotes/BertSoftmax_new/',
             'do_lower_case': True,
             'train_batch_size': 128,
-            'visible_device': 1,
+            'visible_device': 0,
             'num_train_epochs': 30,
             'max_seq_length': 256,
             'init_checkpoint': '../models/bert-base-chinese/',

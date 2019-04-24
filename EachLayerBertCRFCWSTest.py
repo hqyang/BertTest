@@ -446,7 +446,7 @@ def set_server_eval_ontonotes_param():
             'max_seq_length': 128,
             'override_output': True,
             'isResume': True,
-            'modelIdx': 15,
+            'modelIdx': 25,
             'init_checkpoint': '../models/bert-base-chinese/',
             }
 
