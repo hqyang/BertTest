@@ -8,6 +8,9 @@ Feature:
 
 Scenario: 
 """
+import sys
+sys.path.append('..')
+
 import os
 from src.utilis import get_Ontonotes
 import pandas as pd
