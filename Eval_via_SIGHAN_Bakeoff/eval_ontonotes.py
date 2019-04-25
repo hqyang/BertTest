@@ -55,7 +55,7 @@ def proc_ontonotes_for_prediction(data_dir, output_dir):
         print('Finish processing ' + part + ' file!')
 
 
-def output_sighan_rs(data_dir, pred_dir):
+def output_sighan_bakeoff_rs(data_dir, pred_dir):
     parts = ['dev', 'train', 'test']
 
     dict_file = os.path.join(data_dir, 'ontonotes_train_words.txt')
