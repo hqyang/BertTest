@@ -9,10 +9,10 @@ Feature:
 Scenario: 
 """
 import sys
-sys.path.append('..')
+sys.path.append('../src')
 
 import os
-from src.utilis import get_Ontonotes
+from utilis import get_Ontonotes
 import pandas as pd
 from collections import Counter
 
