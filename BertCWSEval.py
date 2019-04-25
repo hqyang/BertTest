@@ -18,6 +18,7 @@ import time
 from src.BERT.modeling import BertConfig
 from src.customize_modeling import BertCRFCWS
 from src.utilis import save_model
+import pdb
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -340,9 +341,29 @@ def test_cases(model):
     '''
 
 
+def test_ontonotes_file(model, args):
+    parts = ['dev', 'train', 'test']
+
+    for part in parts:
+        text_file = os.path.join(args.data_dir, 'eval_data/ontonotes_'+part+'.txt') #  data in text
+        output_file = os.path.join(args.output_dir, 'ontonotes_'+part+'.txt') #  data in text
+
+        sents = []
+        with open(text_file, 'r') as f:
+            sents.append(f.readline())
+
+        outputT = model.cutlist_noUNK(sents)
+
+        with open(output_file, 'a+') as f:
+            for lst in outputT:
+                outstr = ' '.join(lst)
+                pdb.set_trace()
+               f.writelines(outstr + '\n')
+
+        print(part + ' done!')
+
 LOCAL_FLAG = False
 LOCAL_FLAG = True
-
 
 if __name__=='__main__':
     if LOCAL_FLAG:
