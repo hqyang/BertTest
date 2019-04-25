@@ -13,7 +13,8 @@ import os
 import re
 import pandas as pd
 import torch
-from src.preprocess import dataset_to_dataloader, OntoNotesDataset
+from preprocess import dataset_to_dataloader, OntoNotesDataset
+#from src.preprocess import dataset_to_dataloader, OntoNotesDataset
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',

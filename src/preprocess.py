@@ -5,7 +5,8 @@ import itertools
 import re
 import torch
 # import tokenization # ModuleNotFoundError: No module named 'tokenization'
-from src.tokenization import FullTokenizer
+from tokenization import FullTokenizer
+#from src.tokenization import FullTokenizer
 
 
 import time

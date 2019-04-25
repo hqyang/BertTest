@@ -57,13 +57,14 @@ def proc_ontonotes_for_prediction(data_dir, output_dir):
 
 SAVE_DATA = True
 bLocal = True
+bLocal = False
 
 if __name__=='__main__':
     if SAVE_DATA:
         if bLocal:
             data_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/'
         else:
-            data_dir = '../data/ontonotes5/4ner_data/'
+            data_dir = '../../data/ontonotes5/4ner_data/'
 
         output_dir = data_dir + 'eval_data/'
         os.makedirs(output_dir, exist_ok=True)
