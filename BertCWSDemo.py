@@ -181,18 +181,8 @@ def set_server_eval_param():
             'tensorboardWriter': False
             }
 
-LOCAL_FLAG = False
-LOCAL_FLAG = True
 
-if __name__=='__main__':
-    if LOCAL_FLAG:
-        kwargs = set_local_eval_param()
-    else:
-        kwargs = set_server_eval_param()
-
-    args._parse(kwargs)
-    model = preload(args)
-
+def test_cases(model):
     tt00 = '''
         ✨今日份牛仔外套穿搭打卡|初春一定要有一件万能牛仔外套鸭💯。-我今天又双叒叕没化妆出门逛街了、懒癌晚期间歇性发作哈哈哈哈、。
         -落肩袖、不会显肩宽/后背有涂鸦和蕾丝拼接、见图六/。-Look1:搭配了衬衫和黑灰色牛仔裤/。-Look2：搭配了白色短T和牛仔裤/。
@@ -348,4 +338,21 @@ if __name__=='__main__':
         今天 给 大家 推荐 最 适合 春天 的 美甲 💅 。 希望 你们 会 喜欢 ~ 😍 @ MT 小美酱 @ MT 情报局 
         @ 美图 秀秀 # 春季 美甲 # # 显白 美甲 # # 清新 美甲 # # ins 美甲 #	
     '''
+
+
+LOCAL_FLAG = False
+LOCAL_FLAG = True
+
+
+if __name__=='__main__':
+    if LOCAL_FLAG:
+        kwargs = set_local_eval_param()
+    else:
+        kwargs = set_server_eval_param()
+
+    args._parse(kwargs)
+    model = preload(args)
+
+    test_cases(model)
+
 
