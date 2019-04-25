@@ -65,6 +65,7 @@ def output_sighan_bakeoff_rs(data_dir, pred_dir):
         pred_seg_text = os.path.join(pred_dir, 'ontonotes_'+part+'.txt') # seg data
         outscore_text = os.path.join(pred_dir, 'ontonotes_'+part+'_score.txt')
 
+        print('call ./scripts/score')
         os.system('./scripts/score ' + dict_file + ' ' + true_seg_text + ' ' + pred_seg_text + ' > ' + outscore_text)
 
 
