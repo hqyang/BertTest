@@ -95,6 +95,6 @@ if __name__=='__main__':
             pred_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_22/pred/'
         else:
             data_dir = '../../data/ontonotes5/4ner_data/eval_data/'
-            pred_dir = './tmp_2019_3_22/out/ontonotes_eval/'
+            pred_dir = '../tmp_2019_3_22/out/ontonotes_eval/'
 
         output_sighan_bakeoff_rs(data_dir, pred_dir)
