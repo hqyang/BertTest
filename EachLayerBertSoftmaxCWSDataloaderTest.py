@@ -8,6 +8,9 @@ Feature:
 
 Scenario: 
 """
+import sys
+sys.path.append('./src')
+
 import os
 
 from src.pkuseg.metrics import getFscoreFromBIOTagList
@@ -399,11 +402,12 @@ def set_server_eval_ontonotes_param():
             'data_dir': '../data/ontonotes5/4ner_data/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp/ontonotes/BertSoftmax_new/',
+            'output_dir': './tmp/ontonotes/BertSoftmax2/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'visible_device': 0,
             'num_train_epochs': 30,
+            'learning_rate': 1e-3,
             'max_seq_length': 256,
             'init_checkpoint': '../models/bert-base-chinese/',
             }
