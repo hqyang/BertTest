@@ -193,14 +193,15 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         tr_times.append(tr_time)
         logger.info('Training time is {:.3f} seconds.'.format(tr_time))
 
-        output_weight_file = os.path.join(args.output_dir, 'weights_epoch%02d.pt'%ep)
+        if ep == args.num_train_epochs-1:
+            output_weight_file = os.path.join(args.output_dir, 'weights_epoch%02d.pt'%ep)
 
-        state_dict = model.state_dict()
-        if isinstance(model, torch.nn.DataParallel):
-            #The model is in a DataParallel container.
-            #Its state dict keys are all start with a "module."
-            state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
-        torch.save(state_dict, output_weight_file)
+            state_dict = model.state_dict()
+            if isinstance(model, torch.nn.DataParallel):
+                #The model is in a DataParallel container.
+                #Its state dict keys are all start with a "module."
+                state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
+            torch.save(state_dict, output_weight_file)
 
         output_model_file = os.path.join(args.output_dir, 'weights_epoch%02d_nhl%d.tsv'%(ep, args.num_hidden_layers))
         save_model(model, output_model_file)
