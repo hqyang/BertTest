@@ -87,7 +87,8 @@ def load_BertCRF_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+    #model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+    model = BertCRF(bert_config, len(label_list))
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
