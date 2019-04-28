@@ -408,7 +408,7 @@ def set_server_eval_ontonotes_param():
             'train_batch_size': 128,
             'visible_device': 2,
             'num_train_epochs': 30,
-            'learning_rate': 1e-3,
+            'learning_rate': 1e-2,
             'max_seq_length': 256,
             'init_checkpoint': '../models/bert-base-chinese/',
             }
