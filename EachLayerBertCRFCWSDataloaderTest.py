@@ -30,7 +30,7 @@ import pdb
 import re
 
 from src.BERT.modeling import BertConfig
-from src.customize_modeling import BertCRFCWS
+from src.customize_modeling import BertCRF, BertCRFCWS
 from src.utilis import save_model
 
 import logging
