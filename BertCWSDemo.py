@@ -8,6 +8,9 @@ Feature:
 
 Scenario: 
 """
+import sys
+sys.path.append('./src')
+
 import os
 
 from src.config import args
@@ -158,7 +161,7 @@ def set_local_eval_param():
             'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3/weights_epoch03.pt',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3_weights_epoch03.pt',
             'override_output': True,
             'tensorboardWriter': False
             }
@@ -340,6 +343,22 @@ def test_cases(model):
     '''
 
 
+def test_case_meitu(model):
+    text = '''
+        #我超甜的##口红安利##最热口红色号#今天给大家安利一款平价口红，卡拉泡泡唇膏笔，我比较喜欢的色号是Who   run   this。
+        这个色号是一款非常正的土橘色，不论是你是白皮、黄皮、黄黑皮和黑皮都可以很安心的闭眼入。
+        白皮涂简直就像仙女下凡了一样，黄皮和黄黑皮涂上特别提气色，而且还超级显白，超级安利这一款，这款唇膏笔我已经入了好几只了。
+        这款土橘色已经快被我用完了，超级好看。就酱紫啦！拜拜！#口红安利#
+    '''
+    text = '#我超甜的##口红安利##最热口红色号#今天给大家安利一款平价口红，卡拉泡泡唇膏笔，我比较喜欢的色号是Who   run   this。这个色号是一款非常正的土橘色，不论是你是白皮、黄皮、黄黑皮和黑皮都可以很安心的闭眼入。白皮涂简直就像仙女下凡了一样，黄皮和黄黑皮涂上特别提气色，而且还超级显白，超级安利这一款，这款唇膏笔我已经入了好几只了。这款土橘色已经快被我用完了，超级好看。就酱紫啦！拜拜！#口红安利#'
+    outputT = model.cutlist_noUNK([text])
+    output = [' '.join(lst) for lst in outputT]
+    o2 = ''
+    for x in output: o2 += x + '\t'
+    print(text)
+    print(o2+'\n')
+
+
 LOCAL_FLAG = False
 LOCAL_FLAG = True
 
@@ -353,6 +372,7 @@ if __name__=='__main__':
     args._parse(kwargs)
     model = preload(args)
 
-    test_cases(model)
+    #test_cases(model)
+    test_case_meitu(model)
 
 
