@@ -447,4 +447,4 @@ if __name__=='__main__':
     kwargs = set_server_eval_4CWS_param()
 
     args._parse(kwargs)
-    eval_eachlayer_ontonotes(args)
+    train_4CWS(args)
