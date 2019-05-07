@@ -37,12 +37,16 @@ def get_dataset_and_dataloader(processor, args, training=True, type='train'):
     return dataset, dataloader
 
 
-def get_ontonotes_eval_dataloaders(processor, args):
-    types = ['test', 'dev', 'train']
+def get_eval_dataloaders(processor, args):
+    if args.task_name == 'ontonotes_CWS':
+        parts = ['test', 'dev', 'train']
+    else:
+        parts = ['test', 'train']
+
     eval_dataloaders = {}
-    for ttype in types:
-        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type=ttype)
-        eval_dataloaders[ttype] = eval_dataloader
+    for part in parts:
+        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type=part)
+        eval_dataloaders[part] = eval_dataloader
 
     return eval_dataloaders
 
