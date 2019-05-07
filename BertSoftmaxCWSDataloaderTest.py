@@ -396,7 +396,7 @@ def set_server_eval_4CWS_param():
             'data_dir': '../data/CWS/BMES/MSR/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp/4CWS/MSR/CRF',
+            'output_dir': './tmp/4CWS/MSR/Softmax',
             'do_lower_case': True,
             'train_batch_size': 32,
             'max_seq_length': 128,
