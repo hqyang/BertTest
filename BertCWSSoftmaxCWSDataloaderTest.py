@@ -421,3 +421,6 @@ if __name__=='__main__':
 
     args._parse(kwargs)
     train_4CWS(args)
+
+    writer.export_scalars_to_json(os.path.join(args.output_dir, 'tensorboard_rs.json'))
+    writer.close()

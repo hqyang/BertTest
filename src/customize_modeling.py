@@ -734,43 +734,40 @@ class BertSoftMax(PreTrainedBertModel):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
         logits = self.classifier(sequence_output)
-        mask = attention_mask.byte()
+
+        loss = logits
 
         if labels is not None:
+            labels = labels*attention_mask
+
+            batch_size, seq_length = attention_mask.shape
+            mask = attention_mask.unsqueeze_(-1)
+            mask = mask.expand(batch_size, seq_length, self.num_tags)
+
+            logits = logits*mask.float()
             loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
 
-            lv = logits.view(-1, self.num_tags)
-            lv_used = lv[mask.data.nonzero().squeeze(1), :]
-
-            lbv = labels.view(-1)
-            lbc_used = lbv[mask.data.nonzero().squeeze(1), :]
-
-            loss = loss_fct(lv_used, lbc_used)
-
-            return loss
-        else:
-            return logits
+        return loss
 
     def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         sequence_output = self.dropout(sequence_output)
         logits = self.classifier(sequence_output)
-        mask = attention_mask.byte()
 
-        lv = logits.view(-1, self.num_tags)
-        lv_used = lv[mask.data.nonzero().squeeze(1), :]
+        loss = logits
 
+        batch_size, seq_length = attention_mask.shape
         if labels is not None:
+            labels = labels*attention_mask
+
+            mask = attention_mask.unsqueeze_(-1)
+            mask = mask.expand(batch_size, seq_length, self.num_tags)
+
+            logits = logits*mask.float()
             loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
 
-            lbv = labels.view(-1)
-            lbc_used = lbv[mask.data.nonzero().squeeze(1), :]
-
-            loss = loss_fct(lv_used, lbc_used)
-        else:
-            loss = logits
-
-        batch_size, seq_length = mask.shape
         best_tags_list = []
         for idx in range(batch_size):
             # Find the tag which maximizes the score at the last timestep; this is our best tag
