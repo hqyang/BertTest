@@ -20,7 +20,7 @@ import pandas as pd
 from src.config import args
 from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
-from src.utilis import get_ontonotes_dataset_and_dataloader, get_ontonotes_eval_dataloaders
+from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
 from src.BERT.optimization import BertAdam
 from src.metrics import outputFscoreUsedBIO
 
