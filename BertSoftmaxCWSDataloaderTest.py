@@ -159,7 +159,8 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             else:
                 label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
             loss = model(input_ids, segment_ids, input_mask, label_ids)
-
+            loss *= 1000
+            
             n_gpu = torch.cuda.device_count()
             if n_gpu > 1: # or loss.shape[0] > 1:
                 loss = loss.mean() # mean() to average on multi-gpu or multitask.
@@ -173,7 +174,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
 
             loss.backward()
-            tr_loss += loss.item()*1000
+            tr_loss += loss.item()
             nb_tr_examples += input_ids.size(0)
             nb_tr_steps += 1
             if (step + 1) % args.gradient_accumulation_steps == 0:
