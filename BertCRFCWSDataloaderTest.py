@@ -199,30 +199,27 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         tr_loss = tr_loss / step
 
         if eval_dataloaders:
-            parts = ['test', 'dev', 'train']
+            rs = {}
+            if args.task_name.lower() == 'ontonotes_cws':
+                parts = ['test', 'dev', 'train']
+            else:
+                parts = ['test', 'train']
 
             for part in parts:
-                if part == 'test':
-                    rs = do_eval(model, eval_dataloaders[part], device, args, times=tr_time, type=part)
-                else:
-                    do_eval(model, eval_dataloaders[part], device, args, times=tr_time, type=part)
+                rs[part] = do_eval(model, eval_dataloaders[part], device, args, times=tr_time, type=part)
 
-        if rs is not None:
-            if len(rs) == 7:
-                ts_F1 = rs[2]
-            elif len(rs)==8:
-                ts_F1 = rs[3]
-            logger.info('Eval F1: %.2f' % ts_F1)
+        ts_F1 = rs['test'][3]
+        ts_Acc = rs['test'][6]
 
-        if ts_F1 > tmp_F1: # only save the best model
-            tmp_F1 = ts_F1
+        if ts_F1 > old_F1: # only save the best model
+            old_F1 = ts_F1
 
-            ckpt_files = sorted(glob(os.path.join(args.output_dir, '*.pt')))
+            ckpt_files = sorted(glob(os.path.join(args.output_dir, 'F1_*.pt')))
             for ckpt_file in ckpt_files:
                 logger.info('rm %s' % ckpt_file)
                 os.system("rm %s" % ckpt_file)
 
-            output_weight_file = os.path.join(args.output_dir, 'weights_epoch%02d.pt'%ep)
+            output_weight_file = os.path.join(args.output_dir, 'F1_weights_epoch%02d.pt'%ep)
 
             state_dict = model.state_dict()
             if isinstance(model, torch.nn.DataParallel):
@@ -231,8 +228,22 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
             torch.save(state_dict, output_weight_file)
 
-        #output_model_file = os.path.join(args.output_dir, 'weights_epoch%02d_nhl%d.tsv'%(ep, args.num_hidden_layers))
-        #save_model(model, output_model_file)
+        if ts_Acc > old_Acc: # only save the best model
+            old_Acc = ts_Acc
+
+            ckpt_files = sorted(glob(os.path.join(args.output_dir, 'Acc_*.pt')))
+            for ckpt_file in ckpt_files:
+                logger.info('rm %s' % ckpt_file)
+                os.system("rm %s" % ckpt_file)
+
+            output_weight_file = os.path.join(args.output_dir, 'Acc_weights_epoch%02d.pt'%ep)
+
+            state_dict = model.state_dict()
+            if isinstance(model, torch.nn.DataParallel):
+                #The model is in a DataParallel container.
+                #Its state dict keys are all start with a "module."
+                state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
+            torch.save(state_dict, output_weight_file)
 
 
 def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
