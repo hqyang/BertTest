@@ -20,7 +20,7 @@ import pandas as pd
 from src.config import args
 from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
-from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
+from src.utilis import get_ontonotes_dataset_and_dataloader, get_ontonotes_eval_dataloaders
 from src.BERT.optimization import BertAdam
 from src.metrics import outputFscoreUsedBIO
 
@@ -320,7 +320,7 @@ def eval_eachlayer_ontonotes(args):
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
-    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
+    train_dataset, train_dataloader = get_ontonotes_dataset_and_dataloader(processor, args, training=True, type = 'train')
 
     eval_dataloaders = get_eval_dataloaders(processor, args)
 
@@ -366,8 +366,8 @@ def eval_eachlayer_ontonotes(args):
 
 def train_4CWS(args):
     processors = {
-        'ontonotes_cws': lambda: CWS_BMEO(nopunc=args.nopunc),
-        '4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc)
+        'ontonotes_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg']),
+        '4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
     }
 
     task_name = args.task_name.lower()
@@ -380,7 +380,7 @@ def train_4CWS(args):
 
     train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
 
-    eval_dataloaders = get_ontonotes_eval_dataloaders(processor, args)
+    eval_dataloaders = get_eval_dataloaders(processor, args)
 
     num_train_steps = int(
         len(train_dataset) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs)

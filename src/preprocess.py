@@ -235,8 +235,9 @@ class MeituTagProcessor:
         return self.label_list
 
 class CWS_BMEO(MeituProcessor):
-    def __init__(self, nopunc=False):
+    def __init__(self, nopunc=False, drop_columns=None):
         self.nopunc = nopunc
+        self.drop_columns = drop_columns
         self.label_list = ['B', 'M', 'E', 'S', '[START]', '[END]']
         self.label_map = {'B': 0, 'M': 1, 'E': 2, 'S': 3, '[START]': 4, '[END]': 5}
         self.idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
@@ -247,7 +248,7 @@ class CWS_BMEO(MeituProcessor):
 
         # full_pos (chunk), ner, seg, text
         # need parameter inplace=True
-        df.drop(columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg'], inplace=True)
+        df.drop(columns=self.drop_columns, inplace=True)
 
         # change name to tag for consistently processing
         df.rename(columns={'bert_seg': 'label'}, inplace=True)
