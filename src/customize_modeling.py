@@ -767,7 +767,7 @@ class BertSoftMax(PreTrainedBertModel):
             lbc_used = lbv[mask.data.nonzero().squeeze(1), :]
 
             loss = loss_fct(lv_used, lbc_used)
-       else:
+        else:
             loss = logits
 
         batch_size, seq_length = mask.shape
