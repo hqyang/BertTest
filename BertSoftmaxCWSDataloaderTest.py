@@ -173,7 +173,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
 
             loss.backward()
-            tr_loss += loss.item()
+            tr_loss += loss.item()*1000
             nb_tr_examples += input_ids.size(0)
             nb_tr_steps += 1
             if (step + 1) % args.gradient_accumulation_steps == 0:
@@ -221,7 +221,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                     writer.add_scalar('data/train_time', rs['train'][0])
 
                 writer.add_scalar('data/'+part+'_eval_time', rs[part][1])
-                writer.add_scalar('data/'+part+'_eval_loss', rs[part][2])
+                writer.add_scalar('data/'+part+'_eval_loss', rs[part][2]*1000)
                 writer.add_scalar('data/'+part+'_F1', rs[part][3])
                 writer.add_scalar('data/'+part+'_P', rs[part][4])
                 writer.add_scalar('data/'+part+'_R', rs[part][5])
