@@ -10,7 +10,7 @@ Scenario:
 """
 from sklearn.preprocessing import LabelEncoder
 import sys
-sys.path.append('..')
+sys.path.append('../src')
 from src.utilis import save_model
 from src.config import args
 from src.utilis import get_dataset_and_dataloader, get_ontonotes_eval_dataloaders

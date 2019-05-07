@@ -13,6 +13,9 @@ import os
 import re
 import pandas as pd
 import torch
+
+import sys
+sys.path.append('./src')
 from preprocess import dataset_to_dataloader, OntoNotesDataset
 #from src.preprocess import dataset_to_dataloader, OntoNotesDataset
 

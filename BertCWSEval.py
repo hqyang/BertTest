@@ -163,7 +163,7 @@ def set_local_eval_param():
             'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3/weights_epoch03.pt',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3_weights_epoch03.pt',
             'override_output': True,
             'tensorboardWriter': False
             }
@@ -250,7 +250,7 @@ def test_ontonotes_file(model, args):
         print(part + ' done!')
 
 LOCAL_FLAG = False
-#LOCAL_FLAG = True
+LOCAL_FLAG = True
 
 if __name__=='__main__':
     if LOCAL_FLAG:
