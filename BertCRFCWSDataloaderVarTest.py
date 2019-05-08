@@ -405,6 +405,7 @@ def set_server_eval_4CWS_param():
             'visible_device': 0,
             'num_train_epochs': 10,
             'bfinetune': False,
+            'learning_rate': 1e-4,
             'override_output': True,
             }
 
