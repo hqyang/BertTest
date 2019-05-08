@@ -410,19 +410,25 @@ def set_server_eval_4CWS_param():
             }
 
 
-LOCAL_FLAG = False
-#LOCAL_FLAG = True
-#
-TEST_ONTONOTES = True
-#TEST_ONTONOTES = False
-#TEST_CWS = True
-TEST_CWS = False
+TEST_FLAG = False
 
-if __name__=='__main__':
-    kwargs = set_server_eval_4CWS_param()
+def main(**kwargs):
+    if TEST_FLAG:
+        kwargs = set_server_eval_4CWS_param()
+    else:
+        print('load parameters from .sh')
 
     args._parse(kwargs)
     train_4CWS(args)
 
-    TS_WRITER.export_scalars_to_json(os.path.join(args.output_dir, 'BertFixedFeatures_BiLSTM_l1_rs.json'))
+    TS_WRITER.export_scalars_to_json(os.path.join(args.output_dir,
+                              'BertFixedFeatures_BiLSTM_l'+str(args.num_hidden_layers)'.json'))
     TS_WRITER.close()
+
+
+if __name__=='__main__':
+    import fire
+    fire.Fire(main)
+
+
+
