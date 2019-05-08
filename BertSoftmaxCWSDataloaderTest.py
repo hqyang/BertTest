@@ -43,7 +43,7 @@ CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
 
-writer = SummaryWriter()
+TS_WRITER = SummaryWriter()
 
 def load_BertSoftmax_model(label_list, args):
     if args.visible_device is not None:
@@ -202,8 +202,8 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         # logger.info(tr_loss/step)
         tr_loss = tr_loss / step
 
-        writer.add_text('Text', 'text logged at step:' + str(ep), ep)
-        writer.add_scalar('data/tr_loss', tr_loss)
+        TS_WRITER.add_text('Text', 'text logged at step:' + str(ep), ep)
+        TS_WRITER.add_scalar('data/tr_loss', tr_loss)
 
         if eval_dataloaders:
             rs = {}
@@ -218,14 +218,14 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         if len(rs) != 0:
             for part in parts:
                 if part=='train':
-                    writer.add_scalar('data/train_time', rs['train'][0])
+                    TS_WRITER.add_scalar('data/train_time', rs['train'][0])
 
-                writer.add_scalar('data/'+part+'_eval_time', rs[part][1])
-                writer.add_scalar('data/'+part+'_eval_loss', rs[part][2]*1000)
-                writer.add_scalar('data/'+part+'_F1', rs[part][3])
-                writer.add_scalar('data/'+part+'_P', rs[part][4])
-                writer.add_scalar('data/'+part+'_R', rs[part][5])
-                writer.add_scalar('data/'+part+'_Acc', rs[part][6])
+                TS_WRITER.add_scalar('data/'+part+'_eval_time', rs[part][1])
+                TS_WRITER.add_scalar('data/'+part+'_eval_loss', rs[part][2]*1000)
+                TS_WRITER.add_scalar('data/'+part+'_F1', rs[part][3])
+                TS_WRITER.add_scalar('data/'+part+'_P', rs[part][4])
+                TS_WRITER.add_scalar('data/'+part+'_R', rs[part][5])
+                TS_WRITER.add_scalar('data/'+part+'_Acc', rs[part][6])
 
         ts_F1 = rs['test'][3]
         ts_Acc = rs['test'][6]
@@ -423,5 +423,5 @@ if __name__=='__main__':
     args._parse(kwargs)
     train_4CWS(args)
 
-    writer.export_scalars_to_json(os.path.join(args.output_dir, 'tensorboard_rs.json'))
-    writer.close()
+    TS_WRITER.export_scalars_to_json(os.path.join(args.output_dir, 'BertSoftmax_rs.json'))
+    TS_WRITER.close()
