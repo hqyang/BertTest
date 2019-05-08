@@ -769,6 +769,7 @@ class BertSoftMax(PreTrainedBertModel):
             loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
 
         best_tags_list = []
+        mask = attention_mask.byte()
         for idx in range(batch_size):
             # Find the tag which maximizes the score at the last timestep; this is our best tag
             # for the last timestep

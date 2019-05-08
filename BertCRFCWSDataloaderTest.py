@@ -140,7 +140,8 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
     global_step = 0
     tr_times = []
 
-    tmp_F1 = 0.
+    old_F1 = 0.
+    old_Acc = 0.
     for ep in trange(int(args.num_train_epochs), desc="Epoch"):
         st = time.time()
         tr_loss = 0
