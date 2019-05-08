@@ -715,7 +715,7 @@ class BertSoftMax(PreTrainedBertModel):
 
     num_tags = 3
 
-    model = BertCRF(config, num_tags)
+    model = BertSoftMax(config, num_tags)
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
@@ -1044,4 +1044,86 @@ class BertClassifiersCWS(PreTrainedBertModel):
         # pre_word_is_english = cur_word_is_english
 
 
+class BertFixedFeatures_BiLSTM(PreTrainedBertModel):
+    """Apply BERT fixed features with BiLSTM and CRF for Sequence Labeling.
 
+    model = BertFixedFeatures_BiLSTM(config, num_tags)
+    logits = model(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, config, num_tags=4, method=None):
+        super(BertFixedFeatures_BiLSTM, self).__init__(config)
+        self.num_tags = num_tags
+        self.method = method
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
+
+        if method=='concate_last4':
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+        else:
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+
+        # Maps the output of BERT into tag space.
+        self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
+        self.classifier = CRF(num_tags, batch_first=True)
+        self.apply(self.init_bert_weights)
+
+    def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
+        if self.method = 'last_layer':
+            output_all_encoded_layers = False
+        else:
+            output_all_encoded_layers = True
+
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
+        sequence_output = self.dropout(sequence_output)
+
+        if self.method = 'last_layer':
+            fea_used = sequence_output
+        elif self.method = 'sum_last4':
+            fea_used = torch.zeros_like(input_ids)
+            for l in range(-1, -5, -1):
+                fea_used += sequence_output[l]
+        elif self.method = 'sum_all':
+            fea_used = torch.zeros_like(input_ids)
+            for l in range(0, 12):
+                fea_used += sequence_output[l]
+        elif self.method = 'concate_last4':
+            fea_used = sequence_output[-4]
+            for l in range(-3, 0):
+                fea_used = torch.cat((fea_used, sequence_output[l]), 2)
+
+        sequence_output = self.biLSTM(fea_used)
+
+        bert_feats = self.hidden2tag(sequence_output)
+
+        return bert_feats
+
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+        bert_feats = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
+        mask = attention_mask.byte()
+        if labels is not None:
+            loss = -self.classifier(bert_feats, labels, mask)
+            return loss
+        else:
+            raise RuntimeError('Input: labels, is missing!')
+
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+        bert_feats = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
+        mask = attention_mask.byte()
+        loss = np.inf
+
+        if labels is not None:
+            loss = -self.classifier(bert_feats, labels, mask)
+
+        decode_rs = self.classifier.decode(bert_feats, mask)
+
+        return loss, decode_rs
