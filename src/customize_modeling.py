@@ -1070,7 +1070,7 @@ class BertFixedFeatures_BiLSTM(PreTrainedBertModel):
                                   dropout=0, bidirectional=True)
 
         # Maps the output of BERT into tag space.
-        self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
+        self.hidden2tag = nn.Linear(self.config.hidden_size*2, num_tags)
         self.classifier = CRF(num_tags, batch_first=True)
         self.apply(self.init_bert_weights)
 
@@ -1098,8 +1098,8 @@ class BertFixedFeatures_BiLSTM(PreTrainedBertModel):
             for l in range(-3, 0):
                 fea_used = torch.cat((fea_used, sequence_output[l]), 2)
 
-        pdb.set_trace()
-        fea_used = self.biLSTM(fea_used)
+        #pdb.set_trace()
+        fea_used, _ = self.biLSTM(fea_used)
 
         bert_feats = self.hidden2tag(fea_used)
 
