@@ -422,7 +422,7 @@ def main(**kwargs):
     train_4CWS(args)
 
     TS_WRITER.export_scalars_to_json(os.path.join(args.output_dir,
-                              'BertFixedFeatures_BiLSTM_l'+str(args.num_hidden_layers)'.json'))
+                              'BertFixedFeatures_BiLSTM_l'+str(args.num_hidden_layers)+'.json'))
     TS_WRITER.close()
 
 
