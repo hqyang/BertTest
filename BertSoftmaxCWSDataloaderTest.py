@@ -159,7 +159,6 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             else:
                 label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
             loss = model(input_ids, segment_ids, input_mask, label_ids)
-            loss *= 1e6
 
             n_gpu = torch.cuda.device_count()
             if n_gpu > 1: # or loss.shape[0] > 1:
@@ -171,7 +170,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
 
-            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e6))
 
             loss.backward()
             tr_loss += loss.item()
