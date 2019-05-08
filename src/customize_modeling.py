@@ -738,13 +738,13 @@ class BertSoftMax(PreTrainedBertModel):
         loss = logits
 
         if labels is not None:
-            labels = labels*attention_mask
+            #labels = labels*attention_mask
 
-            batch_size, seq_length = attention_mask.shape
-            mask = attention_mask.unsqueeze_(-1)
-            mask = mask.expand(batch_size, seq_length, self.num_tags)
+            #batch_size, seq_length = attention_mask.shape
+            #mask = attention_mask.unsqueeze_(-1)
+            #mask = mask.expand(batch_size, seq_length, self.num_tags)
 
-            logits = logits*mask.float()
+            #logits = logits*mask.float()
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
 
@@ -759,12 +759,12 @@ class BertSoftMax(PreTrainedBertModel):
 
         batch_size, seq_length = attention_mask.shape
         if labels is not None:
-            labels = labels*attention_mask
+            #labels = labels*attention_mask
 
-            mask = attention_mask.unsqueeze_(-1)
-            mask = mask.expand(batch_size, seq_length, self.num_tags)
+            #mask = attention_mask.unsqueeze_(-1)
+            #mask = mask.expand(batch_size, seq_length, self.num_tags)
 
-            logits = logits*mask.float()
+            #logits = logits*mask.float()
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
 
