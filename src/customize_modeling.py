@@ -1098,12 +1098,12 @@ class BertFixedFeatures_BiLSTM(PreTrainedBertModel):
             for l in range(-3, 0):
                 fea_used = torch.cat((fea_used, sequence_output[l]), 2)
 
-        sequence_output = self.biLSTM(fea_used)
+        pdb.set_trace()
+        fea_used = self.biLSTM(fea_used)
 
-        bert_feats = self.hidden2tag(sequence_output)
+        bert_feats = self.hidden2tag(fea_used)
 
         return bert_feats
-
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         bert_feats = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)

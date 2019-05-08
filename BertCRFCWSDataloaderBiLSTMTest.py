@@ -424,5 +424,5 @@ if __name__=='__main__':
     args._parse(kwargs)
     train_4CWS(args)
 
-    TS_WRITER.export_scalars_to_json(os.path.join(args.output_dir, 'BertCRF_l1_rs.json'))
+    TS_WRITER.export_scalars_to_json(os.path.join(args.output_dir, 'BertFixedFeatures_BiLSTM_l1_rs.json'))
     TS_WRITER.close()
