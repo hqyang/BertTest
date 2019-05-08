@@ -90,7 +90,7 @@ def load_BertCRF_model(label_list, args):
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
     #model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
-    model = BertFixedFeatures_BiLSTM(bert_config, len(label_list), method='last_layer')
+    model = BertFixedFeatures_BiLSTM(bert_config, len(label_list), method=args.method)
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
@@ -421,8 +421,12 @@ def main(**kwargs):
     args._parse(kwargs)
     train_4CWS(args)
 
-    TS_WRITER.export_scalars_to_json(os.path.join(args.output_dir,
-                              'BertFixedFeatures_BiLSTM_l'+str(args.num_hidden_layers)+'.json'))
+    if args.method == 'last_layer':
+        fn = os.path.join(args.output_dir, 'BertFixedFeatures_BiLSTM_l'+str(args.num_hidden_layers)+'_rs.json')
+    else:
+        fn = os.path.join(args.output_dir, 'BertFixedFeatures_BiLSTM_l'+args.method+'_rs.json')
+
+    TS_WRITER.export_scalars_to_json(fn)
     TS_WRITER.close()
 
 
