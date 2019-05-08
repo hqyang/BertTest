@@ -35,6 +35,7 @@ class Config:
     warmup_proportion = 0.1
     num_hidden_layers = 0
     projected_size = 6
+    bfinetune = True
     
     ##4.Devices
     no_cuda = False
