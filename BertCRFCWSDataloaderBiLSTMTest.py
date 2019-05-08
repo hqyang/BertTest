@@ -402,7 +402,7 @@ def set_server_eval_4CWS_param():
             'max_seq_length': 128,
             'num_hidden_layers': 1,
             'init_checkpoint': '../models/bert-base-chinese/',
-            'visible_device': 0,
+            'visible_device': 2,
             'num_train_epochs': 10,
             'bfinetune': False,
             'learning_rate': 1e-4,
