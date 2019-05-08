@@ -405,6 +405,7 @@ def set_server_eval_4CWS_param():
             'init_checkpoint': '../models/bert-base-chinese/',
             'visible_device': 1,
             'num_train_epochs': 10,
+            'learning_rate': 1e-2,
             'override_output': True,
             }
 
