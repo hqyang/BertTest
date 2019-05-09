@@ -1086,12 +1086,12 @@ class BertFixedFeatures_BiLSTM(PreTrainedBertModel):
         if self.method == 'last_layer':
             fea_used = sequence_output
         elif self.method == 'sum_last4':
-            fea_used = torch.zeros_like(input_ids)
-            for l in range(-1, -5, -1):
+            fea_used = sequence_output[-1]
+            for l in range(-2, -5, -1):
                 fea_used += sequence_output[l]
         elif self.method == 'sum_all':
-            fea_used = torch.zeros_like(input_ids)
-            for l in range(0, 12):
+            fea_used = sequence_output[-1]
+            for l in range(-2, -13, -1):
                 fea_used += sequence_output[l]
         elif self.method == 'concate_last4':
             fea_used = sequence_output[-4]
