@@ -1081,22 +1081,22 @@ class BertFixedFeatures_BiLSTM(PreTrainedBertModel):
             output_all_encoded_layers = True
 
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
-        sequence_output = self.dropout(sequence_output)
 
         if self.method == 'last_layer':
             fea_used = sequence_output
+            fea_used = self.dropout(fea_used)
         elif self.method == 'sum_last4':
-            fea_used = sequence_output[-1]
+            fea_used = self.dropout(sequence_output[-1])
             for l in range(-2, -5, -1):
-                fea_used += sequence_output[l]
+                fea_used += self.dropout(sequence_output[l])
         elif self.method == 'sum_all':
-            fea_used = sequence_output[-1]
+            fea_used = self.dropout(sequence_output[-1])
             for l in range(-2, -13, -1):
-                fea_used += sequence_output[l]
+                fea_used += self.dropout(sequence_output[l])
         elif self.method == 'concate_last4':
-            fea_used = sequence_output[-4]
+            fea_used = self.dropout(sequence_output[-4])
             for l in range(-3, 0):
-                fea_used = torch.cat((fea_used, sequence_output[l]), 2)
+                fea_used = torch.cat((fea_used, self.dropout(sequence_output[l])), 2)
 
         #pdb.set_trace()
         fea_used, _ = self.biLSTM(fea_used)
