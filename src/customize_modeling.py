@@ -1044,7 +1044,7 @@ class BertClassifiersCWS(PreTrainedBertModel):
         # pre_word_is_english = cur_word_is_english
 
 
-class BertFixedFeatures_BiLSTM(PreTrainedBertModel):
+class BertCRFVariant(PreTrainedBertModel):
     """Apply BERT fixed features with BiLSTM and CRF for Sequence Labeling.
 
     model = BertFixedFeatures_BiLSTM(config, num_tags)
@@ -1052,56 +1052,59 @@ class BertFixedFeatures_BiLSTM(PreTrainedBertModel):
     ```
     """
     def __init__(self, config, num_tags=4, method=None):
-        super(BertFixedFeatures_BiLSTM, self).__init__(config)
+        super(BertCRFVariant, self).__init__(config)
         self.num_tags = num_tags
         self.method = method
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
-        if method=='concate_last4':
+        if method == 'fine_tune':
+            # Maps the output of BERT into tag space.
+            self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
+        elif method == 'concate_last4':
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
-        else:
+            self.hidden2tag = nn.Linear(self.config.hidden_size*2, num_tags)
+        else: # 'last_layer', 'sum_last4', 'sum_all', 'concate_last4'
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
+            self.hidden2tag = nn.Linear(self.config.hidden_size*2, num_tags)
 
-        # Maps the output of BERT into tag space.
-        self.hidden2tag = nn.Linear(self.config.hidden_size*2, num_tags)
         self.classifier = CRF(num_tags, batch_first=True)
         self.apply(self.init_bert_weights)
 
     def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
-        if self.method == 'last_layer':
+        if self.method == 'last_layer' or self.method=='fine_tune':
             output_all_encoded_layers = False
         else:
             output_all_encoded_layers = True
 
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
 
-        if self.method == 'last_layer':
-            fea_used = sequence_output
-            fea_used = self.dropout(fea_used)
-        elif self.method == 'sum_last4':
-            fea_used = self.dropout(sequence_output[-1])
+        if self.method == 'sum_last4':
+            feat_used = self.dropout(sequence_output[-1])
             for l in range(-2, -5, -1):
-                fea_used += self.dropout(sequence_output[l])
+                feat_used += self.dropout(sequence_output[l])
         elif self.method == 'sum_all':
-            fea_used = self.dropout(sequence_output[-1])
+            feat_used = self.dropout(sequence_output[-1])
             for l in range(-2, -13, -1):
-                fea_used += self.dropout(sequence_output[l])
+                feat_used += self.dropout(sequence_output[l])
         elif self.method == 'concate_last4':
-            fea_used = self.dropout(sequence_output[-4])
+            feat_used = self.dropout(sequence_output[-4])
             for l in range(-3, 0):
-                fea_used = torch.cat((fea_used, self.dropout(sequence_output[l])), 2)
+                feat_used = torch.cat((feat_used, self.dropout(sequence_output[l])), 2)
+        else: # self.method == 'last_layer' or 'fine_tune'
+            feat_used = sequence_output
+            feat_used = self.dropout(feat_used)
 
-        #pdb.set_trace()
-        fea_used, _ = self.biLSTM(fea_used)
+        if self.method != 'fine_tune':
+            feat_used, _ = self.biLSTM(feat_used)
 
-        bert_feats = self.hidden2tag(fea_used)
+        bert_feats = self.hidden2tag(feat_used)
 
         return bert_feats
 

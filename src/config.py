@@ -35,8 +35,7 @@ class Config:
     warmup_proportion = 0.1
     num_hidden_layers = 0
     projected_size = 6
-    bfinetune = True
-    method = 'last_layer'
+    method = 'fine_tune' # 'last_layer', 'concate_last4', 'sum_last4', 'sum_all', 'concate_last4'
     
     ##4.Devices
     no_cuda = False
