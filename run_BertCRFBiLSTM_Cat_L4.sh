@@ -11,7 +11,7 @@ python BertCRFCWSDataloaderBiLSTMTest.py \
     --max_seq_length 128 \
     --num_hidden_layers 12 \
     --init_checkpoint ../models/bert-base-chinese\
-    --train_batch_size 32 \
+    --train_batch_size 128 \
     --override_output True \
     --tensorboardWriter False \
     --visible_device 0 \
