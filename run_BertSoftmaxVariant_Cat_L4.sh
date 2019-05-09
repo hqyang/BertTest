@@ -12,9 +12,9 @@ python BertSoftmaxVariantDataloaderTest.py \
     --override_output True \
     --learning_rate 1e-4 \
     --method cat_last4 \
-    --output_dir ./tmp/4CWS/MSR/Softmax_BiLSTM_CatL4 \
+    --output_dir ./tmp/4CWS/MSR/Softmax/BiLSTM_CatL4 \
     --num_hidden_layers 12 \
     --train_batch_size 128 \
-    --visible_device 0 \
+    --visible_device 3 \
     --num_train_epochs 20
 

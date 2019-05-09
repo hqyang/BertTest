@@ -12,8 +12,8 @@ python BertSoftmaxVariantDataloaderTest.py \
     --override_output True \
     --learning_rate 1e-4 \
     --method sum_all \
-    --output_dir ./tmp/4CWS/MSR/Softmax_BiLSTM_SumAll \
+    --output_dir ./tmp/4CWS/MSR/Softmax/BiLSTM_SumAll \
     --num_hidden_layers 12 \
     --train_batch_size 128 \
-    --visible_device 2 \
+    --visible_device 3 \
     --num_train_epochs 20

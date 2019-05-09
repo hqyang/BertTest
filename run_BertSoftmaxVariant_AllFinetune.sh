@@ -12,7 +12,7 @@ python BertSoftmaxVariantDataloaderTest.py \
     --override_output True \
     --learning_rate 2e-5 \
     --method fine_tune \
-    --output_dir ./tmp/4CWS/MSR/Softmax \
+    --output_dir ./tmp/4CWS/MSR/Softmax/finetune \
     --num_hidden_layers 12 \
     --train_batch_size 32 \
     --visible_device 3 \
