@@ -1135,7 +1135,7 @@ class BertCRFVariant(PreTrainedBertModel):
 class BertSoftmaxVariant(PreTrainedBertModel):
     """Apply BERT fixed features with BiLSTM and CRF for Sequence Labeling.
 
-    model = BertCRFVariant(config, num_tags)
+    model = BertSoftmaxVariant(config, num_tags)
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
@@ -1154,13 +1154,13 @@ class BertSoftmaxVariant(PreTrainedBertModel):
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
-            self.classifier = nn.Linear(self.config.hidden_size, num_tags)
+            self.classifier = nn.Linear(self.config.hidden_size*2, num_tags)
         else: # 'last_layer', 'sum_last4', 'sum_all', 'cat_last4'
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
-            self.classifier = nn.Linear(self.config.hidden_size, num_tags)
+            self.classifier = nn.Linear(self.config.hidden_size*2, num_tags)
 
         #self.classifier = CRF(num_tags, batch_first=True)
         self.apply(self.init_bert_weights)
