@@ -14,7 +14,7 @@ python BertCRFCWSDataloaderBiLSTMTest.py \
     --train_batch_size 128 \
     --override_output True \
     --tensorboardWriter False \
-    --visible_device 0 \
+    --visible_device 2 \
     --num_train_epochs 10 \
     --bfinetune False \
     --method sum_all \
