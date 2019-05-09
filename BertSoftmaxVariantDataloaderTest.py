@@ -169,7 +169,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
 
-            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e6))
 
             loss.backward()
             tr_loss += loss.item()
