@@ -31,7 +31,7 @@ import pdb
 import re
 
 from src.BERT.modeling import BertConfig
-from src.customize_modeling import BertCRFVariant
+from src.customize_modeling import BertSoftmaxVariant
 from tensorboardX import SummaryWriter
 
 import logging
