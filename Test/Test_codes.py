@@ -11,11 +11,13 @@ Scenario:
 from sklearn.preprocessing import LabelEncoder
 import sys
 sys.path.append('../src')
-from src.utilis import save_model
-from src.config import args
-from src.utilis import get_dataset_and_dataloader, get_ontonotes_eval_dataloaders
-from src.preprocess import CWS_BMEO
+from utilis import save_model
+from config import args
+from utilis import get_dataset_and_dataloader, get_eval_dataloaders
+from preprocess import CWS_BMEO
 from tqdm import tqdm
+import time
+import torch
 
 def test_BertCRF_constructor():
     from src.BERT.modeling import BertCRF
@@ -322,6 +324,58 @@ def test_dataloader():
         label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
 
 
+def decode_iter(logits, attention_mask):
+    mask = attention_mask.byte()
+    batch_size, seq_length = mask.shape
+
+    best_tags_list = []
+    for idx in range(batch_size):
+        # Find the tag which maximizes the score at the last timestep; this is our best tag
+        # for the last timestep
+        best_tags = []
+        for iseq in range(seq_length):
+            if mask[idx, iseq]:
+                _, best_selected_tag = logits[idx, iseq].max(dim=0)
+                best_tags.append(best_selected_tag.item())
+
+        best_tags_list.append(best_tags)
+    return best_tags_list
+
+
+def decode_batch(logits, attention_mask):
+    mask = attention_mask.byte()
+    batch_size, seq_length = mask.shape
+
+    _, best_selected_tag = logits.max(dim=2)
+
+    best_tags_list = []
+    for n in range(batch_size):
+        selected_tag = torch.masked_select(best_selected_tag[n, :], mask[n, :])
+        best_tags_list.append(selected_tag.tolist())
+
+    return best_tags_list
+
+
+def test_decode():
+    n_sample = 32
+    n_len = 8
+    n_tag = 6
+
+    logits = torch.rand((n_sample, n_len, n_tag))
+
+    mask = [1]*(n_len//2) + [0]*(n_len//2)
+    attention_mask = torch.ByteTensor([mask]*n_sample)
+
+    tm = time.time()
+    lit = decode_iter(logits, attention_mask)
+    print('time: ' + str(time.time()-tm))
+    print(lit)
+
+    tm = time.time()
+    lbt = decode_batch(logits, attention_mask)
+    print('time: ' + str(time.time()-tm))
+    print(lbt)
+
 
 if __name__ == '__main__':
     #test_BertCRF_constructor()
@@ -332,7 +386,7 @@ if __name__ == '__main__':
     #test_CWS_Dict()
 
     #test_pkuseg()
-    test_FullTokenizer()
+    #test_FullTokenizer()
     #check_english('candidate defence')
     #check_english('台北candidate defence')
 
@@ -341,3 +395,5 @@ if __name__ == '__main__':
     #test_load_model()
 
     #test_dataloader()
+
+    test_decode()

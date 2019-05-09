@@ -1216,6 +1216,28 @@ class BertSoftmaxVariant(PreTrainedBertModel):
             loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
 
         mask = attention_mask.byte()
+        batch_size, _ = mask.shape
+
+        _, best_selected_tag = logits.max(dim=2)
+
+        best_tags_list = []
+        for n in range(batch_size):
+            selected_tag = torch.masked_select(best_selected_tag[n, :], mask[n, :])
+            best_tags_list.append(selected_tag.tolist())
+
+        return loss, best_tags_list
+
+    # depreciated due to too slow
+    def decode_iter(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
+        loss = logits
+
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
+
+        mask = attention_mask.byte()
         batch_size, seq_length = mask.shape
 
         best_tags_list = []
