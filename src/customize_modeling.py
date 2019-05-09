@@ -1061,13 +1061,13 @@ class BertCRFVariant(PreTrainedBertModel):
         if method == 'fine_tune':
             # Maps the output of BERT into tag space.
             self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
-        elif method == 'concate_last4':
+        elif method == 'cat_last4':
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
             self.hidden2tag = nn.Linear(self.config.hidden_size*2, num_tags)
-        else: # 'last_layer', 'sum_last4', 'sum_all', 'concate_last4'
+        else: # 'last_layer', 'sum_last4', 'sum_all', 'cat_last4'
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
@@ -1093,7 +1093,7 @@ class BertCRFVariant(PreTrainedBertModel):
             feat_used = self.dropout(sequence_output[-1])
             for l in range(-2, -13, -1):
                 feat_used += self.dropout(sequence_output[l])
-        elif self.method == 'concate_last4':
+        elif self.method == 'cat_last4':
             feat_used = self.dropout(sequence_output[-4])
             for l in range(-3, 0):
                 feat_used = torch.cat((feat_used, self.dropout(sequence_output[l])), 2)

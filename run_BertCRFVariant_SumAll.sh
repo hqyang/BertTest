@@ -1,12 +1,12 @@
 #!/bin/sh
 
-python BertCRFCWSDataloaderBiLSTMTest.py \
+python BertCRFVariantDataloaderTest.py \
     --task_name 4CWS_CWS \
     --model_type sequencelabeling \
     --data_dir ../data/CWS/BMES/MSR/ \
     --bert_model_dir ../models/bert-base-chinese/ \
     --vocab_file ../models/bert-base-chinese/vocab.txt \
-    --output_dir ./tmp/4CWS/MSR/CRF_BiLSTM_SumL4 \
+    --output_dir ./tmp/4CWS/MSR/CRF_BiLSTM_SumAll \
     --do_lower_case True \
     --max_seq_length 128 \
     --num_hidden_layers 12 \
@@ -14,10 +14,10 @@ python BertCRFCWSDataloaderBiLSTMTest.py \
     --train_batch_size 128 \
     --override_output True \
     --tensorboardWriter False \
-    --visible_device 1 \
+    --visible_device 2 \
     --num_train_epochs 10 \
     --bfinetune False \
-    --method sum_last4 \
+    --method sum_all \
     --learning_rate 1e-4
 
 #     --bert_config_file ../models/bert-base-chinese/bert_config.json,

@@ -35,7 +35,7 @@ class Config:
     warmup_proportion = 0.1
     num_hidden_layers = 0
     projected_size = 6
-    method = 'fine_tune' # 'last_layer', 'concate_last4', 'sum_last4', 'sum_all', 'concate_last4'
+    method = 'fine_tune' # 'last_layer', 'cat_last4', 'sum_last4', 'sum_all'
     
     ##4.Devices
     no_cuda = False
@@ -55,7 +55,6 @@ class Config:
     pretraining = False
     modification = None
     model_type = None
-    tensorboardWriter = False
 
     def _parse(self, kwargs, verbose=True):
         state_dict = self._state_dict()
