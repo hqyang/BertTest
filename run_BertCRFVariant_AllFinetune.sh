@@ -10,7 +10,7 @@ python BertCRFVariantDataloaderTest.py \
     --max_seq_length 128 \
     --init_checkpoint ../models/bert-base-chinese\
     --override_output True \
-    --learning_rate 1e-4 \
+    --learning_rate 2e-5 \
     --method fine_tune \
     --output_dir ./tmp/4CWS/MSR/CRF \
     --num_hidden_layers 12 \
