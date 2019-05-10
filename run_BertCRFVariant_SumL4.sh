@@ -1,9 +1,9 @@
 #!/bin/sh
 
 python BertCRFVariantDataloaderTest.py \
-    --task_name 4CWS_CWS \
+    --task_name PKU \ #  MSR \
     --model_type sequencelabeling \
-    --data_dir ../data/CWS/BMES/MSR/ \
+    --data_dir ../data/CWS/BMES/ \ # need add MSR/
     --bert_model_dir ../models/bert-base-chinese/ \
     --vocab_file ../models/bert-base-chinese/vocab.txt \
     --do_lower_case True \
@@ -12,8 +12,8 @@ python BertCRFVariantDataloaderTest.py \
     --override_output True \
     --learning_rate 1e-4 \
     --method sum_last4 \
-    --output_dir ./tmp/4CWS/MSR/CRF_BiLSTM_SumL4 \
+    --output_dir ./tmp/4CWS/\ # need add MSR/CRF/sum_last4
     --num_hidden_layers 12 \
     --train_batch_size 128 \
     --visible_device 2 \
-    --num_train_epochs 10
+    --num_train_epochs 20

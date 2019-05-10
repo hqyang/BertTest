@@ -1,9 +1,9 @@
 #!/bin/sh
 
 python BertSoftmaxVariantDataloaderTest.py \
-    --task_name 4CWS_CWS \
+    --task_name PKU \ #  MSR \
     --model_type sequencelabeling \
-    --data_dir ../data/CWS/BMES/MSR/ \
+    --data_dir ../data/CWS/BMES/ \ # need add MSR/
     --bert_model_dir ../models/bert-base-chinese/ \
     --vocab_file ../models/bert-base-chinese/vocab.txt \
     --do_lower_case True \
@@ -12,7 +12,7 @@ python BertSoftmaxVariantDataloaderTest.py \
     --override_output True \
     --learning_rate 2e-5 \
     --method fine_tune \
-    --output_dir ./tmp/4CWS/MSR/Softmax/finetune \
+    --output_dir ./tmp/4CWS/ \ # need add MSR/Softmax/fine_tune
     --num_hidden_layers 12 \
     --train_batch_size 32 \
     --visible_device 3 \
