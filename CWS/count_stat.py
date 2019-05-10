@@ -47,7 +47,7 @@ def savestat2file(data_stat, out_file):
             f.writelines('\n')
 
     with open(out_file, 'a', encoding='utf-8') as f:
-        f.writelines('num_oov_test: {:d}, ratio_oov_test: {:.3f}'.format(
+        f.writelines('num_oov_test: {:d}, ratio_oov_test: {:.3f}\n'.format(
             data_stat['oov_test'], data_stat['ratio_oov_test']))
 
         f.writelines('num_oov_char_test: {:d}'.format(data_stat['oov_char_test']))
