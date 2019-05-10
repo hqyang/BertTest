@@ -238,7 +238,7 @@ class BertCRF(PreTrainedBertModel):
         bert_feats = self.hidden2tag(sequence_output)
 
         mask = attention_mask.byte()
-        loss = np.bert_feats
+        loss = bert_feats
 
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
