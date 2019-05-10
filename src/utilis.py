@@ -15,7 +15,7 @@ import pandas as pd
 import torch
 
 import sys
-sys.path.append('./src')
+sys.path.append('../src')
 from preprocess import dataset_to_dataloader, OntoNotesDataset
 #from src.preprocess import dataset_to_dataloader, OntoNotesDataset
 
@@ -112,6 +112,23 @@ def check_english_words(word):
         if not is_english_char(ord(word[idx])):
             return False # one char is not English, it is not an English word
     return True
+
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+
+    try:
+        import unicodedata
+        unicodedata.numeric(s)
+        return True
+    except (TypeError, ValueError):
+        pass
+
+    return False
 
 
 def escape(text):

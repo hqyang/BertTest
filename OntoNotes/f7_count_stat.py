@@ -18,7 +18,7 @@ import numpy as np
 
 import sys
 sys.path.append('../src')
-from src.utilis import check_english_words
+from utilis import check_english_words, is_number
 
 Sentence = namedtuple("Sentence", "words tags")
 
@@ -132,9 +132,9 @@ def savestat2file(stat, data_stat, out_file):
         with open(out_file, 'a', encoding='utf-8') as f:
             f.writelines('Type: {:s}\nnum_docs: {:d}, num_lines: {:d}, avg. lines per doc: {:.3f}\n'.format(part,
                                 stat[part, 'file'], stat[part, 'line'], stat[part, 'line']*1./stat[part, 'file']))
-            f.writelines('unique words: {:d}, Total words: {:d}, num_chi: {:d}, num_eng: {:d}\n'.format(
+            f.writelines('Unique words: {:d}, Total words: {:d}, num_chi: {:d}, num_eng: {:d}, num_digit: {:d}\n'.format(
                 data_stat[part, 'unique_words'], data_stat[part, 'total_words'], data_stat[part, 'num_chi'],
-                data_stat[part, 'num_eng']))
+                data_stat[part, 'num_eng'], data_stat[part, 'num_dig']))
             f.writelines('per sent.: max. words: {:d}, min. words: {:d}, mean words: {:.3f}\n'.format(
                 data_stat[part, 'max_words_per_sent'], data_stat[part, 'min_words_per_sent'], data_stat[part, 'mean_words_per_sent']))
 
@@ -191,7 +191,15 @@ def count_stat_data(info_all):
                     data_count[part, 'len_words'].append(1)
                     data_stat[part, 'num_eng'] += 1
                     store_chars[part].add(word)
-                else: # non-English word
+                elif is_number(word):
+                    data_count[part, 'len_words'].append(len(word))
+
+                    for w in word:
+                        store_chars[part].add(w)
+
+                    if word not in store_dicts[part]:
+                        data_stat[part, 'num_dig'] += 1
+                else: # non-English word/non-digit
                     data_count[part, 'len_words'].append(len(word))
                     data_stat[part, 'num_chi'] += 1
 
