@@ -15,5 +15,5 @@ python BertCRFVariantDataloaderTest.py \
     --output_dir ./tmp/4CWS/MSR/CRF_BiLSTM_l12 \
     --num_hidden_layers 12 \
     --train_batch_size 128 \
-    --visible_device 0 \
+    --visible_device 1 \
     --num_train_epochs 10

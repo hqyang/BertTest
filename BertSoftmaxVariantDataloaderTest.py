@@ -421,7 +421,7 @@ def main(**kwargs):
     args._parse(kwargs)
     train_4CWS(args)
 
-    if args.method == 'last_layer':
+    if args.method == 'last_layer' or args.method == 'fine_tune':
         fn = os.path.join(args.output_dir, 'BertCRFVariant_l'+str(args.num_hidden_layers)+'_rs.json')
     else:
         fn = os.path.join(args.output_dir, 'BertCRFVariant_l'+args.method+'_rs.json')
