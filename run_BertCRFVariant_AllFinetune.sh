@@ -16,7 +16,7 @@ python BertCRFVariantDataloaderTest.py \
     --num_hidden_layers 12 \
     --train_batch_size 32 \
     --visible_device 0 \
-    --num_train_epochs 20
+    --num_train_epochs 10
 
 # --task_name PKU \ #  MSR \
 # --data_dir ../data/CWS/BMES/ # need add MSR/
