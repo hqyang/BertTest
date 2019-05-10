@@ -45,7 +45,7 @@ WEIGHTS_NAME = 'pytorch_model.bin'
 
 TS_WRITER = SummaryWriter()
 
-def load_BertCRF_model(label_list, args):
+def load_BertSoftmax_model(label_list, args):
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
             args.visible_device = str(args.visible_device)
@@ -338,8 +338,12 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
 
 def train_4CWS(args):
     processors = {
-        'ontonotes_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg']),
-        '4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
+        'ontonotes': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg']),
+        '4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'msr': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'pku': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'as': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'cityu': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
     }
 
     task_name = args.task_name.lower()
@@ -350,6 +354,16 @@ def train_4CWS(args):
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
+    args.data_dir += args.task_name
+
+    if args.method == 'last_layer':
+        args.output_dir += args.task_name + '/' + 'Softmax/l' + str(args.num_hidden_layers)
+    else:
+        args.output_dir += args.task_name + '/' + 'Softmax/' + args.method
+
+    os.system('mkdir %s' %args.output_dir)
+    os.system('chmod 777 %s' %args.output_dir)
+
     train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
 
     eval_dataloaders = get_eval_dataloaders(processor, args)
@@ -359,7 +373,7 @@ def train_4CWS(args):
 
     no_decay = ['bias', 'gamma', 'beta']
 
-    model, device = load_BertCRF_model(label_list, args)
+    model, device = load_BertSoftmax_model(label_list, args)
 
     # Prepare optimizer
     if args.fp16:
@@ -396,7 +410,7 @@ def set_server_eval_4CWS_param():
             'data_dir': '../data/CWS/BMES/MSR/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp/4CWS/MSR/CRF_BiLSTM_l1',
+            'output_dir': './tmp/4CWS/MSR/BiLSTM_l1',
             'do_lower_case': True,
             'train_batch_size': 256,
             'max_seq_length': 128,
@@ -421,10 +435,10 @@ def main(**kwargs):
     args._parse(kwargs)
     train_4CWS(args)
 
-    if args.method == 'last_layer' or args.method == 'fine_tune':
-        fn = os.path.join(args.output_dir, 'BertCRFVariant_l'+str(args.num_hidden_layers)+'_rs.json')
+    if args.method == 'last_layer':
+        fn = os.path.join(args.output_dir, 'BertSoftmaxVariant_l'+str(args.num_hidden_layers)+'_rs.json')
     else:
-        fn = os.path.join(args.output_dir, 'BertCRFVariant_l'+args.method+'_rs.json')
+        fn = os.path.join(args.output_dir, 'BertSoftmaxVariant_'+args.method+'_rs.json')
 
     TS_WRITER.export_scalars_to_json(fn)
     TS_WRITER.close()

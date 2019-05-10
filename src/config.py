@@ -3,7 +3,7 @@ from pprint import pprint
 class Config:
     
     ## Required parameters
-    task_name = None
+    task_name = None  # MSR， PKU, AS, CITYU, ONTONOTES
     data_dir = None
     bert_config_file = None
     vocab_file = None

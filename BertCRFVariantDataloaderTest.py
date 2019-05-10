@@ -17,12 +17,12 @@ from src.pkuseg.metrics import getFscoreFromBIOTagList
 from tqdm import tqdm, trange
 from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma, load_4CWS
 import pandas as pd
-from src.config import args
-from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
+from config import args
+from preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
-from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
-from src.BERT.optimization import BertAdam
-from src.metrics import outputFscoreUsedBIO
+from utilis import get_dataset_and_dataloader, get_eval_dataloaders
+from BERT.optimization import BertAdam
+from metrics import outputFscoreUsedBIO
 
 import numpy as np
 import torch
@@ -338,8 +338,12 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
 
 def train_4CWS(args):
     processors = {
-        'ontonotes_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg']),
-        '4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
+        'ontonotes': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg']),
+        '4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'msr': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'pku': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'as': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'cityu': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
     }
 
     task_name = args.task_name.lower()
@@ -349,6 +353,16 @@ def train_4CWS(args):
     # Prepare model
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
+
+    args.data_dir += args.task_name
+
+    if args.method == 'last_layer':
+        args.output_dir += args.task_name + '/' + 'CRF/l' + str(args.num_hidden_layers)
+    else:
+        args.output_dir += args.task_name + '/' + 'CRF/' + args.method
+
+    os.system('mkdir %s' %args.output_dir)
+    os.system('chmod 777 %s' %args.output_dir)
 
     train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
 
@@ -424,7 +438,7 @@ def main(**kwargs):
     if args.method == 'last_layer':
         fn = os.path.join(args.output_dir, 'BertCRFVariant_l'+str(args.num_hidden_layers)+'_rs.json')
     else:
-        fn = os.path.join(args.output_dir, 'BertCRFVariant_l'+args.method+'_rs.json')
+        fn = os.path.join(args.output_dir, 'BertCRFVariant_'+args.method+'_rs.json')
 
     TS_WRITER.export_scalars_to_json(fn)
     TS_WRITER.close()
