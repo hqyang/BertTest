@@ -1122,7 +1122,7 @@ class BertCRFVariant(PreTrainedBertModel):
         bert_feats = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
 
         mask = attention_mask.byte()
-        loss = np.bert_feats
+        loss = bert_feats
 
         if labels is not None:
             loss = -self.classifier(bert_feats, labels, mask)
