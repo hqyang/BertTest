@@ -29,9 +29,14 @@ def savestat2file(data_stat, out_file):
     for part in parts:
         with open(out_file, 'a', encoding='utf-8') as f:
             f.writelines('Type: {:s}, num_lines: {:d}\n'.format(part, data_stat[part, 'line']))
-            f.writelines('Unique words: {:d}, Total words: {:d}, num_chi: {:d}, num_eng: {:d}, num_digit: {:d}\n'.format(
-                data_stat[part, 'unique_words'], data_stat[part, 'total_words'], data_stat[part, 'num_chi'],
+            f.writelines('Unique words: {:d}, num_chi: {:d}, num_eng: {:d}, num_digit: {:d}\n'.format(
+                data_stat[part, 'unique_words'], data_stat[part, 'num_chi'],
                 data_stat[part, 'num_eng'], data_stat[part, 'num_dig']))
+
+            f.writelines('Total words: {:d}, total Chi. words: {:d}, total Eng. words: {:d}, total digit: {:d}\n'.format(
+                data_stat[part, 'total_words'], data_stat[part, 'total_chi'],
+                data_stat[part, 'total_eng'], data_stat[part, 'total_dig']))
+
             f.writelines('Per sent.: max. words: {:d}, min. words: {:d}, mean words: {:.2f}\n'.format(
                 data_stat[part, 'max_words_per_sent'], data_stat[part, 'min_words_per_sent'],
                 data_stat[part, 'mean_words_per_sent']))
@@ -64,6 +69,9 @@ def count_stat_data(info_all):
     data_stat = {('test', 'num_eng'): 0, ('train', 'num_eng'): 0,
                  ('test', 'num_chi'): 0, ('train', 'num_chi'): 0,
                  ('test', 'num_dig'): 0, ('train', 'num_dig'): 0,
+                 ('test', 'total_eng'): 0, ('train', 'total_eng'): 0,
+                 ('test', 'total_chi'): 0, ('train', 'total_chi'): 0,
+                 ('test', 'total_dig'): 0, ('train', 'total_dig'): 0,
                  ('test', 'great126'): 0, ('train', 'great126'): 0,
                  ('test', 'great62'): 0, ('train', 'great62'): 0,
                  ('test', 'great30'): 0, ('train', 'great30'): 0,
@@ -93,6 +101,7 @@ def count_stat_data(info_all):
             for word in words:
                 if check_english_words(word):
                     data_count[part, 'len_words'].append(1)
+                    data_stat[part, 'total_eng'] += 1
 
                     store_chars[part].add(word)
 
@@ -100,7 +109,8 @@ def count_stat_data(info_all):
                         data_stat[part, 'num_eng'] += 1
                 elif is_number(word):
                     data_count[part, 'len_words'].append(len(word))
-                    
+                    data_stat[part, 'total_dig'] += 1
+
                     for w in word:
                         store_chars[part].add(w)
 
@@ -108,6 +118,7 @@ def count_stat_data(info_all):
                         data_stat[part, 'num_dig'] += 1
                 else: # non-English word/non-digit
                     data_count[part, 'len_words'].append(len(word))
+                    data_stat[part, 'total_chi'] += 1
 
                     if word not in store_dicts[part]:
                         data_stat[part, 'num_chi'] += 1
