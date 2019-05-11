@@ -17,20 +17,21 @@ from src.pkuseg.metrics import getFscoreFromBIOTagList
 from tqdm import tqdm, trange
 from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma, load_4CWS
 import pandas as pd
-from src.config import args
-from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
+from config import args
+from preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
-from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
-from src.BERT.optimization import BertAdam
-from src.metrics import outputFscoreUsedBIO
+from utilis import get_dataset_and_dataloader, get_eval_dataloaders
+from BERT.optimization import BertAdam
+from metrics import outputFscoreUsedBIO
 
 import numpy as np
 import torch
+from glob import glob
 import pdb
 import re
 
-from src.BERT.modeling import BertConfig
-from src.customize_modeling import BertSoftMax
+from BERT.modeling import BertConfig
+from customize_modeling import BertCRFVariant, BertSoftmaxVariant
 from tensorboardX import SummaryWriter
 
 import logging
@@ -42,10 +43,9 @@ logger = logging.getLogger(__name__)
 CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
-
 TS_WRITER = SummaryWriter()
 
-def load_BertSoftmax_model(label_list, args):
+def load_model(label_list, args):
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
             args.visible_device = str(args.visible_device)
@@ -90,8 +90,12 @@ def load_BertSoftmax_model(label_list, args):
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
     #model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
-    #model = BertClassifiersCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
-    model = BertSoftMax(bert_config, len(label_list))
+    models = {
+        'CRF': lambda: BertCRFVariant(bert_config, len(label_list), method=args.method),
+        'Softmax': lambda: BertSoftmaxVariant(bert_config, len(label_list), method=args.method),
+    }
+
+    model = models[args.classifier]()
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
@@ -170,7 +174,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
 
-            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e6))
+            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
 
             loss.backward()
             tr_loss += loss.item()
@@ -339,8 +343,12 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
 
 def train_4CWS(args):
     processors = {
-        'ontonotes_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg']),
-        '4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
+        'ontonotes': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg']),
+        '4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'msr': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'pku': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'as': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'cityu': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
     }
 
     task_name = args.task_name.lower()
@@ -351,6 +359,18 @@ def train_4CWS(args):
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
+    args.data_dir += args.task_name
+    print('data_dir: ' + args.data_dir)
+
+    if args.method == 'last_layer':
+        args.output_dir = args.output_dir + args.task_name + '/' + args.classifier + '/l' + str(args.num_hidden_layers)
+    else:
+        args.output_dir = args.output_dir + args.task_name + '/' + args.classifier + '/' + args.method
+
+    print('output_dir: ' + args.output_dir)
+    os.system('mkdir %s' %args.output_dir)
+    os.system('chmod 777 %s' %args.output_dir)
+
     train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
 
     eval_dataloaders = get_eval_dataloaders(processor, args)
@@ -360,7 +380,7 @@ def train_4CWS(args):
 
     no_decay = ['bias', 'gamma', 'beta']
 
-    model, device = load_BertSoftmax_model(label_list, args)
+    model, device = load_model(label_list, args)
 
     # Prepare optimizer
     if args.fp16:
@@ -373,8 +393,9 @@ def train_4CWS(args):
         #pdb.set_trace()
         param_optimizer = list(model.named_parameters())
 
-        #for param in model.bert.parameters():
-        #    param.requires_grad = False
+        if args.method != 'fine_tune':
+            for param in model.bert.parameters():
+                param.requires_grad = False
 
     optimizer_grouped_parameters = [
         {'params': [p for n, p in param_optimizer if n not in no_decay], 'weight_decay_rate': 0.01},
@@ -396,32 +417,44 @@ def set_server_eval_4CWS_param():
             'data_dir': '../data/CWS/BMES/MSR/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp/4CWS/MSR/Softmax',
+            'output_dir': './tmp/4CWS/MSR/CRF_BiLSTM_l1',
             'do_lower_case': True,
-            'train_batch_size': 32,
+            'train_batch_size': 256,
             'max_seq_length': 128,
-            'num_hidden_layers': 12,
+            'num_hidden_layers': 1,
             'init_checkpoint': '../models/bert-base-chinese/',
-            'visible_device': 1,
+            'visible_device': 2,
             'num_train_epochs': 10,
+            'bfinetune': False,
             'learning_rate': 1e-4,
             'override_output': True,
             }
 
 
-LOCAL_FLAG = False
-#LOCAL_FLAG = True
-#
-TEST_ONTONOTES = True
-#TEST_ONTONOTES = False
-#TEST_CWS = True
-TEST_CWS = False
+TEST_FLAG = False
 
-if __name__=='__main__':
-    kwargs = set_server_eval_4CWS_param()
+
+def main(**kwargs):
+    if TEST_FLAG:
+        kwargs = set_server_eval_4CWS_param()
+    else:
+        print('load parameters from .sh')
 
     args._parse(kwargs)
     train_4CWS(args)
 
-    TS_WRITER.export_scalars_to_json(os.path.join(args.output_dir, 'BertSoftmax_rs.json'))
+    if args.method == 'last_layer':
+        fn = os.path.join(args.output_dir, args.classifier + '_l' + str(args.num_hidden_layers) + '_rs.json')
+    else:
+        fn = os.path.join(args.output_dir, args.classifier + '_' + args.method + '_rs.json')
+
+    TS_WRITER.export_scalars_to_json(fn)
     TS_WRITER.close()
+
+
+if __name__=='__main__':
+    import fire
+    fire.Fire(main)
+
+
+

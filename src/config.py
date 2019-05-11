@@ -10,7 +10,6 @@ class Config:
     output_dir = None
     bert_model_dir = None
 
-
     ## Other parameters
     ##1.Basic tasks
     do_train = False
@@ -36,7 +35,8 @@ class Config:
     num_hidden_layers = 0
     projected_size = 6
     method = 'fine_tune' # 'last_layer', 'cat_last4', 'sum_last4', 'sum_all'
-    
+    classifier = 'Softmax'
+
     ##4.Devices
     no_cuda = False
     local_rank = -1
