@@ -89,7 +89,6 @@ def load_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    #model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
     models = {
         'CRF': lambda: BertCRFVariant(bert_config, len(label_list), method=args.method),
         'Softmax': lambda: BertSoftmaxVariant(bert_config, len(label_list), method=args.method),

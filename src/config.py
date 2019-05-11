@@ -35,7 +35,7 @@ class Config:
     num_hidden_layers = 0
     projected_size = 6
     method = 'fine_tune' # 'last_layer', 'cat_last4', 'sum_last4', 'sum_all'
-    classifier = 'Softmax'
+    classifier = 'Softmax' # 'CRF'
 
     ##4.Devices
     no_cuda = False
