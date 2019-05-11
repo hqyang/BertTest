@@ -1050,7 +1050,7 @@ class BertVariant(PreTrainedBertModel):
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_tags=4, method=None, fclassifer=None):
+    def __init__(self, config, num_tags=4, method=None, fclassifier=None):
         super(BertVariant, self).__init__(config)
         self.num_tags = num_tags
         self.method = method
@@ -1148,7 +1148,7 @@ class BertVariant(PreTrainedBertModel):
 
     def _decode_Softmax(self, logits, mask):
         # mask is a ByteTensor
-        
+
         batch_size, _ = mask.shape
 
         _, best_selected_tag = logits.max(dim=2)
