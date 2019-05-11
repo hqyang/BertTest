@@ -1084,7 +1084,6 @@ class BertVariant(PreTrainedBertModel):
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
 
-        mask = attention_mask.byte()
         if labels is None:
             raise RuntimeError('Input: labels, is missing!')
         else:
@@ -1096,6 +1095,7 @@ class BertVariant(PreTrainedBertModel):
 
         loss = logits
 
+        mask = attention_mask.byte()
         if labels is not None:
             loss = self._compute_loss(logits, mask, labels)
 
