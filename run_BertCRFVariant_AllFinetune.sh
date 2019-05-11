@@ -16,8 +16,9 @@ python BertCRFVariantDataloaderTest.py \
     --num_hidden_layers 12 \
     --train_batch_size 32 \
     --visible_device 0 \
-    --num_train_epochs 10
+    --num_train_epochs 30
 
 # --task_name PKU \ #  MSR \
 # --data_dir ../data/CWS/BMES/ # need add MSR/
 # --output_dir ./tmp/4CWS/ \  #need add MSR/CRF/fine_tune
+# small dataset lr = 2e-5

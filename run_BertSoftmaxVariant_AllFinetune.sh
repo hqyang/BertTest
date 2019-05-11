@@ -16,4 +16,4 @@ python BertSoftmaxVariantDataloaderTest.py \
     --num_hidden_layers 12 \
     --train_batch_size 32 \
     --visible_device 3 \
-    --num_train_epochs 10
+    --num_train_epochs 30

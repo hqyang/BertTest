@@ -11,9 +11,9 @@ python BertCRFVariantDataloaderTest.py \
     --max_seq_length 128 \
     --init_checkpoint ../models/bert-base-chinese\
     --override_output True \
-    --learning_rate 1e-4 \
+    --learning_rate 2e-5 \
     --method sum_last4 \
     --num_hidden_layers 12 \
     --train_batch_size 128 \
     --visible_device 2 \
-    --num_train_epochs 10
+    --num_train_epochs 30
