@@ -95,7 +95,7 @@ def load_model(label_list, args):
 #    }
 #    model = models[args.fclassifier]()
 
-    model = BertVariant(bert_config, len(label_list), method=args.method, fclassifier=args.fclassifer)
+    model = BertVariant(bert_config, len(label_list), method=args.method, fclassifier=args.fclassifier)
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')

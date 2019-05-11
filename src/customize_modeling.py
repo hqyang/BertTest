@@ -1084,10 +1084,11 @@ class BertVariant(PreTrainedBertModel):
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
 
+        mask = attention_mask.byte()
         if labels is None:
             raise RuntimeError('Input: labels, is missing!')
         else:
-            loss = _compute_loss(logits, attention_mask, labels)
+            loss = _compute_loss(logits, mask, labels)
         return loss
 
     def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
@@ -1096,13 +1097,12 @@ class BertVariant(PreTrainedBertModel):
         loss = logits
 
         if labels is not None:
-            loss = _compute_loss(logits, attention_mask, labels)
+            loss = _compute_loss(logits, mask, labels)
 
-        mask = attention_mask.byte()
         if self.fclassifier == 'CRF':
             best_tags_list = self.classifier.decode(bert_feats, mask)
         elif self.fclassifier == 'Softmax':
-            best_tags_list = _decode_Softmax(logits, attention_mask)
+            best_tags_list = _decode_Softmax(logits, mask)
 
         return loss, best_tags_list
 
@@ -1137,15 +1137,18 @@ class BertVariant(PreTrainedBertModel):
 
         return bert_feats
 
-    def _compute_loss(self, logits, attention_mask, labels):
+    def _compute_loss(self, logits, mask, labels):
+        # mask is a ByteTensor
+
         if self.fclassifier == 'Softmax':
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
         elif self.fclassifier == 'CRF':
-            mask = attention_mask.byte()
             loss = -self.classifier(bert_feats, labels, mask)
 
     def _decode_Softmax(self, logits, mask):
+        # mask is a ByteTensor
+        
         batch_size, _ = mask.shape
 
         _, best_selected_tag = logits.max(dim=2)
