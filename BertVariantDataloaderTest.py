@@ -89,12 +89,16 @@ def load_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    models = {
-        'CRF': lambda: BertCRFVariant(bert_config, len(label_list), method=args.method),
-        'Softmax': lambda: BertSoftmaxVariant(bert_config, len(label_list), method=args.method),
-    }
+#    models = {
+#        'CRF': lambda: BertCRFVariant(bert_config, len(label_list), method=args.method),
+#        'Softmax': lambda: BertSoftmaxVariant(bert_config, len(label_list), method=args.method),
+#    }
+#    model = models[args.classifier]()
 
-    model = models[args.classifier]()
+    if args.classifier == 'CRF':
+        BertCRFVariant(bert_config, len(label_list), method=args.method)
+    elif args.classifier == 'Softmax':
+        BertSoftmaxVariant(bert_config, len(label_list), method=args.method)
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
