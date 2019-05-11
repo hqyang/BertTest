@@ -1103,7 +1103,7 @@ class BertVariant(PreTrainedBertModel):
         if self.fclassifier == 'CRF':
             best_tags_list = self.classifier.decode(bert_feats, mask)
         elif self.fclassifier == 'Softmax':
-            best_tags_list = _decode_Softmax(logits, mask)
+            best_tags_list = self._decode_Softmax(logits, mask)
 
         return loss, best_tags_list
 
