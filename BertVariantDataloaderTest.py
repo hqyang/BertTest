@@ -31,7 +31,7 @@ import pdb
 import re
 
 from BERT.modeling import BertConfig
-from customize_modeling import BertCRFVariant, BertSoftmaxVariant
+from customize_modeling import BertVariant
 from tensorboardX import SummaryWriter
 
 import logging
@@ -95,10 +95,7 @@ def load_model(label_list, args):
 #    }
 #    model = models[args.classifier]()
 
-    if args.classifier == 'CRF':
-        BertCRFVariant(bert_config, len(label_list), method=args.method)
-    elif args.classifier == 'Softmax':
-        BertSoftmaxVariant(bert_config, len(label_list), method=args.method)
+    model = BertVariant(bert_config, len(label_list), method=args.method, fclassifier=args.fclassifer)
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')

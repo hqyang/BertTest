@@ -1043,39 +1043,68 @@ class BertClassifiersCWS(PreTrainedBertModel):
         #result_str += ' '  # separate bcz english issue
         # pre_word_is_english = cur_word_is_english
 
-
-class BertCRFVariant(PreTrainedBertModel):
+class BertVariant(PreTrainedBertModel):
     """Apply BERT fixed features with BiLSTM and CRF for Sequence Labeling.
 
-    model = BertCRFVariant(config, num_tags)
+    model = BertVariant(config, num_tags)
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_tags=4, method=None):
-        super(BertCRFVariant, self).__init__(config)
+    def __init__(self, config, num_tags=4, method=None, fclassifer=None):
+        super(BertVariant, self).__init__(config)
         self.num_tags = num_tags
         self.method = method
+        self.fclassifier = fclassifer
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
         if method == 'fine_tune':
-            # Maps the output of BERT into tag space.
-            self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
+            last_hidden_size = self.config.hidden_size
         elif method == 'cat_last4':
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
-            self.hidden2tag = nn.Linear(self.config.hidden_size*2, num_tags)
+            last_hidden_size = self.config.hidden_size*2
         else: # 'last_layer', 'sum_last4', 'sum_all', 'cat_last4'
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
-            self.hidden2tag = nn.Linear(self.config.hidden_size*2, num_tags)
+            last_hidden_size = self.config.hidden_size*2
 
-        self.classifier = CRF(num_tags, batch_first=True)
-        self.apply(self.init_bert_weights)
+        # Maps the output of BERT into tag space.
+        self.hidden2tag = nn.Linear(last_hidden_size, num_tags)
+
+        if self.fclassifier == 'CRF':
+            self.classifier = CRF(num_tags, batch_first=True)
+
+     self.apply(self.init_bert_weights)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
+        if labels is None:
+            raise RuntimeError('Input: labels, is missing!')
+        else:
+            loss = _compute_loss(logits, attention_mask, labels)
+        return loss
+
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
+        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
+        loss = logits
+
+        if labels is not None:
+            loss = _compute_loss(logits, attention_mask, labels)
+
+        mask = attention_mask.byte()
+        if self.fclassifier == 'CRF':
+            best_tags_list = self.classifier.decode(bert_feats, mask)
+        elif self.fclassifier == 'Softmax':
+            best_tags_list = _decode_Softmax(logits, attention_mask)
+
+        return loss, best_tags_list
 
     def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
         if self.method == 'last_layer' or self.method=='fine_tune':
@@ -1108,114 +1137,15 @@ class BertCRFVariant(PreTrainedBertModel):
 
         return bert_feats
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-        bert_feats = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
-
-        mask = attention_mask.byte()
-        if labels is not None:
-            loss = -self.classifier(bert_feats, labels, mask)
-            return loss
-        else:
-            raise RuntimeError('Input: labels, is missing!')
-
-    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-        bert_feats = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
-
-        mask = attention_mask.byte()
-        loss = bert_feats
-
-        if labels is not None:
-            loss = -self.classifier(bert_feats, labels, mask)
-
-        decode_rs = self.classifier.decode(bert_feats, mask)
-
-        return loss, decode_rs
-
-
-class BertSoftmaxVariant(PreTrainedBertModel):
-    """Apply BERT fixed features with BiLSTM and CRF for Sequence Labeling.
-
-    model = BertSoftmaxVariant(config, num_tags)
-    logits = model(input_ids, token_type_ids, input_mask)
-    ```
-    """
-    def __init__(self, config, num_tags=4, method=None):
-        super(BertSoftmaxVariant, self).__init__(config)
-        self.num_tags = num_tags
-        self.method = method
-        self.bert = BertModel(config)
-        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
-
-        if method == 'fine_tune':
-            # Maps the output of BERT into tag space.
-            self.classifier = nn.Linear(self.config.hidden_size, num_tags)
-        elif method == 'cat_last4':
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            self.classifier = nn.Linear(self.config.hidden_size*2, num_tags)
-        else: # 'last_layer', 'sum_last4', 'sum_all', 'cat_last4'
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            self.classifier = nn.Linear(self.config.hidden_size*2, num_tags)
-
-        #self.classifier = CRF(num_tags, batch_first=True)
-        self.apply(self.init_bert_weights)
-
-    def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
-        if self.method == 'last_layer' or self.method=='fine_tune':
-            output_all_encoded_layers = False
-        else:
-            output_all_encoded_layers = True
-
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
-
-        if self.method == 'sum_last4':
-            feat_used = self.dropout(sequence_output[-1])
-            for l in range(-2, -5, -1):
-                feat_used += self.dropout(sequence_output[l])
-        elif self.method == 'sum_all':
-            feat_used = self.dropout(sequence_output[-1])
-            for l in range(-2, -13, -1):
-                feat_used += self.dropout(sequence_output[l])
-        elif self.method == 'cat_last4':
-            feat_used = self.dropout(sequence_output[-4])
-            for l in range(-3, 0):
-                feat_used = torch.cat((feat_used, self.dropout(sequence_output[l])), 2)
-        else: # self.method == 'last_layer' or 'fine_tune'
-            feat_used = sequence_output
-            feat_used = self.dropout(feat_used)
-
-        if self.method != 'fine_tune':
-            feat_used, _ = self.biLSTM(feat_used)
-
-        bert_feats = self.classifier(feat_used)
-
-        return bert_feats
-
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
-
-        if labels is not None:
+    def _compute_loss(self, logits, attention_mask, labels):
+        if self.fclassifier == 'Softmax':
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
-            return loss
-        else:
-            raise RuntimeError('Input: labels, is missing!')
+        elif self.fclassifier == 'CRF':
+            mask = attention_mask.byte()
+            loss = -self.classifier(bert_feats, labels, mask)
 
-    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
-
-        loss = logits
-
-        if labels is not None:
-            loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
-
-        mask = attention_mask.byte()
+    def _decode_Softmax(self, logits, mask):
         batch_size, _ = mask.shape
 
         _, best_selected_tag = logits.max(dim=2)
@@ -1225,7 +1155,7 @@ class BertSoftmaxVariant(PreTrainedBertModel):
             selected_tag = torch.masked_select(best_selected_tag[n, :], mask[n, :])
             best_tags_list.append(selected_tag.tolist())
 
-        return loss, best_tags_list
+        return best_tags_list
 
     # depreciated due to too slow
     def decode_iter(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
