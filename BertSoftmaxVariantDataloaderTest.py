@@ -358,9 +358,9 @@ def train_4CWS(args):
     print('data_dir: ' + args.data_dir)
 
     if args.method == 'last_layer':
-        args.output_dir = args.output_dir + args.task_name + '/' + 'CRF/l' + str(args.num_hidden_layers)
+        args.output_dir = args.output_dir + args.task_name + '/' + 'Softmax/l' + str(args.num_hidden_layers)
     else:
-        args.output_dir = args.output_dir + args.task_name + '/' + 'CRF/' + args.method
+        args.output_dir = args.output_dir + args.task_name + '/' + 'Softmax/' + args.method
 
     print('output_dir: ' + args.output_dir)
     os.system('mkdir %s' %args.output_dir)
