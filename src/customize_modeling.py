@@ -1079,7 +1079,7 @@ class BertVariant(PreTrainedBertModel):
         if self.fclassifier == 'CRF':
             self.classifier = CRF(num_tags, batch_first=True)
 
-     self.apply(self.init_bert_weights)
+        self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
         logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
