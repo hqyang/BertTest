@@ -1,10 +1,11 @@
 #!/bin/sh
 
-python BertCRFVariantDataloaderTest.py \
+python BertVariantDataloaderTest.py \
     --task_name PKU \
     --model_type sequencelabeling \
     --data_dir ../data/CWS/BMES/ \
     --output_dir ./tmp/4CWS/ \
+    --classifier CRF \
     --bert_model_dir ../models/bert-base-chinese/ \
     --vocab_file ../models/bert-base-chinese/vocab.txt \
     --do_lower_case True \
