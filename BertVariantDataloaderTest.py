@@ -30,7 +30,11 @@ from glob import glob
 import pdb
 import re
 
-from BERT.modeling import BertConfig
+from src.BERT.modeling import BertConfig
+# here generate exeception of Parameter config in `BertVariant(config)` should be an instance of class
+# `BertConfig`. To create a model from a Google pretrained model use
+# `model = BertVariant.from_pretrained(PRETRAINED_MODEL_NAME)`
+
 from customize_modeling import BertVariant
 from tensorboardX import SummaryWriter
 
