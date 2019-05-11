@@ -178,7 +178,10 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
 
-            logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+            if args.fclassifier == 'Softmax':
+                logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
+            else:
+                logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
 
             loss.backward()
             tr_loss += loss.item()
@@ -211,7 +214,10 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         tr_loss = tr_loss / step
 
         TS_WRITER.add_text('Text', 'text logged at step:' + str(ep), ep)
-        TS_WRITER.add_scalar('data/tr_loss', tr_loss)
+        if args.fclassifier == 'Softmax':
+            TS_WRITER.add_scalar('data/tr_loss', tr_loss*1e5)
+        else:
+            TS_WRITER.add_scalar('data/tr_loss', tr_loss*1e5)
 
         if eval_dataloaders:
             rs = {}
@@ -229,7 +235,10 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                     TS_WRITER.add_scalar('data/train_time', rs['train'][0])
 
                 TS_WRITER.add_scalar('data/'+part+'_eval_time', rs[part][1])
-                TS_WRITER.add_scalar('data/'+part+'_eval_loss', rs[part][2]*1000)
+                if args.fclassifier == 'Softmax':
+                    TS_WRITER.add_scalar('data/'+part+'_eval_loss', rs[part][2]*1e5)
+                else:
+                    TS_WRITER.add_scalar('data/'+part+'_eval_loss', rs[part][2])
                 TS_WRITER.add_scalar('data/'+part+'_F1', rs[part][3])
                 TS_WRITER.add_scalar('data/'+part+'_P', rs[part][4])
                 TS_WRITER.add_scalar('data/'+part+'_R', rs[part][5])
@@ -326,6 +335,9 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
 
     np_loss = np.array(all_losses)
     avg_loss = np.mean(np_loss)
+
+    if args.fclassifier == 'Softmax':
+        avg_loss *= 1e5
 
     with open(output_eval_file, "a+") as writer:
         logger.info("***** Eval results *****")
