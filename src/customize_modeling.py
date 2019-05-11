@@ -1146,6 +1146,8 @@ class BertVariant(PreTrainedBertModel):
         elif self.fclassifier == 'CRF':
             loss = -self.classifier(bert_feats, labels, mask)
 
+        return loss
+
     def _decode_Softmax(self, logits, mask):
         # mask is a ByteTensor
 
