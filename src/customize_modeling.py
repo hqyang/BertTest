@@ -1054,7 +1054,7 @@ class BertVariant(PreTrainedBertModel):
         super(BertVariant, self).__init__(config)
         self.num_tags = num_tags
         self.method = method
-        self.fclassifier = fclassifer
+        self.fclassifier = fclassifier
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
