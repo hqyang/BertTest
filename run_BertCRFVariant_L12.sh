@@ -5,7 +5,7 @@ python BertVariantDataloaderTest.py \
     --model_type sequencelabeling \
     --data_dir ../data/CWS/BMES/ \
     --output_dir ./tmp/4CWS/ \
-    --classifier CRF \
+    --fclassifier CRF \
     --bert_model_dir ../models/bert-base-chinese/ \
     --vocab_file ../models/bert-base-chinese/vocab.txt \
     --do_lower_case True \
