@@ -1088,7 +1088,7 @@ class BertVariant(PreTrainedBertModel):
         if labels is None:
             raise RuntimeError('Input: labels, is missing!')
         else:
-            loss = _compute_loss(logits, mask, labels)
+            loss = self._compute_loss(logits, mask, labels)
         return loss
 
     def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
@@ -1097,7 +1097,7 @@ class BertVariant(PreTrainedBertModel):
         loss = logits
 
         if labels is not None:
-            loss = _compute_loss(logits, mask, labels)
+            loss = self._compute_loss(logits, mask, labels)
 
         if self.fclassifier == 'CRF':
             best_tags_list = self.classifier.decode(bert_feats, mask)
