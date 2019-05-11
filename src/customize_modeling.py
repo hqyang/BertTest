@@ -1101,7 +1101,7 @@ class BertVariant(PreTrainedBertModel):
             loss = self._compute_loss(logits, mask, labels)
 
         if self.fclassifier == 'CRF':
-            best_tags_list = self.classifier.decode(bert_feats, mask)
+            best_tags_list = self.classifier.decode(logits, mask)
         elif self.fclassifier == 'Softmax':
             best_tags_list = self._decode_Softmax(logits, mask)
 
@@ -1145,7 +1145,7 @@ class BertVariant(PreTrainedBertModel):
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
         elif self.fclassifier == 'CRF':
-            loss = -self.classifier(bert_feats, labels, mask)
+            loss = -self.classifier(logits, labels, mask)
 
         return loss
 
