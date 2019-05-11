@@ -93,7 +93,7 @@ def load_model(label_list, args):
 #        'CRF': lambda: BertCRFVariant(bert_config, len(label_list), method=args.method),
 #        'Softmax': lambda: BertSoftmaxVariant(bert_config, len(label_list), method=args.method),
 #    }
-#    model = models[args.classifier]()
+#    model = models[args.fclassifier]()
 
     model = BertVariant(bert_config, len(label_list), method=args.method, fclassifier=args.fclassifer)
 
@@ -363,9 +363,9 @@ def train_4CWS(args):
     print('data_dir: ' + args.data_dir)
 
     if args.method == 'last_layer':
-        args.output_dir = args.output_dir + args.task_name + '/' + args.classifier + '/l' + str(args.num_hidden_layers)
+        args.output_dir = args.output_dir + args.task_name + '/' + args.fclassifier + '/l' + str(args.num_hidden_layers)
     else:
-        args.output_dir = args.output_dir + args.task_name + '/' + args.classifier + '/' + args.method
+        args.output_dir = args.output_dir + args.task_name + '/' + args.fclassifier + '/' + args.method
 
     print('output_dir: ' + args.output_dir)
     os.system('mkdir %s' %args.output_dir)
