@@ -306,6 +306,7 @@ def main(**kwargs):
         for ckpt_file in ckpt_files:
             print('Predicting via ' + ckpt_file)
             wfn, ext = os.path.splitext(ckpt_file)
+            wfn_used = wfn.split('/')[-1]
 
             weights = torch.load(ckpt_file, map_location='cpu')
             try:
@@ -316,8 +317,9 @@ def main(**kwargs):
             for part in parts:
                 df = load_4CWS(os.path.join(args.data_dir, part+".tsv"))#get_Ontonotes(args.data_dir, part)
 
-                sfn = part + '_ft_' + args.fclassifier + '_' + wfn + '.txt'
-                dfn = part + '_ft_' + args.fclassifier + '_' + wfn + '_diff.txt'
+                sfn = part + '_ft_' + args.fclassifier + '_' + wfn_used + '.txt'
+                dfn = part + '_ft_' + args.fclassifier + '_' + wfn_used + '_diff.txt'
+
                 output_eval_file = os.path.join(output_dir, sfn)
                 output_diff_file = os.path.join(output_dir, dfn)
                 do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
