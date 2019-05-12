@@ -201,7 +201,7 @@ def load_4CWS(infile):
     # full_pos (chunk), ner, seg, text
     # need parameter inplace=True
     #df.drop(columns=['bert_ner', 'bert_seg', 'full_pos', 'src_ner'], inplace=True)
-    df.drop(columns=['bert_seg', 'src_ner'], inplace=True)
+    df.drop(columns=['bert_seg'], inplace=True)
 
     # change name to tag for consistently processing
     df.rename(columns={'src_seg': 'label'}, inplace=True)
