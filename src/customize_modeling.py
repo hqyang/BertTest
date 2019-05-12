@@ -1197,7 +1197,7 @@ class BertCWS(PreTrainedBertModel):
     logits = model(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64, fclassifier='Softmax'):
+    def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64, fclassifier='Softmax', method='fine_tune'):
         super(BertCWS, self).__init__(config)
         self.device = device
         self.batch_size = batch_size
@@ -1207,6 +1207,7 @@ class BertCWS(PreTrainedBertModel):
 
         self.num_tags = num_tags
         self.fclassifier = fclassifier
+        self.method = method
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
