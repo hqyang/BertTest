@@ -17,7 +17,7 @@ python eval.py \
     --method fine_tune \
     --num_hidden_layers 12 \
     --train_batch_size 32 \
-    --visible_device 3 \
+    --visible_device 0 \
 
 # --task_name PKU \ #  MSR \
 # --data_dir ../data/CWS/BMES/ # need add MSR/
