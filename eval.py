@@ -226,6 +226,7 @@ def set_server_param():
             'init_checkpoint': '../models/bert-base-chinese/',
             'max_seq_length': 128,
             'do_lower_case': True,
+            'do_eval_df': True, 
             'train_batch_size': 32,
             'method': 'fine_tune',
             'override_output': True,
@@ -273,7 +274,7 @@ def main(**kwargs):
         for fclassifier in fclassifiers:
             args.fclassifier = fclassifier
 
-            args.output_dir += dataset + args.fclassifier + '/rs/'
+            output_dir = args.output_dir + dataset + '/' + args.fclassifier + '/rs/'
             os.system('mkdir ' + args.output_dir)
             os.system('chmod 777 ' + args.output_dir)
 
@@ -322,8 +323,8 @@ def main(**kwargs):
 
                         sfn = wfn + part + '_ft_rs.txt'
                         dfn = wfn + part + '_ft_diff.txt'
-                        output_eval_file = os.path.join(args.output_dir, sfn)
-                        output_diff_file = os.path.join(args.output_dir, dfn)
+                        output_eval_file = os.path.join(output_dir, sfn)
+                        output_diff_file = os.path.join(output_dir, dfn)
                         do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
 
 
