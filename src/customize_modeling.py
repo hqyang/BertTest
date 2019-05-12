@@ -1301,35 +1301,6 @@ class BertCWS(PreTrainedBertModel):
 
         return best_tags_list
 
-    def _seg_text(self, words):#->str
-        input_ids, segment_ids, input_mask = tokenize_list(words, self.max_length, self.tokenizer)
-
-        input_ids_torch = torch.from_numpy(np.array([input_ids.tolist()])).to(self.device)
-        input_mask_torch = torch.from_numpy(np.array([input_mask.tolist()])).to(self.device)
-
-        sequence_output, _ = self.bert(input_ids_torch, input_mask_torch, output_all_encoded_layers=False)
-        sequence_output = self.dropout(sequence_output)
-        bert_feats = self.hidden2tag(sequence_output)
-
-        input_mask_byte = input_mask_torch.byte()
-        #  change input_mask_torch type to byte to avoid RuntimeError: _th_all is not implemented for type torch.LongTensor
-        #   in TorchCRF: no_empty_seq_bf = self.batch_first and mask[:, 0].all()
-        decode_rs = self.classifier.decode(bert_feats, input_mask_byte)
-        tmp_rs = ''.join(str(v) for v in decode_rs[0])
-
-        # tmp_rs[1:-1]: remove the start token and the end token
-        decode_output = tmp_rs[1:-1]
-
-
-        # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
-        #  i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
-
-        # replace the [START] and [END] tokens
-        decode_output = decode_output.replace('4', '3') # predict those wrong tokens as a separated word
-        decode_output = decode_output.replace('5', '3') #
-
-        return decode_output # a string
-
     def _seg_wordslist(self, lword):  # ->str
         # lword: list of words (list)
         # input_ids, segment_ids, input_mask = tokenize_list(
@@ -1341,7 +1312,7 @@ class BertCWS(PreTrainedBertModel):
         segment_ids_torch = torch.from_numpy(np.array(segment_ids)).to(self.device)
         input_masks_torch = torch.from_numpy(np.array(input_masks)).to(self.device)
 
-        decode_rs = self.decode(input_id_torch, segment_ids_torch, input_masks_torch)
+        _, decode_rs = self.decode(input_id_torch, segment_ids_torch, input_masks_torch)
 
         decode_output_list = []
         for rs in decode_rs:
@@ -1439,6 +1410,13 @@ class BertCWS(PreTrainedBertModel):
                 tt = text[idx]
                 tt = tt.replace('##', '')
                 ti = tag[idx]
+
+                try:
+                    int(ti)
+                except ValueError:
+                    print(ti + '\n')      # or whatever
+                    print(tag)
+
                 if int(ti) == 0:  # 'B'
                     result_str += ' ' + tt
                 elif int(ti) > 1:  # and (cur_word_is_english)
