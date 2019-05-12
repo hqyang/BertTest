@@ -270,12 +270,12 @@ def main(**kwargs):
     label_list = processor.get_labels() # get_labels
 
 
-    args.output_dir += dataset + '/' + args.fclassifier + '/rs/'
+    args.output_dir += args.task_name + '/' + args.fclassifier + '/rs/'
     os.system('mkdir ' + args.output_dir)
     os.system('chmod 777 ' + args.output_dir)
 
     # tmp/4CWS/PKU/rs
-    args.init_checkpoint = args.output_dir + dataset + '/' + args.fclassifier + '/' + args.method
+    args.init_checkpoint = args.output_dir + args.task_name + '/' + args.fclassifier + '/' + args.method
     print(args.init_checkpoint)
    
     model, device = load_model(label_list, args)
@@ -296,7 +296,7 @@ def main(**kwargs):
         {'params': [p for n, p in param_optimizer if n in no_decay], 'weight_decay_rate': 0.0}
         ]
 
-    eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, part='test')
+    #eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, part='test')
 
     global_step = 0
     if args.init_checkpoint is None:
