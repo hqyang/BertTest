@@ -259,7 +259,7 @@ def main(**kwargs):
 
 
     #for dataset in datasets:
-    args.data_dir += args.dataset
+    args.data_dir += args.task_name
 
     task_name = args.task_name.lower()
     if task_name not in processors:
