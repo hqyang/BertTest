@@ -270,8 +270,8 @@ def main(**kwargs):
     label_list = processor.get_labels() # get_labels
 
 
-    args.output_dir += args.task_name + '/' + args.fclassifier + '/rs/'
-    os.system('mkdir ' + args.output_dir)
+    output_dir = args.output_dir + args.task_name + '/' + args.fclassifier + '/rs/'
+    os.system('mkdir ' + output_dir)
     os.system('chmod 777 ' + args.output_dir)
 
     # tmp/4CWS/PKU/rs
@@ -319,8 +319,8 @@ def main(**kwargs):
 
                 sfn = wfn + part + '_ft_rs.txt'
                 dfn = wfn + part + '_ft_diff.txt'
-                output_eval_file = os.path.join(args.output_dir, sfn)
-                output_diff_file = os.path.join(args.output_dir, dfn)
+                output_eval_file = os.path.join(output_dir, sfn)
+                output_diff_file = os.path.join(output_dir, dfn)
                 do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
 
 
