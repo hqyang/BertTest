@@ -8,7 +8,7 @@ python eval.py \
     --fclassifier CRF \
     --bert_model_dir ../models/bert-base-chinese/ \
     --vocab_file ../models/bert-base-chinese/vocab.txt \
-    --do_eval_df: True \
+    --do_eval_df True \
     --do_lower_case True \
     --max_seq_length 128 \
     --init_checkpoint ../models/bert-base-chinese \
