@@ -236,7 +236,7 @@ def set_server_param():
 
 
 def main(**kwargs):
-    print('load initialized parameter from server' + args)
+    print('load initialized parameter from server')
     kwargs = set_server_param()
     args._parse(kwargs)
 
