@@ -226,23 +226,23 @@ def set_server_param():
             'init_checkpoint': '../models/bert-base-chinese/',
             'max_seq_length': 128,
             'do_lower_case': True,
-            'do_eval_df': True, 
+            'do_eval_df': True,
             'train_batch_size': 32,
             'method': 'fine_tune',
             'override_output': True,
-            'visible_device': 0,
+            'visible_device': 1,
             'num_hidden_layers': 12
             }
 
 
 def main(**kwargs):
-    print('load initialized parameter from server')
-    kwargs = set_server_param()
+    #print('load initialized parameter from server')
+    #kwargs = set_server_param()
     args._parse(kwargs)
 
-    datasets = ['PKU', 'MSR']
-    fclassifiers = ['CRF', 'Softmax']
-    parts = ['train', 'test']
+    #datasets = ['PKU', 'MSR']
+    #fclassifiers = ['CRF', 'Softmax']
+    #parts = ['train', 'test']
 
     #--num_hidden_layers 12 \
     #--train_batch_size 32 \
@@ -258,74 +258,70 @@ def main(**kwargs):
     }
 
 
-    for dataset in datasets:
-        args.task_name = dataset
-        args.data_dir += dataset
+    #for dataset in datasets:
+    args.data_dir += args.dataset
 
-        task_name = args.task_name.lower()
-        if task_name not in processors:
-            raise ValueError("Task not found: %s" % (task_name))
+    task_name = args.task_name.lower()
+    if task_name not in processors:
+        raise ValueError("Task not found: %s" % (task_name))
 
-        # Prepare model
-        processor = processors[task_name]()
-        label_list = processor.get_labels() # get_labels
+    # Prepare model
+    processor = processors[task_name]()
+    label_list = processor.get_labels() # get_labels
 
 
-        for fclassifier in fclassifiers:
-            args.fclassifier = fclassifier
+    args.output_dir += dataset + '/' + args.fclassifier + '/rs/'
+    os.system('mkdir ' + args.output_dir)
+    os.system('chmod 777 ' + args.output_dir)
 
-            output_dir = args.output_dir + dataset + '/' + args.fclassifier + '/rs/'
-            os.system('mkdir ' + args.output_dir)
-            os.system('chmod 777 ' + args.output_dir)
-
-            # tmp/4CWS/PKU/rs
-            args.init_checkpoint = args.output_dir + dataset + '/' + args.fclassifier + '/' + args.method
-            print(args.init_checkpoint)
+    # tmp/4CWS/PKU/rs
+    args.init_checkpoint = args.output_dir + dataset + '/' + args.fclassifier + '/' + args.method
+    print(args.init_checkpoint)
    
-            model, device = load_model(label_list, args)
+    model, device = load_model(label_list, args)
 
-            # Prepare optimizer
-            if args.fp16:
-                param_optimizer = [(n, param.clone().detach().to('cpu').float().requires_grad_()) \
-                                    for n, param in model.named_parameters()]
-            elif args.optimize_on_cpu:
-                param_optimizer = [(n, param.clone().detach().to('cpu').requires_grad_()) \
-                                    for n, param in model.named_parameters()]
-            else:
-                param_optimizer = list(model.named_parameters())
+    # Prepare optimizer
+    if args.fp16:
+        param_optimizer = [(n, param.clone().detach().to('cpu').float().requires_grad_()) \
+                            for n, param in model.named_parameters()]
+    elif args.optimize_on_cpu:
+        param_optimizer = [(n, param.clone().detach().to('cpu').requires_grad_()) \
+                            for n, param in model.named_parameters()]
+    else:
+        param_optimizer = list(model.named_parameters())
 
-            no_decay = ['bias', 'gamma', 'beta']
-            optimizer_grouped_parameters = [
-                {'params': [p for n, p in param_optimizer if n not in no_decay], 'weight_decay_rate': 0.01},
-                {'params': [p for n, p in param_optimizer if n in no_decay], 'weight_decay_rate': 0.0}
-                ]
+    no_decay = ['bias', 'gamma', 'beta']
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if n not in no_decay], 'weight_decay_rate': 0.01},
+        {'params': [p for n, p in param_optimizer if n in no_decay], 'weight_decay_rate': 0.0}
+        ]
 
-            eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, part='test')
+    eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, part='test')
 
-            global_step = 0
-            if args.init_checkpoint is None:
-                raise RuntimeError('Evaluating a random initialized model is not supported...!')
-            elif os.path.isdir(args.init_checkpoint):
-                ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
+    global_step = 0
+    if args.init_checkpoint is None:
+        raise RuntimeError('Evaluating a random initialized model is not supported...!')
+    elif os.path.isdir(args.init_checkpoint):
+        ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
 
-                for ckpt_file in ckpt_files:
-                    print('Predicting via ' + ckpt_file)
-                    wfn, ext = os.path.splitext(ckpt_file)
+        for ckpt_file in ckpt_files:
+            print('Predicting via ' + ckpt_file)
+            wfn, ext = os.path.splitext(ckpt_file)
 
-                    weights = torch.load(ckpt_file, map_location='cpu')
-                    try:
-                        model.load_state_dict(weights)
-                    except RuntimeError:
-                        model.module.load_state_dict(weights)
+            weights = torch.load(ckpt_file, map_location='cpu')
+            try:
+                model.load_state_dict(weights)
+            except RuntimeError:
+                model.module.load_state_dict(weights)
 
-                    for part in parts:
-                        df = get_Ontonotes(args.data_dir, part)
+            for part in parts:
+                df = get_Ontonotes(args.data_dir, part)
 
-                        sfn = wfn + part + '_ft_rs.txt'
-                        dfn = wfn + part + '_ft_diff.txt'
-                        output_eval_file = os.path.join(output_dir, sfn)
-                        output_diff_file = os.path.join(output_dir, dfn)
-                        do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
+                sfn = wfn + part + '_ft_rs.txt'
+                dfn = wfn + part + '_ft_diff.txt'
+                output_eval_file = os.path.join(args.output_dir, sfn)
+                output_diff_file = os.path.join(args.output_dir, dfn)
+                do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
 
 
 if __name__ == "__main__":
