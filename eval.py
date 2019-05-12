@@ -314,7 +314,7 @@ def main(**kwargs):
                 model.module.load_state_dict(weights)
 
             for part in parts:
-                df = get_Ontonotes(args.data_dir, part)
+                df = load_4CWS(os.path.join(args.data_dir, part+".tsv"))#get_Ontonotes(args.data_dir, part)
 
                 sfn = part + '_ft_' + args.fclassifier + '_' + wfn + '.txt'
                 dfn = part + '_ft_' + args.fclassifier + '_' + wfn + '_diff.txt'
