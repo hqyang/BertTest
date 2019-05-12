@@ -218,8 +218,7 @@ def do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file):
 
 
 def set_server_param():
-    return {
-            'model_type': 'sequencelabeling',
+    return {'model_type': 'sequencelabeling',
             'data_dir': '../data/CWS/BMES/',
             'output_dir': './tmp/CWS/',
             'bert_model_dir': '../models/bert-base-chinese/',
@@ -228,7 +227,7 @@ def set_server_param():
             'max_seq_length': 128,
             'do_lower_case': True,
             'train_batch_size': 32,
-            'method fine': 'fine_tune',
+            'method': 'fine_tune',
             'override_output': True,
             'visible_device': 0,
             'num_hidden_layers': 12
