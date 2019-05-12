@@ -12,6 +12,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
+sys.path.append('./src')
+
 import os
 import logging
 import random
