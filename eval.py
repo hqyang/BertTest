@@ -242,7 +242,7 @@ def main(**kwargs):
 
     #datasets = ['PKU', 'MSR']
     #fclassifiers = ['CRF', 'Softmax']
-    #parts = ['train', 'test']
+    parts = ['train', 'test']
 
     #--num_hidden_layers 12 \
     #--train_batch_size 32 \
@@ -269,8 +269,7 @@ def main(**kwargs):
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
-
-    output_dir = args.output_dir + args.task_name + '/' + args.fclassifier + '/rs/'
+    output_dir = args.output_dir + args.task_name + '/rs/'
     os.system('mkdir ' + output_dir)
     os.system('chmod 777 ' + args.output_dir)
 
@@ -317,8 +316,8 @@ def main(**kwargs):
             for part in parts:
                 df = get_Ontonotes(args.data_dir, part)
 
-                sfn = wfn + part + '_ft_rs.txt'
-                dfn = wfn + part + '_ft_diff.txt'
+                sfn = part + '_ft_' + args.fclassifier + '_' + wfn + '.txt'
+                dfn = part + '_ft_' + args.fclassifier + '_' + wfn + '_diff.txt'
                 output_eval_file = os.path.join(output_dir, sfn)
                 output_diff_file = os.path.join(output_dir, dfn)
                 do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
