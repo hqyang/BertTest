@@ -5,7 +5,7 @@ python eval.py \
     --model_type sequencelabeling \
     --data_dir ../data/CWS/BMES/ \
     --output_dir ./tmp/4CWS/ \
-    --fclassifier CRF \
+    --fclassifier Softmax \
     --bert_model_dir ../models/bert-base-chinese/ \
     --vocab_file ../models/bert-base-chinese/vocab.txt \
     --do_eval_df: True \
