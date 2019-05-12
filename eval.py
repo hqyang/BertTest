@@ -200,7 +200,7 @@ def do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file):
                 writer.write('{0}: {1} \n {2}\n'.format(idx, sentence, text_seg))
                 writer.write(bert_rs + '\n')
                 writer.write(tl + '\n')
-                writer.write(str_BIO, '\n\n')
+                writer.write(str_BIO + '\n\n')
 
     score, scoreInfo = getFscoreFromBIOTagList(trueLabelList, bertCRFList)
 
@@ -271,7 +271,7 @@ def main(**kwargs):
 
     output_dir = args.output_dir + args.task_name + '/rs/'
     os.system('mkdir ' + output_dir)
-    os.system('chmod 777 ' + args.output_dir)
+    os.system('chmod 777 ' + output_dir)
 
     # tmp/4CWS/PKU/rs
     args.init_checkpoint = args.output_dir + args.task_name + '/' + args.fclassifier + '/' + args.method
