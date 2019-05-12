@@ -34,10 +34,10 @@ from src.customize_modeling import BertCWS
 from src.BERT.optimization import BertAdam
 from src.pkuseg.metrics import getFscoreFromBIOTagList
 
-from src.preprocess import get_dataset_and_dataloader, randomly_mask_input, OntoNotesDataset, CWS_BMEO
+from src.preprocess import randomly_mask_input, OntoNotesDataset, CWS_BMEO
 from src.config import args
 from src.tokenization import FullTokenizer
-from src.utilis import save_model, get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma
+from src.utilis import get_dataset_and_dataloader, get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma
 
 
 CONFIG_NAME = 'bert_config.json'
