@@ -105,11 +105,12 @@ def list2BIOList(text_list, full_tokenizer, basic_tokenizer):
                 len_wl = len(wl)
 
                 src_seg = ['B'] + ['I'] * (len_text - 1)
+                bert_seg = ['B'] + ['I'] * (len_wl - 1) # different if the length of len_w!=len_wl
 
-            if len_text == len_wl or len_wl==1: # len_wl may be a string of numbers
-                bert_seg = src_seg
-            else:
-                bert_seg = ['B'] + ['I'] * (len_wl - 1)
+#            if len_text == len_wl or len_wl==1: # len_wl may be a string of numbers
+#                bert_seg = src_seg
+#            else:
+#                bert_seg = ['B'] + ['I'] * (len_wl - 1)
 
         if idx>1 and mode_status_list[idx-1] and mode_status_list[idx]:
             outText += ' ' + text
