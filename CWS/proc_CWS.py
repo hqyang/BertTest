@@ -10,7 +10,7 @@ Scenario:
 """
 import os
 import sys
-sys.path.append('..')
+sys.path.append('../src')
 import re
 import pandas as pd
 from src.tokenization import BasicTokenizer, FullTokenizer
