@@ -1143,8 +1143,11 @@ class BertVariant(PreTrainedBertModel):
         # mask is a ByteTensor
 
         if self.fclassifier == 'Softmax':
+            logits = torch.masked_select(logits, mask)
+            labels = torch.masked_select(labels, mask)
+
             loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1), mask.view(-1))
+            loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1))
         elif self.fclassifier == 'CRF':
             loss = -self.classifier(logits, labels, mask)
 
@@ -1280,6 +1283,9 @@ class BertCWS(PreTrainedBertModel):
         # mask is a ByteTensor
 
         if self.fclassifier == 'Softmax':
+            logits = torch.masked_select(logits, mask)
+            labels = torch.masked_select(labels, mask)
+
             loss_fct = nn.CrossEntropyLoss()
             loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1), mask.view(-1))
         elif self.fclassifier == 'CRF':
