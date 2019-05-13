@@ -189,7 +189,7 @@ def gen_data(in_file, out_file, tagType):
     # separate with \t
     df.to_csv(out_file, sep='\t', encoding='utf-8', index=False)
 
-    print('Finish writing generated '+tagType+' data!')
+    print('Finish writing generated '+tagType+' data in ' + out_file)
 
 def remove_u3000(infile, outfile):
     with open(infile, 'r', encoding='utf8') as f:
