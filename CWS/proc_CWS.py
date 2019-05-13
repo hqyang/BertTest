@@ -150,19 +150,17 @@ def list2BMESList(text_list, full_tokenizer, basic_tokenizer):
             else:
                 bert_seg = ['B'] + ['M'] * (len_wl - 2) + ['E']
         else: # Chinese or numerical
-            len_text = len(text)
-            wl = full_tokenizer.tokenize(text)
-            len_wl = len(wl)
+            len_w = len(text)
 
-            if len_text==1:
+            if len_w == 1: # only one character
                 src_seg = ['S']
-            else:
-                src_seg = ['B'] + ['M'] * (len_text - 2) + ['E']
+                bert_seg = src_seg # the same when there is no English
+            else: #multiple chars
+                wl = full_tokenizer.tokenize(text)
+                len_wl = len(wl)
 
-            if len_text == len_wl or len_wl==1: # len_wl may be a string of numbers
-                bert_seg = src_seg
-            else:
-                bert_seg = ['B'] + ['M'] * (len_wl - 2) + ['E']
+                src_seg = ['B'] + ['M'] * (len_w - 2) + ['E']
+                bert_seg = ['B'] + ['M'] * (len_wl - 2) + ['E'] # different if the length of len_w!=len_wl
 
         if idx>1 and mode_status_list[idx-1] and mode_status_list[idx]:
             outText += ' ' + text
@@ -172,7 +170,7 @@ def list2BMESList(text_list, full_tokenizer, basic_tokenizer):
         src_seg_List.extend(src_seg)
         bert_seg_list.extend(bert_seg)
 
-    return  outText, bert_seg_list, src_seg_List
+    return outText, bert_seg_list, src_seg_List
 
 def gen_data(in_file, out_file, tagType):
     with open(in_file, 'r', encoding='utf8') as f:
@@ -215,17 +213,15 @@ def batch_remove_u3000():
         outfile = outfile_dir + dt + '_test.tsv'
         remove_u3000(infile, outfile)
 
-def batch_gendata():
-    infile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
-    #infile_dir = '../../data/CWS/'
+def batch_gendata(inServer, tagType):
+    if inServer:
+        infile_dir = '../../data/CWS/'
+        outfile_dir = '../../data/CWS/'
+    else:
+        infile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
+        outfile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
+
     types = ['as', 'cityu', 'msr', 'pku']
-
-    tagType = 'BIO'
-    #tagType = 'BMES'
-    outfile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
-
-    #outfile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
-    #outfile_dir = '../../data/CWS/'
 
     outfile_dir += tagType + '/'
     os.makedirs(outfile_dir, exist_ok=True)
@@ -276,4 +272,9 @@ if __name__ == '__main__':
         outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/BIO/tmp_test.tsv'
         gen_data(infile, outfile, 'BIO')
     else:
-        batch_gendata()
+        inServer = False
+        tagTypes = ['BIO', 'BMES']
+        #tagTypes = ['BMES']
+
+        for tagType in tagTypes:
+            batch_gendata(inServer, tagType)
