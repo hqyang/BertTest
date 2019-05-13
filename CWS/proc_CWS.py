@@ -13,9 +13,9 @@ import sys
 sys.path.append('../src')
 import re
 import pandas as pd
-from src.tokenization import BasicTokenizer, FullTokenizer
+from tokenization import BasicTokenizer, FullTokenizer
 from tqdm import tqdm
-from src.utilis import check_english_words
+from utilis import check_english_words
 
 '''
 def check_English_words(word, basic_tokenizer):
@@ -272,7 +272,7 @@ if __name__ == '__main__':
         outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/BIO/tmp_test.tsv'
         gen_data(infile, outfile, 'BIO')
     else:
-        inServer = False
+        inServer = True
         tagTypes = ['BIO', 'BMES']
         #tagTypes = ['BMES']
 
