@@ -96,12 +96,14 @@ def list2BIOList(text_list, full_tokenizer, basic_tokenizer):
                 bert_seg = ['B'] + ['I'] * (len_wl - 1)
         else: # Chinese or numerical
             len_text = len(text)
-            wl = full_tokenizer.tokenize(text) # a list
-            len_wl = len(wl)
 
             if len_text==1:
                 src_seg = ['O']
-            else:
+                bert_seg = src_seg
+            else: #multiple chars
+                wl = full_tokenizer.tokenize(text)
+                len_wl = len(wl)
+
                 src_seg = ['B'] + ['I'] * (len_text - 1)
 
             if len_text == len_wl or len_wl==1: # len_wl may be a string of numbers
