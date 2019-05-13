@@ -1281,7 +1281,7 @@ class BertCWS(PreTrainedBertModel):
 
         if self.fclassifier == 'Softmax':
             loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1), mask.view(-1)
+            loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1), mask.view(-1))
         elif self.fclassifier == 'CRF':
             loss = -self.classifier(logits, labels, mask)
 
