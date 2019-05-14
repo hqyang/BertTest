@@ -91,7 +91,11 @@ def load_model(label_list, args):
         if not args.override_output:
             raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
         else:
-            os.system("rm %s" % os.path.join(args.output_dir, '*'))
+            #os.system("rm %s" % os.path.join(args.output_dir, '*'))
+            os.system('mkdir %s' % args.output_dir+'/old')
+            os.system('chmod 777 %s' % args.output_dir+'/old')
+            os.system('mv %s %s' % (os.path.join(args.output_dir, '*'), args.output_dir+'/old'))
+
 
 #    models = {
 #        'CRF': lambda: BertCRFVariant(bert_config, len(label_list), method=args.method),
