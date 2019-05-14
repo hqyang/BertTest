@@ -460,9 +460,9 @@ def main(**kwargs):
     train_4CWS(args)
 
     if args.method == 'last_layer':
-        fn = os.path.join(args.output_dir, args.classifier + '_l' + str(args.num_hidden_layers) + '_rs.json')
+        fn = os.path.join(args.output_dir, args.fclassifier + '_l' + str(args.num_hidden_layers) + '_rs.json')
     else:
-        fn = os.path.join(args.output_dir, args.classifier + '_' + args.method + '_rs.json')
+        fn = os.path.join(args.output_dir, args.fclassifier + '_' + args.method + '_rs.json')
 
     TS_WRITER.export_scalars_to_json(fn)
     TS_WRITER.close()
