@@ -105,9 +105,10 @@ def load_model(label_list, args):
             raise ValueError("Output directory ({}) already exists and is not empty.".format(args.output_dir))
         else:
             # os.system("rm %s" % os.path.join(args.output_dir, '*'))
-            os.system('mkdir %s' % args.output_dir+'/old')
-            os.system('chmod 777 %s' % args.output_dir+'/old')
-            os.system('mv %s %s' % (os.path.join(args.output_dir, '*'), args.output_dir+'/old'))
+            # os.system('mkdir %s' % args.output_dir+'/old')
+            # os.system('chmod 777 %s' % args.output_dir+'/old')
+            # os.system('mv %s %s' % (os.path.join(args.output_dir, '*'), args.output_dir+'/old'))
+            print(args.output_dir)
 
     model = BertCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list),
                     args.train_batch_size, args.fclassifier)
@@ -272,7 +273,7 @@ def main(**kwargs):
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
-    output_dir = args.output_dir + args.task_name + '/rs/'
+    output_dir = os.path.join(args.output_dir, args.task_name + '/rs/')
     os.system('mkdir ' + output_dir)
     os.system('chmod 777 ' + output_dir)
 
