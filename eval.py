@@ -277,7 +277,9 @@ def main(**kwargs):
     os.system('chmod 777 ' + output_dir)
 
     # tmp/4CWS/PKU/rs
-    args.init_checkpoint = args.output_dir + args.task_name + '/' + args.fclassifier + '/' + args.method
+    args.init_checkpoint = args.output_dir + args.task_name + '/' + args.fclassifier \
+                            + '/' + args.method + '/l' + str(args.num_hidden_layers)
+
     print(args.init_checkpoint)
    
     model, device = load_model(label_list, args)
