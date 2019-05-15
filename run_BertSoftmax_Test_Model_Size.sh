@@ -1,7 +1,9 @@
 #!/bin/sh
 
-for tn in PKU MSR do
-    for nhl in 1 3 6 do
+for tn in PKU MSR
+do
+    for nhl in 1 3 6
+    do
         python BertVariantDataloaderTest.py \
             --task_name $tn \
             --model_type sequencelabeling \
