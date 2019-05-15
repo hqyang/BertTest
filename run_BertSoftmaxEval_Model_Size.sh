@@ -19,7 +19,7 @@ do
         --method fine_tune \
         --num_hidden_layers $nhl \
         --train_batch_size 32 \
-        --visible_device 2 \
+        --visible_device 2 
 done
 # --task_name PKU \ #  MSR \
 # --data_dir ../data/CWS/BMES/ # need add MSR/
