@@ -1,9 +1,7 @@
 #!/bin/sh
 
-for tn in PKU MSR
-do
-    for nhl in 1 3 6 12
-    do
+for tn in PKU MSR do
+    for nhl in 1 3 6 12 do
         python BertVariantDataloaderTest.py \
             --task_name $tn \
             --model_type sequencelabeling \
@@ -20,7 +18,7 @@ do
             --method fine_tune \
             --num_hidden_layers $nhl \
             --train_batch_size 32 \
-            --visible_device 0 \
+            --visible_device 1 \
             --num_train_epochs 30
     done
 done
