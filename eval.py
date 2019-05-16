@@ -323,8 +323,8 @@ def main(**kwargs):
             for part in parts:
                 df = load_4CWS(os.path.join(args.data_dir, part+".tsv"))#get_Ontonotes(args.data_dir, part)
 
-                sfn = part + '_ft_' + args.fclassifier + '_' + wfn_used + '.txt'
-                dfn = part + '_ft_' + args.fclassifier + '_' + wfn_used + '_diff.txt'
+                sfn = part + '_ft_l' + args.num_hidden_layers + '_' + args.fclassifier + '_' + wfn_used + '.txt'
+                dfn = part + '_ft_l' + args.num_hidden_layers + '_' + args.fclassifier + '_' + wfn_used + '_diff.txt'
 
                 output_eval_file = os.path.join(output_dir, sfn)
                 output_diff_file = os.path.join(output_dir, dfn)
