@@ -93,7 +93,8 @@ def load_model(label_list, args):
         bert_config = BertConfig.from_json_file(args.bert_config_file)
     
     if args.num_hidden_layers>0 and args.num_hidden_layers<bert_config.num_hidden_layers:
-        bert_config.num_hidden_layers = args.num_hidden_layers 
+        bert_config.num_hidden_layers = args.num_hidden_layers
+        print('num_hidden_layers: ' + str(bert_config.num_hidden_layers))
 
     if args.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(
