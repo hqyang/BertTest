@@ -23,7 +23,7 @@ do
         --method fine_tune \
         --num_hidden_layers $1 \
         --train_batch_size $2 \
-        --visible_device 0
+        --visible_device 3
 done
 # --task_name PKU \ #  MSR \
 # --data_dir ../data/CWS/BMES/ # need add MSR/

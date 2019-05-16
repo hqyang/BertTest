@@ -7,7 +7,7 @@ do
         --model_type sequencelabeling \
         --data_dir ../data/CWS/BMES/ \
         --output_dir ./tmp/4CWS/ModelSize/ \
-        --fclassifier CRF \
+        --fclassifier Softmax \
         --bert_model_dir ../models/bert-base-chinese/ \
         --vocab_file ../models/bert-base-chinese/vocab.txt \
         --do_lower_case True \
@@ -18,7 +18,7 @@ do
         --method fine_tune \
         --num_hidden_layers $nhl \
         --train_batch_size 32 \
-        --visible_device 1 \
+        --visible_device 0 \
         --num_train_epochs 30
 done
 # --task_name PKU \ #  MSR \
