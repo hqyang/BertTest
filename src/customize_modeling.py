@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 import math
-from src.BERT.modeling import PreTrainedBertModel, BertModel
-from src.TorchCRF import CRF
-from src.preprocess import tokenize_text, tokenize_list
-from src.tokenization import FullTokenizer
+from .BERT.modeling import PreTrainedBertModel, BertModel
+from .TorchCRF import CRF
+from .preprocess import tokenize_text, tokenize_list
+from .tokenization import FullTokenizer
 import numpy as np
-from src.utilis import check_english_words, restore_unknown_tokens, append_to_buff, split_text_by_punc
+from .utilis import check_english_words, restore_unknown_tokens, append_to_buff, split_text_by_punc
 import re
 import pdb
 
