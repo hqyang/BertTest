@@ -16,6 +16,9 @@ import pandas as pd
 from tokenization import BasicTokenizer, FullTokenizer
 from tqdm import tqdm
 from utilis import check_english_words
+from opencc import OpenCC
+
+cc = OpenCC('t2s')
 
 '''
 def check_English_words(word, basic_tokenizer):
@@ -48,9 +51,9 @@ def preprocess2dict(sent, tagType, full_tokenizer, basic_tokenizer):
     #
     # Output:
     #  src_seg, text_str, text_seg, bert_seg
-
-    seg_list = sent.split()
-    text_seg = ' '.join(seg_list)
+    text_seg = cc.convert(sent)
+    seg_list = text_seg.split()
+    #text_seg = ' '.join(seg_list)
 
     model_type = {
             'BIO': list2BIOList,
@@ -83,6 +86,8 @@ def list2BIOList(text_list, full_tokenizer, basic_tokenizer):
     outText = ''
     for idx in range(len(text_list)):
         text = text_list[idx]
+        #text = cc.convert(text)
+
         src_seg = ''
         bert_seg = ''
         if mode_status_list[idx]: # English
@@ -142,6 +147,7 @@ def list2BMESList(text_list, full_tokenizer, basic_tokenizer):
     outText = ''
     for idx in range(len(text_list)):
         text = text_list[idx]
+        #text = cc.convert(text)
 
         if mode_status_list[idx]: # English
             src_seg = ['S']
@@ -224,18 +230,22 @@ def batch_gendata(inServer, tagType):
         infile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
         outfile_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/'
 
-    types = ['as', 'cityu', 'msr', 'pku']
+    datasets = ['as', 'cityu', 'msr', 'pku']
 
     outfile_dir += tagType + '/'
     os.makedirs(outfile_dir, exist_ok=True)
 
-    for dt in types:
+    for dt in datasets:
         infile = infile_dir + dt + '_train.tsv'
-        outfile = outfile_dir + dt + '_train.tsv'
+        output_dir_used = outfile_dir + dt + '/'
+        if not os.path.exists(output_dir_used):
+            os.makedirs(output_dir_used, exist_ok=True)
+
+        outfile = output_dir_used + 'train.tsv'
         gen_data(infile, outfile, tagType)
 
         infile = infile_dir + dt + '_test.tsv'
-        outfile = outfile_dir + dt + '_test.tsv'
+        outfile = output_dir_used+ 'test.tsv'
         gen_data(infile, outfile, tagType)
 
 TESTFLAG = False
@@ -276,6 +286,7 @@ if __name__ == '__main__':
         gen_data(infile, outfile, 'BIO')
     else:
         inServer = True
+        inServer = False
         tagTypes = ['BIO', 'BMES']
         #tagTypes = ['BMES']
 
