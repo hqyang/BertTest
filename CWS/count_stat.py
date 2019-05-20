@@ -15,47 +15,9 @@ import numpy as np
 import sys
 sys.path.append('../src')
 
-from utilis import check_english_words, is_number
+from src.utilis import count_words_in_part, count_data_stat_in_part, savestat2file, savewords
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
-
-
-def savestat2file(data_stat, out_file):
-    parts = ['train', 'test']
-
-    with open(out_file, 'a', encoding='utf-8') as f:
-        f.writelines('Total: num_lines: {:d}\n'.format(data_stat['train', 'line']+data_stat['test', 'line']))
-
-    for part in parts:
-        with open(out_file, 'a', encoding='utf-8') as f:
-            f.writelines('Type: {:s}, num_lines: {:d}\n'.format(part, data_stat[part, 'line']))
-            f.writelines('Unique words: {:d}, num_chi: {:d}, num_eng: {:d}, num_digit: {:d}\n'.format(
-                data_stat[part, 'unique_words'], data_stat[part, 'num_chi'],
-                data_stat[part, 'num_eng'], data_stat[part, 'num_dig']))
-
-            f.writelines('Total words: {:d}, total Chi. words: {:d}, total Eng. words: {:d}, total digit: {:d}\n'.format(
-                data_stat[part, 'total_words'], data_stat[part, 'total_chi'],
-                data_stat[part, 'total_eng'], data_stat[part, 'total_dig']))
-
-            f.writelines('Per sent.: max. words: {:d}, min. words: {:d}, mean words: {:.2f}\n'.format(
-                data_stat[part, 'max_words_per_sent'], data_stat[part, 'min_words_per_sent'],
-                data_stat[part, 'mean_words_per_sent']))
-
-            f.writelines('Per word.: max. len: {:d}, min. len: {:d}, mean len: {:.3f}\n'.format(
-                data_stat[part, 'max_len_per_word'], data_stat[part, 'min_len_per_word'],
-                data_stat[part, 'mean_len_per_word']))
-
-            f.writelines('num (>126): {:d}, num (126<>62): {:d}, num (62<>30): {:d}, num (<30): {:d}\n'.format(
-                data_stat[part, 'great126'], data_stat[part, 'great62'],
-                data_stat[part, 'great30'], data_stat[part, 'less30']))
-
-            f.writelines('\n')
-
-    with open(out_file, 'a', encoding='utf-8') as f:
-        f.writelines('num_oov_test: {:d}, ratio_oov_test: {:.3f}\n'.format(
-            data_stat['oov_test'], data_stat['ratio_oov_test']))
-
-        f.writelines('num_oov_char_test: {:d}'.format(data_stat['oov_char_test']))
 
 
 def count_stat_data(info_all):
@@ -63,23 +25,37 @@ def count_stat_data(info_all):
 
     parts = ['train', 'test']
 
-    data_count = {('test', 'num_words'): [], ('train', 'num_words'): [],
-                   ('test', 'len_words'): [], ('train', 'len_words'): []}
+    data_count = {('test', 'num_words_in_sent'): [], ('train', 'num_words_in_sent'): [],
+                   ('test', 'num_chars_in_word'): [], ('train', 'num_chars_in_word'): []}
 
-    data_stat = {('test', 'num_eng'): 0, ('train', 'num_eng'): 0,
-                 ('test', 'num_chi'): 0, ('train', 'num_chi'): 0,
-                 ('test', 'num_dig'): 0, ('train', 'num_dig'): 0,
-                 ('test', 'total_eng'): 0, ('train', 'total_eng'): 0,
-                 ('test', 'total_chi'): 0, ('train', 'total_chi'): 0,
-                 ('test', 'total_dig'): 0, ('train', 'total_dig'): 0,
+    data_stat = {
+                 ('test', 'total_eng_words'): 0, ('train', 'total_eng_words'): 0,
+                 ('test', 'total_chi_words'): 0, ('train', 'total_chi_words'): 0,
+                 ('test', 'total_dig_words'): 0, ('train', 'total_dig_words'): 0,
+                 ('test', 'total_eng_chars'): 0, ('train', 'total_eng_chars'): 0,
+                 ('test', 'total_chi_chars'): 0, ('train', 'total_chi_chars'): 0,
+                 ('test', 'total_dig_chars'): 0, ('train', 'total_dig_chars'): 0,
                  ('test', 'great126'): 0, ('train', 'great126'): 0,
                  ('test', 'great62'): 0, ('train', 'great62'): 0,
                  ('test', 'great30'): 0, ('train', 'great30'): 0,
-                 ('test', 'less30'): 0, ('train', 'less30'): 0
-                 }
+                 ('test', 'less30'): 0, ('train', 'less30'): 0,
+        # The following stat is computed by len(store_dicts(x, x))
+        # ('test', 'unique_eng_words'): 0, ('train', 'unique_eng_words'): 0,
+        # ('test', 'unique_chi_words'): 0, ('train', 'unique_chi_words'): 0,
+        # ('test', 'unique_dig_words'): 0, ('train', 'unique_dig_words'): 0,
 
-    store_dicts = {'test': set(), 'train': set()}
-    store_chars = {'test': set(), 'train': set()}
+        # This stat is computed via len(store_chi_chars(x))
+        # ('test', 'unique_chi_chars'): 0, ('train', 'unique_chi_chars'): 0,
+    }
+
+    # store_dict: store the unique English words, Chinese words, and numeric
+    store_dicts = {('test', 'eng'): set(), ('train', 'eng'): set(),
+                   ('test', 'chi'): set(), ('train', 'chi'): set(),
+                   ('test', 'dig'): set(), ('train', 'dig'): set(),
+                   }
+
+    # store_chars: store the unique English words, Chinese chars, and numeric chars
+    store_chi_chars = {'test': set(), 'train': set()}
 
     for part in parts:
         data_stat[part, 'line'] = len(info_all[part, 'sent'])
@@ -87,69 +63,24 @@ def count_stat_data(info_all):
         for line in tqdm(info_all[part, 'sent']):
             words = line.split()
 
-            data_count[part, 'num_words'].append(len(words))
+            count_words_in_part(words, part, data_stat, data_count, store_dicts, store_chi_chars)
 
-            if len(words)>=126:
-                data_stat[part, 'great126'] += 1
-            elif len(words)>=62:
-                data_stat[part, 'great62'] += 1
-            elif len(words)>=30:
-                data_stat[part, 'great30'] += 1
-            else:
-                data_stat[part, 'less30'] += 1
+        count_data_stat_in_part(data_count, part, store_dicts, store_chi_chars, data_stat)
 
-            for word in words:
-                if check_english_words(word):
-                    data_count[part, 'len_words'].append(1)
-                    data_stat[part, 'total_eng'] += 1
+    categories = ['chi', 'dig', 'eng']
 
-                    store_chars[part].add(word)
+    set_diff_test = set()
 
-                    if word not in store_dicts[part]:
-                        data_stat[part, 'num_eng'] += 1
-                elif is_number(word):
-                    data_count[part, 'len_words'].append(len(word))
-                    data_stat[part, 'total_dig'] += 1
+    for cat_gor in categories:
+        set_diff_test = set_diff_test.union(store_dicts['test', cat_gor] - store_dicts['train', cat_gor])
 
-                    for w in word:
-                        store_chars[part].add(w)
-
-                    if word not in store_dicts[part]:
-                        data_stat[part, 'num_dig'] += 1
-                else: # non-English word/non-digit
-                    data_count[part, 'len_words'].append(len(word))
-                    data_stat[part, 'total_chi'] += 1
-
-                    if word not in store_dicts[part]:
-                        data_stat[part, 'num_chi'] += 1
-
-                    for w in word:
-                        store_chars[part].add(w)
-
-                store_dicts[part].add(word)
-
-        np_sents = np.array(data_count[part, 'num_words'])
-        data_stat[part, 'total_words'] = np_sents.sum()
-        data_stat[part, 'max_words_per_sent'] = np_sents.max()
-        data_stat[part, 'min_words_per_sent'] = np_sents.min()
-        data_stat[part, 'mean_words_per_sent'] = np_sents.mean()
-
-        np_words = np.array(data_count[part, 'len_words'])
-        data_stat[part, 'max_len_per_word'] = np_words.max()
-        data_stat[part, 'min_len_per_word'] = np_words.min()
-        data_stat[part, 'mean_len_per_word'] = np_words.mean()
-
-        data_stat[part, 'unique_words'] = len(store_dicts[part])
-        data_stat[part, 'unique_chars'] = len(store_chars[part])
-
-    set_diff_test = store_dicts['test'] - store_dicts['train']
     data_stat['oov_test'] = len(set_diff_test)
-    data_stat['ratio_oov_test'] = len(set_diff_test) * 1. / len(store_dicts['train'])
+    data_stat['ratio_oov_test'] = len(set_diff_test) * 1. / data_stat['train', 'unique_words']
 
-    set_diff_char_test = store_chars['test'] - store_chars['train']
-    data_stat['oov_char_test'] = len(set_diff_char_test)
+    #set_diff_char_test = store_chars['test'] - store_chars['train']
+    #data_stat['oov_char_test'] = len(set_diff_char_test)
 
-    return data_stat
+    return data_stat, store_chi_chars, store_dicts
 
 
 def list_and_stat_docs(data_dir, out_dir):
@@ -170,10 +101,11 @@ def list_and_stat_docs(data_dir, out_dir):
         #with Pool(cpu_count()) as p:
         #data_stat = p.start_new_thread(count_stat_data, info_all)
 
-        data_stat = count_stat_data(info_all)
+        data_stat, store_chi_chars, store_dicts = count_stat_data(info_all)
         print(data_stat)
 
-        savestat2file(data_stat, out_file)
+        savestat2file(data_stat, out_file, parts)
+        savewords(store_dicts, out_dir, parts, dataset)
 # end listdocs
 
 

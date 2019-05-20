@@ -18,7 +18,7 @@ import numpy as np
 
 import sys
 sys.path.append('../src')
-from utilis import check_english_words, is_number
+from src.utilis import count_words_in_part, count_data_stat_in_part, savestat2file, savewords
 
 Sentence = namedtuple("Sentence", "words tags")
 
@@ -119,38 +119,38 @@ def which_part(domain, source, filename):
     else:
         return 'train'
 
+if 0:
+    def savestat2file(stat, data_stat, out_file):
+        parts = ['train', 'dev', 'test']
 
-def savestat2file(stat, data_stat, out_file):
-    parts = ['train', 'dev', 'test']
+        with open(out_file, 'w', encoding='utf-8') as f:
+            f.writelines('Total: num_docs: {:d}, num_lines: {:d}\n\n'.format(
+                stat['train', 'file']+stat['dev', 'file']+stat['test', 'file'],
+                stat['train', 'line']+stat['dev', 'line']+stat['test', 'line']))
 
-    with open(out_file, 'w', encoding='utf-8') as f:
-        f.writelines('Total: num_docs: {:d}, num_lines: {:d}\n\n'.format(
-            stat['train', 'file']+stat['dev', 'file']+stat['test', 'file'],
-            stat['train', 'line']+stat['dev', 'line']+stat['test', 'line']))
+        for part in parts:
+            with open(out_file, 'a', encoding='utf-8') as f:
+                f.writelines('Type: {:s}\nnum_docs: {:d}, num_lines: {:d}, avg. lines per doc: {:.3f}\n'.format(part,
+                                    stat[part, 'file'], stat[part, 'line'], stat[part, 'line']*1./stat[part, 'file']))
+                f.writelines('Unique words: {:d}, Total words: {:d}, num_chi: {:d}, num_eng: {:d}, num_digit: {:d}\n'.format(
+                    data_stat[part, 'unique_words'], data_stat[part, 'total_words'], data_stat[part, 'num_chi'],
+                    data_stat[part, 'num_eng'], data_stat[part, 'num_dig']))
+                f.writelines('per sent.: max. words: {:d}, min. words: {:d}, mean words: {:.3f}\n'.format(
+                    data_stat[part, 'max_words_per_sent'], data_stat[part, 'min_words_per_sent'], data_stat[part, 'mean_words_per_sent']))
 
-    for part in parts:
+                f.writelines('per word: max. len: {:d}, min. len: {:d}, mean len: {:.3f}\n'.format(
+                    data_stat[part, 'max_len_per_word'], data_stat[part, 'min_len_per_word'], data_stat[part, 'mean_len_per_word']))
+
+                f.writelines('unique character: {:d}\n'.format(data_stat[part, 'unique_chars']))
+
+                f.writelines('\n')
+
         with open(out_file, 'a', encoding='utf-8') as f:
-            f.writelines('Type: {:s}\nnum_docs: {:d}, num_lines: {:d}, avg. lines per doc: {:.3f}\n'.format(part,
-                                stat[part, 'file'], stat[part, 'line'], stat[part, 'line']*1./stat[part, 'file']))
-            f.writelines('Unique words: {:d}, Total words: {:d}, num_chi: {:d}, num_eng: {:d}, num_digit: {:d}\n'.format(
-                data_stat[part, 'unique_words'], data_stat[part, 'total_words'], data_stat[part, 'num_chi'],
-                data_stat[part, 'num_eng'], data_stat[part, 'num_dig']))
-            f.writelines('per sent.: max. words: {:d}, min. words: {:d}, mean words: {:.3f}\n'.format(
-                data_stat[part, 'max_words_per_sent'], data_stat[part, 'min_words_per_sent'], data_stat[part, 'mean_words_per_sent']))
+            f.writelines('num_oov_dev: {:d}, num_oov_test: {:d}, ratio_oov_dev: {:.3f}, ratio_oov_test: {:.3f}\n'.format(
+                data_stat['oov_dev'], data_stat['oov_test'], data_stat['ratio_oov_dev'], data_stat['ratio_oov_test']))
 
-            f.writelines('per word: max. len: {:d}, min. len: {:d}, mean len: {:.3f}\n'.format(
-                data_stat[part, 'max_len_per_word'], data_stat[part, 'min_len_per_word'], data_stat[part, 'mean_len_per_word']))
-
-            f.writelines('unique character: {:d}\n'.format(data_stat[part, 'unique_chars']))
-
-            f.writelines('\n')
-
-    with open(out_file, 'a', encoding='utf-8') as f:
-        f.writelines('num_oov_dev: {:d}, num_oov_test: {:d}, ratio_oov_dev: {:.3f}, ratio_oov_test: {:.3f}\n'.format(
-            data_stat['oov_dev'], data_stat['oov_test'], data_stat['ratio_oov_dev'], data_stat['ratio_oov_test']))
-
-        f.writelines('num_oov_char_dev: {:d}, num_oov_char_test: {:d}'.format(
-            data_stat['oov_char_dev'], data_stat['oov_char_test']))
+            f.writelines('num_oov_char_dev: {:d}, num_oov_char_test: {:d}'.format(
+                data_stat['oov_char_dev'], data_stat['oov_char_test']))
 
 
 def savefilenamelist(info_all, out_dir):
@@ -169,70 +169,71 @@ def count_stat_data(info_all):
 
     parts = ['train', 'dev', 'test']
 
-    data_count = {('dev', 'num_words'): [], ('test', 'num_words'): [], ('train', 'num_words'): [],
-                  ('dev', 'len_words'): [], ('test', 'len_words'): [], ('train', 'len_words'): []}
+    data_count = {('train', 'num_words_in_sent'): [], ('train', 'num_chars_in_word'): [],
+                  ('test', 'num_words_in_sent'): [],  ('test', 'num_chars_in_word'): [],
+                  ('dev', 'num_words_in_sent'): [],  ('dev', 'num_chars_in_word'): [],
+                  }
 
-    data_stat = {('dev', 'num_eng'): 0, ('test', 'num_eng'): 0, ('train', 'num_eng'): 0,
-                  ('dev', 'num_chi'): 0, ('test', 'num_chi'): 0, ('train', 'num_chi'): 0}
+    data_stat = {
+                 ('test', 'total_eng_words'): 0,  ('test', 'total_chi_words'): 0,
+                 ('test', 'total_dig_words'): 0,  ('test', 'total_eng_chars'): 0,
+                 ('test', 'total_chi_chars'): 0,  ('test', 'total_dig_chars'): 0,
+                 ('train', 'total_eng_words'): 0, ('train', 'total_chi_words'): 0,
+                 ('train', 'total_dig_words'): 0, ('train', 'total_eng_chars'): 0,
+                 ('train', 'total_chi_chars'): 0, ('train', 'total_dig_chars'): 0,
+                 ('dev', 'total_eng_words'): 0,   ('dev', 'total_chi_words'): 0,
+                 ('dev', 'total_dig_words'): 0,   ('dev', 'total_eng_chars'): 0,
+                 ('dev', 'total_chi_chars'): 0,   ('dev', 'total_dig_chars'): 0,
+                 ('test', 'great126'): 0,  ('test', 'great62'): 0,
+                 ('test', 'great30'): 0,   ('test', 'less30'): 0,
+                 ('train', 'great126'): 0, ('train', 'great62'): 0,
+                 ('train', 'great30'): 0,  ('train', 'less30'): 0,
+                 ('dev', 'great126'): 0,   ('dev', 'great62'): 0,
+                 ('dev', 'great30'): 0,    ('dev', 'less30'): 0,
+        # The following stat is computed by len(store_dicts(x, x))
+        # ('test', 'unique_eng_words'): 0, ('train', 'unique_eng_words'): 0,
+        # ('test', 'unique_chi_words'): 0, ('train', 'unique_chi_words'): 0,
+        # ('test', 'unique_dig_words'): 0, ('train', 'unique_dig_words'): 0,
 
-    store_words = {'dev': set(), 'test': set(), 'train': set()}
-    store_chars = {'dev': set(), 'test': set(), 'train': set()}
+        # This stat is computed via len(store_chi_chars(x))
+        # ('test', 'unique_chi_chars'): 0, ('train', 'unique_chi_chars'): 0,
+    }
+
+    store_dicts = {('test', 'eng'): set(), ('test', 'chi'): set(), ('test', 'dig'): set(),
+                   ('train', 'eng'): set(), ('train', 'chi'): set(), ('train', 'dig'): set(),
+                   ('dev', 'eng'): set(), ('dev', 'chi'): set(), ('dev', 'dig'): set(),
+                   }
+
+    store_chi_chars = {'dev': set(), 'test': set(), 'train': set()}
 
     for part in parts:
         for line in info_all[part, 'sent']:
             words = line.split()
+            count_words_in_part(words, part, data_stat, data_count, store_dicts, store_chi_chars)
 
-            data_count[part, 'num_words'].append(len(words))
+        count_data_stat_in_part(data_count, part, store_dicts, store_chi_chars, data_stat)
 
-            for word in words:
-                store_words[part].add(word)
+    categories = ['chi', 'dig', 'eng']
 
-                if check_english_words(word):
-                    data_count[part, 'len_words'].append(1)
-                    data_stat[part, 'num_eng'] += 1
-                    store_chars[part].add(word)
-                elif is_number(word):
-                    data_count[part, 'len_words'].append(len(word))
+    set_diff_dev = set()
+    set_diff_test = set()
 
-                    for w in word:
-                        store_chars[part].add(w)
+    for cat_gor in categories:
+        set_diff_dev = set_diff_dev.union(store_dicts['dev', cat_gor] - store_dicts['dev', cat_gor])
+        set_diff_test = set_diff_test.union(store_dicts['test', cat_gor] - store_dicts['train', cat_gor])
 
-                    if word not in store_dicts[part]:
-                        data_stat[part, 'num_dig'] += 1
-                else: # non-English word/non-digit
-                    data_count[part, 'len_words'].append(len(word))
-                    data_stat[part, 'num_chi'] += 1
-
-                    for w in word:
-                        store_chars[part].add(w)
-
-        np_sents = np.array(data_count[part, 'num_words'])
-        data_stat[part, 'total_words'] = np_sents.sum()
-        data_stat[part, 'max_words_per_sent'] = np_sents.max()
-        data_stat[part, 'min_words_per_sent'] = np_sents.min()
-        data_stat[part, 'mean_words_per_sent'] = np_sents.mean()
-
-        np_words = np.array(data_count[part, 'len_words'])
-        data_stat[part, 'max_len_per_word'] = np_words.max()
-        data_stat[part, 'min_len_per_word'] = np_words.min()
-        data_stat[part, 'mean_len_per_word'] = np_words.mean()
-
-        data_stat[part, 'unique_words'] = len(store_words[part])
-        data_stat[part, 'unique_chars'] = len(store_chars[part])
-
-    set_diff_dev = store_words['dev'] - store_words['train']
-    set_diff_test = store_words['test'] - store_words['train']
     data_stat['oov_dev'] = len(set_diff_dev)
     data_stat['oov_test'] = len(set_diff_test)
-    data_stat['ratio_oov_dev'] = len(set_diff_dev) * 1. / len(store_words['train'])
-    data_stat['ratio_oov_test'] = len(set_diff_test) * 1. / len(store_words['train'])
+    data_stat['ratio_oov_dev'] = len(set_diff_dev) * 1. / data_stat['train', 'unique_words']
+    data_stat['ratio_oov_test'] = len(set_diff_test) * 1. / data_stat['train', 'unique_words']
 
-    set_diff_char_dev = store_chars['dev'] - store_chars['train']
-    set_diff_char_test = store_chars['test'] - store_chars['train']
-    data_stat['oov_char_dev'] = len(set_diff_char_dev)
-    data_stat['oov_char_test'] = len(set_diff_char_test)
+    if 0:
+        set_diff_char_dev = store_chars['dev'] - store_chars['train']
+        set_diff_char_test = store_chars['test'] - store_chars['train']
+        data_stat['oov_char_dev'] = len(set_diff_char_dev)
+        data_stat['oov_char_test'] = len(set_diff_char_test)
 
-    return data_stat, store_chars, store_words
+    return data_stat, store_chi_chars, store_dicts
 
 
 def savechars(store_chars, out_dir):
@@ -243,17 +244,6 @@ def savechars(store_chars, out_dir):
 
         with open(out_file, 'w', encoding='utf-8') as f:
             for ch in store_chars[part]:
-                f.writelines(ch+'\n')
-
-
-def savewords(store_words, out_dir):
-    parts = ['train', 'dev', 'test']
-
-    for part in parts:
-        out_file = os.path.join(out_dir, part+'_words.txt')
-
-        with open(out_file, 'w', encoding='utf-8') as f:
-            for ch in store_words[part]:
                 f.writelines(ch+'\n')
 
 
@@ -309,13 +299,17 @@ def list_and_stat_docs(anno_dir, out_dir):
         print('finish d', domain)
 
     print(stat)
-    data_stat, store_chars, store_words = count_stat_data(info_all)
+    data_stat, store_chi_chars, store_dicts = count_stat_data(info_all)
     print(data_stat)
 
-    savestat2file(stat, data_stat, out_file)
+    parts = ['train', 'dev', 'test']
+    for part in parts:
+        data_stat[part, 'line'] = stat[part, 'line']
+
+    savestat2file(data_stat, out_file, parts)
     savefilenamelist(info_all, out_dir)
-    savechars(store_chars, out_dir)
-    savewords(store_words, out_dir)
+    #savechars(store_chars, out_dir)
+    savewords(store_dicts, out_dir, parts, 'ontonotes')
 
 # end listdocs
 

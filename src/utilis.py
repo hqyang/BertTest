@@ -13,6 +13,7 @@ import os
 import re
 import pandas as pd
 import torch
+import numpy as np
 
 import sys
 sys.path.append('../src')
@@ -114,7 +115,7 @@ def check_english_words(word):
     return True
 
 
-def is_number(s):
+def is_numeric(s):
     try:
         float(s)
         return True
@@ -129,6 +130,132 @@ def is_number(s):
         pass
 
     return False
+
+
+def count_words_in_part(words, part, data_stat, data_count, store_dicts, store_chi_chars):
+    len_words = len(words)
+    data_count[part, 'num_words_in_sent'].append(len_words)
+
+    if len_words >= 126:
+        data_stat[part, 'great126'] += 1
+    elif len_words >= 62:
+        data_stat[part, 'great62'] += 1
+    elif len_words >= 30:
+        data_stat[part, 'great30'] += 1
+    else:
+        data_stat[part, 'less30'] += 1
+
+    for word in words:
+        len_word = len(word)
+        data_count[part, 'num_chars_in_word'].append(len_word)
+
+        if check_english_words(word):
+            data_stat[part, 'total_eng_words'] += 1
+            store_dicts[part, 'eng'].add(word) # store unique english words
+            data_stat[part, 'total_eng_chars'] += len_word
+        elif is_numeric(word):
+            data_stat[part, 'total_dig_words'] += 1
+            store_dicts[part, 'dig'].add(word)
+            data_stat[part, 'total_dig_chars'] += len_word
+        else:  # non-English word/non-digit
+            data_stat[part, 'total_chi_words'] += 1
+            store_dicts[part, 'chi'].add(word)
+            data_stat[part, 'total_chi_chars'] += len_word
+
+            for w in word:
+                store_chi_chars[part].add(w)
+
+
+def count_data_stat_in_part(data_count, part, store_dicts, store_chi_chars, data_stat):
+    np_sents = np.array(data_count[part, 'num_words_in_sent'])
+    data_stat[part, 'total_words'] = np_sents.sum()
+    data_stat[part, 'max_words_per_sent'] = np_sents.max()
+    data_stat[part, 'min_words_per_sent'] = np_sents.min()
+    data_stat[part, 'mean_words_per_sent'] = np_sents.mean()
+
+    np_words = np.array(data_count[part, 'num_chars_in_word'])
+    data_stat[part, 'max_chars_per_word'] = np_words.max()
+    data_stat[part, 'min_chars_per_word'] = np_words.min()
+    data_stat[part, 'mean_chars_per_word'] = np_words.mean()
+
+    data_stat[part, 'unique_eng_words'] = len(store_dicts[part, 'eng'])
+    data_stat[part, 'unique_chi_words'] = len(store_dicts[part, 'chi'])
+    data_stat[part, 'unique_dig_words'] = len(store_dicts[part, 'dig'])
+    data_stat[part, 'unique_words'] = len(store_dicts[part, 'eng']) + len(store_dicts[part, 'chi'])\
+                                      + len(store_dicts[part, 'dig'])
+
+    data_stat[part, 'unique_chi_chars'] = len(store_chi_chars[part])
+    data_stat[part, 'total_chars'] = data_stat[part, 'total_chi_chars'] + data_stat[part, 'total_eng_chars'] \
+                                    + data_stat[part, 'total_dig_chars']
+
+
+def savestat2file(data_stat, out_file, parts):
+    if 0:
+        with open(out_file, 'a', encoding='utf-8') as f:
+            f.write('\n')
+            for part in parts:
+                f.write('{:s}: num_lines: {:d}\t'.format(part, data_stat[part, 'line']))
+            f.write('\n')
+
+    for part in parts:
+        with open(out_file, 'a', encoding='utf-8') as f:
+            f.write('Type: {:s}, num_lines: {:d}\n'.format(part, data_stat[part, 'line']))
+
+            f.write('Unique words: {:d}, num_chi: {:d}, num_eng: {:d}, num_digit: {:d}\n'.format(
+                data_stat[part, 'unique_words'], data_stat[part, 'unique_chi_words'],
+                data_stat[part, 'unique_eng_words'], data_stat[part, 'unique_dig_words']))
+
+            f.write('Unique Chinese chars: {:d}\n'.format(
+                data_stat[part, 'unique_chi_chars']))
+
+            f.write('Total words: {:d}, total Chi. words: {:d}, total Eng. words: {:d}, total digit: {:d}\n'.format(
+                data_stat[part, 'total_words'], data_stat[part, 'total_chi_words'],
+                data_stat[part, 'total_eng_words'], data_stat[part, 'total_dig_words']))
+
+            f.write('Total chars: {:d}, total Chi. chars: {:d}, total Eng. chars: {:d}, total digit chars: {:d}\n'.format(
+                data_stat[part, 'total_chars'], data_stat[part, 'total_chi_chars'],
+                data_stat[part, 'total_eng_chars'], data_stat[part, 'total_dig_chars']))
+
+            f.write('Per sent.: max. words: {:d}, min. words: {:d}, mean words: {:.2f}\n'.format(
+                data_stat[part, 'max_words_per_sent'], data_stat[part, 'min_words_per_sent'],
+                data_stat[part, 'mean_words_per_sent']))
+
+            f.write('Per word.: max. chars: {:d}, min. chars: {:d}, mean chars: {:.3f}\n'.format(
+                data_stat[part, 'max_chars_per_word'], data_stat[part, 'min_chars_per_word'],
+                data_stat[part, 'mean_chars_per_word']))
+
+            f.write('num (>126): {:d}, num (126<>62): {:d}, num (62<>30): {:d}, num (<30): {:d}\n'.format(
+                data_stat[part, 'great126'], data_stat[part, 'great62'],
+                data_stat[part, 'great30'], data_stat[part, 'less30']))
+
+            f.write('\n')
+
+    with open(out_file, 'a', encoding='utf-8') as f:
+        if 'dev' in parts:
+            f.write(
+                'num_oov_dev: {:d}, num_oov_test: {:d}, ratio_oov_dev: {:.3f}, ratio_oov_test: {:.3f}\n\n'.format(
+                    data_stat['oov_dev'], data_stat['oov_test'], data_stat['ratio_oov_dev'],
+                    data_stat['ratio_oov_test']))
+
+            #f.write('num_oov_char_dev: {:d}, num_oov_char_test: {:d}'.format(
+            #    data_stat['oov_char_dev'], data_stat['oov_char_test']))
+        else:
+            f.write('num_oov_test: {:d}, ratio_oov_test: {:.3f}\n\n'.format(
+                data_stat['oov_test'], data_stat['ratio_oov_test']))
+
+            #f.write('num_oov_char_test: {:d}'.format(data_stat['oov_char_test']))
+
+
+def savewords(store_words, out_dir, parts, pre):
+    for part in parts:
+        out_file = os.path.join(out_dir, pre + '_' + part+'_words.txt')
+
+        categories = ['chi', 'dig', 'eng']
+
+        for cat_gor in categories:
+            with open(out_file, 'w', encoding='utf-8') as f:
+                for ch in store_words[part, cat_gor]:
+                    f.writelines(ch+'\n')
 
 
 def escape(text):
