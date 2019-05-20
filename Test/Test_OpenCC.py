@@ -46,3 +46,6 @@ if __name__== '__main__':
         print(ci.convert(t0))
         print(ci.convert(t1))
         print(ci.convert(t2))
+
+    t1s = t1.split()
+    print(c0.convert(' '.join(t1s)))
