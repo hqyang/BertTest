@@ -222,27 +222,25 @@ def do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file):
     return score, scoreInfo
 
 
-def set_server_param():
+def set_server_eval_param():
     return {'model_type': 'sequencelabeling',
-            'data_dir': '../data/CWS/BMES/',
-            'output_dir': './tmp/CWS/',
+            'data_dir': '../data/',
+            'output_dir': './tmp/',
             'bert_model_dir': '../models/bert-base-chinese/',
             'vocab_file': '../models/bert-base-chinese/vocab.txt',
-            'init_checkpoint': '../models/bert-base-chinese/',
+            'init_checkpoint': './tmp/4CWS/ModelSize/MSR/Softmax/fine_tune/l12/',
             'max_seq_length': 128,
             'do_lower_case': True,
-            'do_eval_df': True,
             'train_batch_size': 32,
             'method': 'fine_tune',
+            'fclassifier': 'Softmax',
             'override_output': True,
             'visible_device': 1,
             'num_hidden_layers': 12
             }
 
 
-def main(**kwargs):
-    #print('load initialized parameter from server')
-    #kwargs = set_server_param()
+def eval_layers(kwargs):
     args._parse(kwargs)
 
     #datasets = ['PKU', 'MSR']
@@ -283,7 +281,7 @@ def main(**kwargs):
                             + '/' + args.method + '/l' + str(args.num_hidden_layers)
 
     print(args.init_checkpoint)
-   
+
     model, device = load_model(label_list, args)
 
     # Prepare optimizer
@@ -330,6 +328,103 @@ def main(**kwargs):
                 output_eval_file = os.path.join(output_dir, sfn)
                 output_diff_file = os.path.join(output_dir, dfn)
                 do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
+
+
+def eval_dataset(dataset):
+    #args._parse(kwargs)
+
+    parts = ['train', 'test']
+
+    processors = {
+        'ontonotes': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg']),
+        '4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'msr': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'pku': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'as': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
+        'cityu': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
+    }
+
+    if args.task_name == 'ONTONOTES':
+        args.data_dir += 'ontonotes5/4ner_data/'
+    else:
+        args.data_dir += 'CWS/BMES/' + args.task_name
+
+    task_name = args.task_name.lower()
+    if task_name not in processors:
+        raise ValueError("Task not found: %s" % (task_name))
+
+    # Prepare model
+    processor = processors[task_name]()
+    label_list = processor.get_labels() # get_labels
+
+    output_dir = os.path.join(args.output_dir, 'eval_rs/')
+    os.system('mkdir ' + output_dir)
+    os.system('chmod 777 ' + output_dir)
+
+    # tmp/4CWS/PKU/rs
+    #args.init_checkpoint = args.output_dir + args.task_name + '/' + args.fclassifier \
+    #                        + '/' + args.method + '/l' + str(args.num_hidden_layers)
+
+    print(args.init_checkpoint)
+
+    model, device = load_model(label_list, args)
+
+    # Prepare optimizer
+    if args.fp16:
+        param_optimizer = [(n, param.clone().detach().to('cpu').float().requires_grad_()) \
+                            for n, param in model.named_parameters()]
+    elif args.optimize_on_cpu:
+        param_optimizer = [(n, param.clone().detach().to('cpu').requires_grad_()) \
+                            for n, param in model.named_parameters()]
+    else:
+        param_optimizer = list(model.named_parameters())
+
+    no_decay = ['bias', 'gamma', 'beta']
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in param_optimizer if n not in no_decay], 'weight_decay_rate': 0.01},
+        {'params': [p for n, p in param_optimizer if n in no_decay], 'weight_decay_rate': 0.0}
+        ]
+
+    #eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, part='test')
+
+    global_step = 0
+    if args.init_checkpoint is None:
+        raise RuntimeError('Evaluating a random initialized model is not supported...!')
+    elif os.path.isdir(args.init_checkpoint):
+        ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
+
+        for ckpt_file in ckpt_files:
+            print('Predicting via ' + ckpt_file)
+            wfn, ext = os.path.splitext(ckpt_file)
+            wfn_used = wfn.split('/')[-1]
+
+            weights = torch.load(ckpt_file, map_location='cpu')
+            try:
+                model.load_state_dict(weights)
+            except RuntimeError:
+                model.module.load_state_dict(weights)
+
+            for part in parts:
+                df = load_4CWS(os.path.join(args.data_dir, part+".tsv"))#get_Ontonotes(args.data_dir, part)
+
+                sfn = args.task_name + '_' + part + '_ft_l' + str(args.num_hidden_layers) + '_' + args.fclassifier + '_' + wfn_used + '.txt'
+                dfn = args.task_name + '_' + part + '_ft_l' + str(args.num_hidden_layers) + '_' + args.fclassifier + '_' + wfn_used + '_diff.txt'
+
+                output_eval_file = os.path.join(output_dir, sfn)
+                output_diff_file = os.path.join(output_dir, dfn)
+                do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
+
+
+def main(**kwargs):
+    #print('load initialized parameter from server')
+    #
+    # eval_layers(kwargs)
+
+    kwargs = set_server_param()
+    datasets = ['AS', 'CITYU', 'MSR', 'PKU', 'ONTONOTES']
+
+    for dataset in datasets:
+        eval_dataset(kwargs, dataset)
 
 
 if __name__ == "__main__":
