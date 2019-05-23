@@ -408,6 +408,8 @@ def main(**kwargs):
     args._parse(kwargs)
 
     datasets = ['AS', 'CITYU', 'MSR', 'PKU', 'ONTONOTES']
+    trained_datasets = ['MSR', 'PKU']
+
     fclassifiers = ['CRF', 'Softmax']
     #init_dirs = [
     #    #'./tmp/4CWS/ModelSize/MSR/Softmax/fine_tune/l12/',
@@ -428,28 +430,27 @@ def main(**kwargs):
         else:
             args.data_dir += 'CWS/BMES/' + dataset
 
-        for fclassifier in fclassifiers:
-            args.init_checkpoint = output_dir_init + '4CWS/ModelSize/' + dataset + '/' \
-                        + fclassifier + '/' + 'fine_tun/l12'
+        for trained_dataset in trained_datasets:
+            for fclassifier in fclassifiers:
+                args.init_checkpoint = output_dir_init + '4CWS/ModelSize/' + trained_dataset + \
+                                       '/' + fclassifier + '/fine_tun/l12'
 
-            if dataset == 'ONTONOTES':
-                args.output_dir = output_dir_init + '/ontonotes/eval_model_size/'
-                os.system('mkdir ' + args.output_dir)
-                os.system('chmod 777 ' + args.output_dir)
+                if dataset == 'ONTONOTES':
+                    args.output_dir = output_dir_init + '/ontonotes/' + trained_dataset + '/eval_'+ dataset + '_' \
+                            + fclassifier + '_' + 'ft_l12'
+                    os.system('mkdir ' + args.output_dir)
+                    os.system('chmod 777 ' + args.output_dir)
+                else:
+                    args.output_dir = output_dir_init + '4CWS/ModelSize/' + trained_dataset + '/eval_' + dataset + '_' \
+                            + fclassifier + '_' + 'ft_l12'
+                    os.system('mkdir ' + args.output_dir)
+                    os.system('chmod 777 ' + args.output_dir)
 
-                args.output_dir += fclassifier + '_ft_l12'
-                os.system('mkdir ' + args.output_dir)
-                os.system('chmod 777 ' + args.output_dir)
-            else:
-                args.output_dir = os.path.join(args.init_checkpoint, 'eval_rs/')
-                os.system('mkdir ' + args.output_dir)
-                os.system('chmod 777 ' + args.output_dir)
+                print('init_checkpoint: ' + args.init_checkpoint)
+                print('data_dir: ' + args.data_dir)
+                print('output_dir: ' + args.output_dir)
 
-            print('init_checkpoint: ' + args.init_checkpoint)
-            print('data_dir: ' + args.data_dir)
-            print('output_dir: ' + args.output_dir)
-
-            eval_dataset(args)
+                eval_dataset(args)
 
 
 if __name__ == "__main__":
