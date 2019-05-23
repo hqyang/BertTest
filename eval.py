@@ -343,12 +343,12 @@ def eval_dataset(args):
         'cityu': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
     }
 
-    if args.task_name == 'ONTONOTES':
+    task_name = args.task_name.lower()
+    if task_name == 'ONTONOTES':
         args.data_dir += 'ontonotes5/4ner_data/'
     else:
-        args.data_dir += 'CWS/BMES/' + args.task_name
+        args.data_dir += 'CWS/BMES/' + task_name
 
-    task_name = args.task_name.lower()
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
