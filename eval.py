@@ -397,8 +397,8 @@ def eval_dataset(args):
                 sfn = args.task_name + '_' + part + '_ft_l' + str(args.num_hidden_layers) + '_' + args.fclassifier + '_' + wfn_used + '.txt'
                 dfn = args.task_name + '_' + part + '_ft_l' + str(args.num_hidden_layers) + '_' + args.fclassifier + '_' + wfn_used + '_diff.txt'
 
-                output_eval_file = os.path.join(output_dir, sfn)
-                output_diff_file = os.path.join(output_dir, dfn)
+                output_eval_file = os.path.join(args.output_dir, sfn)
+                output_diff_file = os.path.join(args.output_dir, dfn)
                 do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
 
 
