@@ -231,6 +231,7 @@ def set_server_eval_param():
             'init_checkpoint': './tmp/4CWS/ModelSize/MSR/Softmax/fine_tune/l12/',
             'max_seq_length': 128,
             'do_lower_case': True,
+            'do_eval_df': True, 
             'train_batch_size': 32,
             'method': 'fine_tune',
             'fclassifier': 'Softmax',
