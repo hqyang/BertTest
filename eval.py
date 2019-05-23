@@ -330,9 +330,7 @@ def eval_layers(kwargs):
                 do_eval_df_with_model(model, df, part, output_eval_file, output_diff_file)
 
 
-def eval_dataset(dataset):
-    #args._parse(kwargs)
-
+def eval_dataset(args):
     parts = ['train', 'test']
 
     processors = {
@@ -421,10 +419,13 @@ def main(**kwargs):
     # eval_layers(kwargs)
 
     kwargs = set_server_eval_param()
+    args._parse(kwargs)
+
     datasets = ['AS', 'CITYU', 'MSR', 'PKU', 'ONTONOTES']
 
     for dataset in datasets:
-        eval_dataset(kwargs, dataset)
+        args.task_name = dataset
+        eval_dataset(args)
 
 
 if __name__ == "__main__":
