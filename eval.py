@@ -413,7 +413,7 @@ def main(**kwargs):
     datasets = ['AS', 'CITYU', 'MSR', 'PKU', 'ONTONOTES']
     trained_datasets = ['MSR', 'PKU']
 
-    fclassifiers = ['CRF', 'Softmax']
+    fclassifiers = ['Softmax'] # 'CRF',
     #init_dirs = [
     #    #'./tmp/4CWS/ModelSize/MSR/Softmax/fine_tune/l12/',
     #    './tmp/4CWS/ModelSize/MSR/CRF/fine_tune/l12/',
