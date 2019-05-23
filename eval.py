@@ -428,7 +428,10 @@ def main(**kwargs):
         else:
             args.data_dir += 'CWS/BMES/' + dataset
 
-        for fclassifier in fclassifier:
+        for fclassifier in fclassifiers:
+            args.init_checkpoint = output_dir_init + '4CWS/ModelSize/' + dataset + '/' \
+                        + fclassifier + '/' + 'fine_tun/l12'
+
             if dataset == 'ONTONOTES':
                 args.output_dir = output_dir_init + '/ontonotes/eval_model_size/'
                 os.system('mkdir ' + args.output_dir)
@@ -438,8 +441,6 @@ def main(**kwargs):
                 os.system('mkdir ' + args.output_dir)
                 os.system('chmod 777 ' + args.output_dir)
             else:
-                args.init_checkpoint = output_dir_init + '4CWS/ModelSize/' + dataset + '/' \
-                            + fclassifier + '/' + 'fine_tun/l12'
                 args.output_dir = os.path.join(args.init_checkpoint, 'eval_rs/')
                 os.system('mkdir ' + args.output_dir)
                 os.system('chmod 777 ' + args.output_dir)
