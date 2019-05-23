@@ -378,7 +378,7 @@ def eval_dataset(args):
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
     elif os.path.isdir(args.init_checkpoint):
         ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
-        print('ckpt_files: ' + ckpt_files)
+        logger.info('ckpt_files: ' + str(ckpt_files))
         
         for ckpt_file in ckpt_files:
             print('Predicting via ' + ckpt_file)
