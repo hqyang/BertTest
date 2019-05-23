@@ -344,27 +344,12 @@ def eval_dataset(args):
     }
 
     task_name = args.task_name.lower()
-    if task_name == 'ONTONOTES':
-        args.data_dir += 'ontonotes5/4ner_data/'
-    else:
-        args.data_dir += 'CWS/BMES/' + task_name
-
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
     # Prepare model
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
-
-    output_dir = os.path.join(args.output_dir, 'eval_rs/')
-    os.system('mkdir ' + output_dir)
-    os.system('chmod 777 ' + output_dir)
-
-    # tmp/4CWS/PKU/rs
-    #args.init_checkpoint = args.output_dir + args.task_name + '/' + args.fclassifier \
-    #                        + '/' + args.method + '/l' + str(args.num_hidden_layers)
-
-    print(args.init_checkpoint)
 
     model, device = load_model(label_list, args)
 
@@ -423,10 +408,47 @@ def main(**kwargs):
     args._parse(kwargs)
 
     datasets = ['AS', 'CITYU', 'MSR', 'PKU', 'ONTONOTES']
+    fclassifiers = ['CRF', 'Softmax']
+    #init_dirs = [
+    #    #'./tmp/4CWS/ModelSize/MSR/Softmax/fine_tune/l12/',
+    #    './tmp/4CWS/ModelSize/MSR/CRF/fine_tune/l12/',
+    #    './tmp/4CWS/ModelSize/PKU/Softmax/fine_tune/l12/',
+    #    './tmp/4CWS/ModelSize/PKU/CRF/fine_tune/l12/'
+    #]
+    data_dir_init = args.data_dir
+    output_dir_init = args.output_dir
 
     for dataset in datasets:
         args.task_name = dataset
-        eval_dataset(args)
+        args.data_dir = data_dir_init
+        #args.output_dir = output_dir_init
+
+        if task_name == 'ONTONOTES':
+            args.data_dir += 'ontonotes5/4ner_data/'
+        else:
+            args.data_dir += 'CWS/BMES/' + task_name
+
+        for fclassifier in fclassifier:
+            if dataset == 'ONTONOTES':
+                args.output_dir = output_dir_init + '/ontonotes/eval_model_size/'
+                os.system('mkdir ' + args.output_dir)
+                os.system('chmod 777 ' + args.output_dir)
+
+                args.output_dir += fclassifier + '_ft_l12'
+                os.system('mkdir ' + args.output_dir)
+                os.system('chmod 777 ' + args.output_dir)
+            else:
+                args.init_checkpoint = output_dir_init + '4CWS/ModelSize/' + dataset + '/' \
+                            + fclassifier + '/' + 'fine_tun/l12'
+                args.output_dir = os.path.join(args.init_checkpoint, 'eval_rs/')
+                os.system('mkdir ' + args.output_dir)
+                os.system('chmod 777 ' + args.output_dir)
+
+            print('init_checkpoint: ' + args.init_checkpoint)
+            print('data_dir: ' + args.data_dir)
+            print('output_dir: ' + args.output_dir)
+
+            eval_dataset(args)
 
 
 if __name__ == "__main__":
