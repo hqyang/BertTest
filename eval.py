@@ -119,7 +119,6 @@ def load_model(label_list, args):
             assert (not args.do_train and args.do_eval_df)
         #else:
             weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
-            print(weights_path)
 
             # main code copy from modeling.py line after 506
             state_dict = torch.load(weights_path)
@@ -147,6 +146,7 @@ def load_model(label_list, args):
             if len(unexpected_keys) > 0:
                 logger.info("Weights from pretrained model not used in {}: {}".format(
                     model.__class__.__name__, unexpected_keys))
+            logger.info("load model from " + weights_path)
 
     if args.fp16:
         model.half()
@@ -309,6 +309,7 @@ def eval_layers(kwargs):
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
     elif os.path.isdir(args.init_checkpoint):
         ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
+        logger.info('ckpt_files: ' + ckpt_files)
 
         for ckpt_file in ckpt_files:
             print('Predicting via ' + ckpt_file)
