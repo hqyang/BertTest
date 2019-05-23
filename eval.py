@@ -436,7 +436,7 @@ def main(**kwargs):
         for trained_dataset in trained_datasets:
             for fclassifier in fclassifiers:
                 args.init_checkpoint = output_dir_init + '4CWS/ModelSize/' + trained_dataset + \
-                                       '/' + fclassifier + '/fine_tun/l12/'
+                                       '/' + fclassifier + '/fine_tune/l12/'
 
                 if dataset == 'ONTONOTES':
                     args.output_dir = output_dir_init + '/ontonotes/' + trained_dataset + '/eval_'+ dataset + '_' \
