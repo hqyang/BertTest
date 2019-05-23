@@ -119,6 +119,7 @@ def load_model(label_list, args):
             assert (not args.do_train and args.do_eval_df)
         else:
             weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
+            print(weights_path)
 
             # main code copy from modeling.py line after 506
             state_dict = torch.load(weights_path)
