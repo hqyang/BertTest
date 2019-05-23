@@ -114,8 +114,8 @@ def load_model(label_list, args):
     model = BertCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list),
                     args.train_batch_size, args.fclassifier)
 
-    if args.init_checkpoint is not None:
-        if os.path.isdir(args.init_checkpoint):
+    if args.bert_model_dir is not None:
+        if os.path.isdir(args.bert_model_dir):
             assert (not args.do_train and args.do_eval_df)
         else:
             weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)

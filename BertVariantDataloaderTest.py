@@ -105,12 +105,12 @@ def load_model(label_list, args):
 
     model = BertVariant(bert_config, len(label_list), method=args.method, fclassifier=args.fclassifier)
 
-    if args.init_checkpoint is None:
+    if args.bert_model_dir is None:
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
     #elif os.path.isdir(args.init_checkpoint):
     #    raise ValueError("init_checkpoint is not a file")
     else:
-        weights_path = os.path.join(args.init_checkpoint, WEIGHTS_NAME)
+        weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
 
         # main code copy from modeling.py line after 506
         state_dict = torch.load(weights_path)
