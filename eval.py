@@ -420,7 +420,7 @@ def main(**kwargs):
     #
     # eval_layers(kwargs)
 
-    kwargs = set_server_param()
+    kwargs = set_server_eval_param()
     datasets = ['AS', 'CITYU', 'MSR', 'PKU', 'ONTONOTES']
 
     for dataset in datasets:
