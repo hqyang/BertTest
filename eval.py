@@ -117,7 +117,7 @@ def load_model(label_list, args):
     if args.bert_model_dir is not None:
         if os.path.isdir(args.bert_model_dir):
             assert (not args.do_train and args.do_eval_df)
-        else:
+        #else:
             weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
             print(weights_path)
 
