@@ -426,7 +426,7 @@ def main(**kwargs):
         if dataset == 'ONTONOTES':
             args.data_dir += 'ontonotes5/4ner_data/'
         else:
-            args.data_dir += 'CWS/BMES/' + task_name
+            args.data_dir += 'CWS/BMES/' + dataset
 
         for fclassifier in fclassifier:
             if dataset == 'ONTONOTES':
