@@ -423,7 +423,7 @@ def main(**kwargs):
         args.data_dir = data_dir_init
         #args.output_dir = output_dir_init
 
-        if task_name == 'ONTONOTES':
+        if dataset == 'ONTONOTES':
             args.data_dir += 'ontonotes5/4ner_data/'
         else:
             args.data_dir += 'CWS/BMES/' + task_name
