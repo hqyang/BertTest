@@ -376,7 +376,8 @@ def eval_dataset(args):
         raise RuntimeError('Evaluating a random initialized model is not supported...!')
     elif os.path.isdir(args.init_checkpoint):
         ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
-
+        print('ckpt_files: ' + ckpt_files)
+        
         for ckpt_file in ckpt_files:
             print('Predicting via ' + ckpt_file)
             wfn, ext = os.path.splitext(ckpt_file)
@@ -433,16 +434,16 @@ def main(**kwargs):
         for trained_dataset in trained_datasets:
             for fclassifier in fclassifiers:
                 args.init_checkpoint = output_dir_init + '4CWS/ModelSize/' + trained_dataset + \
-                                       '/' + fclassifier + '/fine_tun/l12'
+                                       '/' + fclassifier + '/fine_tun/l12/'
 
                 if dataset == 'ONTONOTES':
                     args.output_dir = output_dir_init + '/ontonotes/' + trained_dataset + '/eval_'+ dataset + '_' \
-                            + fclassifier + '_' + 'ft_l12'
+                            + fclassifier + '_' + 'ft_l12/'
                     os.system('mkdir ' + args.output_dir)
                     os.system('chmod 777 ' + args.output_dir)
                 else:
                     args.output_dir = output_dir_init + '4CWS/ModelSize/' + trained_dataset + '/eval_' + dataset + '_' \
-                            + fclassifier + '_' + 'ft_l12'
+                            + fclassifier + '_' + 'ft_l12/'
                     os.system('mkdir ' + args.output_dir)
                     os.system('chmod 777 ' + args.output_dir)
 
