@@ -1,3 +1,5 @@
+import sys
+sys.path.append('../src')
 import torch
 import torch.nn as nn
 import math
@@ -8,7 +10,10 @@ from .tokenization import FullTokenizer
 import numpy as np
 from .utilis import check_english_words, restore_unknown_tokens, append_to_buff, split_text_by_punc
 import re
+import copy
+
 import pdb
+
 
 class BertSelfAttention(nn.Module):
     def __init__(self, config):
@@ -1044,6 +1049,40 @@ class BertClassifiersCWS(PreTrainedBertModel):
         # pre_word_is_english = cur_word_is_english
 
 
+class MultiHeadMultiLayerAttention(nn.Module):
+    def __init__(self, config):
+        super(MultiHeadMultiLayerAttention, self).__init__()
+        self.num_hidden_layers = config.num_hidden_layers
+        self.dense_k = nn.Linear(config.hidden_size, config.hidden_size)
+        self.activation = nn.ReLU()
+        self.layer_k = nn.ModuleList([copy.deepcopy(self.dense_k) for _ in range(config.num_hidden_layers)])
+        self.dense_a = nn.Linear(config.num_hidden_layers, 1)
+        self.layer_a = nn.ModuleList([copy.deepcopy(self.dense_a) for _ in range(config.num_hidden_layers)])
+        self.apply(self.init_weights)
+
+    def init_weights(self, module):
+        """ Initialize the weights.
+        """
+        if isinstance(module, (nn.Linear, nn.Embedding)):
+            # do not use truncated_normal as TF for initialization            #
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+        elif isinstance(module, nn.Linear) and module.bias is not None:
+            module.bias.data.zero_()
+
+    def forward(self, hidden_states):
+        all_encoder_layers = []
+        attention_weights = []
+        for i in range(self.num_hidden_layers):
+            hidden_state_i = hidden_states[i]
+            hidden_state_i = self.layer_k[i](hidden_state_i)
+            all_encoder_layers.append(hidden_state_i)
+
+            hidden_state_i = self.activation(hidden_state_i)
+            attention_weight = self.layer_a[i](hidden_state_i)
+            attention_weights.append()
+        return
+
+
 class BertVariant(PreTrainedBertModel):
     """Apply BERT fixed features with BiLSTM and CRF for Sequence Labeling.
 
@@ -1067,12 +1106,14 @@ class BertVariant(PreTrainedBertModel):
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
             last_hidden_size = self.config.hidden_size*2
-        else: # 'last_layer', 'sum_last4', 'sum_all', 'cat_last4'
+        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
             last_hidden_size = self.config.hidden_size*2
+        elif self.method == 'MHMLA':
+            self.MHMLA = MultiHeadMultiLayerAttention(config)
 
         # Maps the output of BERT into tag space.
         self.hidden2tag = nn.Linear(last_hidden_size, num_tags)
@@ -1109,9 +1150,9 @@ class BertVariant(PreTrainedBertModel):
         return loss, best_tags_list
 
     def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
-        if self.method == 'last_layer' or self.method=='fine_tune':
+        if self.method in ['last_layer', 'fine_tune']:
             output_all_encoded_layers = False
-        else:
+        else: # sum_last4, sum_all, cat_last4, 'MHMLA'
             output_all_encoded_layers = True
 
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
@@ -1128,11 +1169,13 @@ class BertVariant(PreTrainedBertModel):
             feat_used = self.dropout(sequence_output[-4])
             for l in range(-3, 0):
                 feat_used = torch.cat((feat_used, self.dropout(sequence_output[l])), 2)
-        else: # self.method == 'last_layer' or 'fine_tune'
+        elif self.method in ['last_layer', 'fine_tune']:
             feat_used = sequence_output
             feat_used = self.dropout(feat_used)
+        elif self.method == 'MHMLA':
+            feat_used = self.MHMLA(sequence_output)
 
-        if self.method != 'fine_tune':
+        if self.method in ['sum_last4', 'sum_all', 'cat_last4', 'last_layer']:
             feat_used, _ = self.biLSTM(feat_used)
 
         bert_feats = self.hidden2tag(feat_used)
@@ -1211,6 +1254,23 @@ class BertCWS(PreTrainedBertModel):
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
+        if method == 'fine_tune':
+            last_hidden_size = self.config.hidden_size
+        elif method == 'cat_last4':
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+            last_hidden_size = self.config.hidden_size*2
+        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+            last_hidden_size = self.config.hidden_size*2
+        elif self.method == 'MHMLA':
+            self.MHMLA = MultiHeadMultiLayerAttention(config)
+
         # Maps the output of BERT into tag space.
         self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
 
@@ -1246,9 +1306,9 @@ class BertCWS(PreTrainedBertModel):
         return loss, best_tags_list
 
     def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
-        if self.method == 'last_layer' or self.method=='fine_tune':
+        if self.method in ['last_layer', 'fine_tune']:
             output_all_encoded_layers = False
-        else:
+        else: # , 'MHMLA'
             output_all_encoded_layers = True
 
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
@@ -1265,11 +1325,13 @@ class BertCWS(PreTrainedBertModel):
             feat_used = self.dropout(sequence_output[-4])
             for l in range(-3, 0):
                 feat_used = torch.cat((feat_used, self.dropout(sequence_output[l])), 2)
-        else: # self.method == 'last_layer' or 'fine_tune'
+        elif self.method in ['last_layer', 'fine_tune']:
             feat_used = sequence_output
             feat_used = self.dropout(feat_used)
+        elif self.method == 'MHMLA':
+            feat_used = self.MHMLA(sequence_output)
 
-        if self.method != 'fine_tune':
+        if self.method in ['sum_last4', 'sum_all', 'cat_last4', 'last_layer']:
             feat_used, _ = self.biLSTM(feat_used)
 
         bert_feats = self.hidden2tag(feat_used)
