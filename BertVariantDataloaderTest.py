@@ -17,12 +17,12 @@ from src.pkuseg.metrics import getFscoreFromBIOTagList
 from tqdm import tqdm, trange
 from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma, load_4CWS
 import pandas as pd
-from config import args
-from preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
+from src.config import args
+from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
-from utilis import get_dataset_and_dataloader, get_eval_dataloaders
-from BERT.optimization import BertAdam
-from metrics import outputFscoreUsedBIO
+from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
+from src.BERT.optimization import BertAdam
+from src.metrics import outputFscoreUsedBIO
 
 import numpy as np
 import torch
@@ -35,7 +35,7 @@ from src.BERT.modeling import BertConfig
 # `BertConfig`. To create a model from a Google pretrained model use
 # `model = BertVariant.from_pretrained(PRETRAINED_MODEL_NAME)`
 
-from customize_modeling import BertVariant
+from src.customize_modeling import BertVariant
 from tensorboardX import SummaryWriter
 
 import logging
