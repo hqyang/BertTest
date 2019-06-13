@@ -69,7 +69,7 @@ def load_model(label_list, args):
 
     if args.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(
-            "Cannot use sequence length {} because the BERT model was only trained up to sequence length {}".format(
+            "Cannot use sequence length {} because the BERT models was only trained up to sequence length {}".format(
             args.max_seq_length, bert_config.max_position_embeddings))
 
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
@@ -81,7 +81,7 @@ def load_model(label_list, args):
     model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
 
     if args.bert_model_dir is None:
-        raise RuntimeError('Evaluating a random initialized model is not supported...!')
+        raise RuntimeError('Evaluating a random initialized models is not supported...!')
     #elif os.path.isdir(args.init_checkpoint):
     #    raise ValueError("init_checkpoint is not a file")
     else:
@@ -108,10 +108,10 @@ def load_model(label_list, args):
                     load(child, prefix + name + '.')
         load(model, prefix='' if hasattr(model, 'bert') else 'bert.')
         if len(missing_keys) > 0:
-            logger.info("Weights of {} not initialized from pretrained model: {}".format(
+            logger.info("Weights of {} not initialized from pretrained models: {}".format(
                 model.__class__.__name__, missing_keys))
         if len(unexpected_keys) > 0:
-            logger.info("Weights from pretrained model not used in {}: {}".format(
+            logger.info("Weights from pretrained models not used in {}: {}".format(
                 model.__class__.__name__, unexpected_keys))
 
     model.to(device)
@@ -132,7 +132,7 @@ def preload(args):
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
-    # Prepare model
+    # Prepare models
     processor = processors[task_name]()
 
     label_list = processor.get_labels()
@@ -155,7 +155,7 @@ def set_local_eval_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
-            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/models.txt',
             'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/rs/nhl3/',
             'do_lower_case': True,
@@ -171,7 +171,7 @@ def set_local_eval_param():
 def set_server_eval_param():
     return {'task_name': 'ontonotes_CWS',
             'data_dir': '../data/ontonotes5/4ner_data/',
-            'vocab_file': '../models/bert-base-chinese/vocab.txt',
+            'vocab_file': '../models/bert-base-chinese/models.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
             'output_dir': './tmp_2019_3_22/out/ontonotes_eval/',
             'do_lower_case': True,

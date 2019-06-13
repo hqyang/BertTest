@@ -1,0 +1,10 @@
+test: train time: 321.302, test time: 0.182, loss: 3224.598, F1: 86.883, P: 84.954, R: 88.901, Acc: 92.571, Tags: 184258
+test: train time: 290.525, test time: 0.153, loss: 2229.113, F1: 90.875, P: 89.580, R: 92.209, Acc: 94.815, Tags: 184258
+test: train time: 292.016, test time: 0.152, loss: 1826.315, F1: 92.444, P: 91.449, R: 93.461, Acc: 95.645, Tags: 184258
+test: train time: 292.098, test time: 0.152, loss: 1573.017, F1: 93.073, P: 92.290, R: 93.868, Acc: 95.988, Tags: 184258
+test: train time: 292.503, test time: 0.152, loss: 1392.570, F1: 93.636, P: 92.917, R: 94.366, Acc: 96.327, Tags: 184258
+test: train time: 294.807, test time: 0.154, loss: 1318.937, F1: 94.156, P: 93.596, R: 94.723, Acc: 96.620, Tags: 184258
+test: train time: 299.966, test time: 0.156, loss: 1250.649, F1: 94.445, P: 94.064, R: 94.828, Acc: 96.737, Tags: 184258
+test: train time: 299.808, test time: 0.161, loss: 1197.680, F1: 94.690, P: 94.225, R: 95.159, Acc: 96.939, Tags: 184258
+test: train time: 292.858, test time: 0.152, loss: 1163.053, F1: 94.882, P: 94.581, R: 95.185, Acc: 96.994, Tags: 184258
+test: train time: 292.251, test time: 0.153, loss: 1153.315, F1: 95.016, P: 94.614, R: 95.421, Acc: 97.085, Tags: 184258

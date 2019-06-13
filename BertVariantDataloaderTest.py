@@ -32,8 +32,8 @@ import re
 
 from src.BERT.modeling import BertConfig
 # here generate exeception of Parameter config in `BertVariant(config)` should be an instance of class
-# `BertConfig`. To create a model from a Google pretrained model use
-# `model = BertVariant.from_pretrained(PRETRAINED_MODEL_NAME)`
+# `BertConfig`. To create a models from a Google pretrained models use
+# `models = BertVariant.from_pretrained(PRETRAINED_MODEL_NAME)`
 
 from src.customize_modeling import BertVariant
 from tensorboardX import SummaryWriter
@@ -84,7 +84,7 @@ def load_model(label_list, args):
 
     if args.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(
-            "Cannot use sequence length {} because the BERT model was only trained up to sequence length {}".format(
+            "Cannot use sequence length {} because the BERT models was only trained up to sequence length {}".format(
             args.max_seq_length, bert_config.max_position_embeddings))
 
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
@@ -101,12 +101,12 @@ def load_model(label_list, args):
 #        'CRF': lambda: BertCRFVariant(bert_config, len(label_list), method=args.method),
 #        'Softmax': lambda: BertSoftmaxVariant(bert_config, len(label_list), method=args.method),
 #    }
-#    model = models[args.fclassifier]()
+#    models = models[args.fclassifier]()
 
     model = BertVariant(bert_config, len(label_list), method=args.method, fclassifier=args.fclassifier)
 
     if args.bert_model_dir is None:
-        raise RuntimeError('Evaluating a random initialized model is not supported...!')
+        raise RuntimeError('Evaluating a random initialized models is not supported...!')
     #elif os.path.isdir(args.init_checkpoint):
     #    raise ValueError("init_checkpoint is not a file")
     else:
@@ -133,10 +133,10 @@ def load_model(label_list, args):
                     load(child, prefix + name + '.')
         load(model, prefix='' if hasattr(model, 'bert') else 'bert.')
         if len(missing_keys) > 0:
-            logger.info("Weights of {} not initialized from pretrained model: {}".format(
+            logger.info("Weights of {} not initialized from pretrained models: {}".format(
                 model.__class__.__name__, missing_keys))
         if len(unexpected_keys) > 0:
-            logger.info("Weights from pretrained model not used in {}: {}".format(
+            logger.info("Weights from pretrained models not used in {}: {}".format(
                 model.__class__.__name__, unexpected_keys))
 
     model.to(device)
@@ -251,7 +251,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         ts_F1 = rs['test'][3]
         ts_Acc = rs['test'][6]
 
-        if ts_F1 > old_F1: # only save the best model
+        if ts_F1 > old_F1: # only save the best models
             old_F1 = ts_F1
 
             ckpt_files = sorted(glob(os.path.join(args.output_dir, 'F1_*.pt')))
@@ -263,12 +263,12 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
             state_dict = model.state_dict()
             if isinstance(model, torch.nn.DataParallel):
-                #The model is in a DataParallel container.
+                #The models is in a DataParallel container.
                 #Its state dict keys are all start with a "module."
                 state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
             torch.save(state_dict, output_weight_file)
 
-        if ts_Acc > old_Acc: # only save the best model
+        if ts_Acc > old_Acc: # only save the best models
             old_Acc = ts_Acc
 
             ckpt_files = sorted(glob(os.path.join(args.output_dir, 'Acc_*.pt')))
@@ -280,7 +280,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
             state_dict = model.state_dict()
             if isinstance(model, torch.nn.DataParallel):
-                #The model is in a DataParallel container.
+                #The models is in a DataParallel container.
                 #Its state dict keys are all start with a "module."
                 state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
             torch.save(state_dict, output_weight_file)
@@ -304,7 +304,7 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
 
             #pdb.set_trace()
             if n_gpu > 1: # multiple gpus
-            	# model.module.decode to replace original model() since forward cannot output multiple outputs in multiple gpus
+            	# models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
                 tmp_eval_loss, tmp_decode_rs = model.module.decode(input_ids, segment_ids, input_mask, label_ids)
                 tmp_eval_loss = tmp_eval_loss.mean()
             else:
@@ -375,7 +375,7 @@ def train_4CWS(args):
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
-    # Prepare model
+    # Prepare models
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
@@ -437,7 +437,7 @@ def set_server_eval_4CWS_param():
     return {'task_name': '4CWS_CWS',
             'model_type': 'sequencelabeling',
             'data_dir': '../data/CWS/BMES/MSR/',
-            'vocab_file': '../models/bert-base-chinese/vocab.txt',
+            'vocab_file': '../models/bert-base-chinese/models.txt',
             'bert_config_file': '../models/bert-base-chinese/bert_config.json',
             'output_dir': './tmp/4CWS/MSR/CRF_BiLSTM_l1',
             'do_lower_case': True,

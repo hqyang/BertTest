@@ -46,7 +46,7 @@ class Config:
         # self.regList = self.regs.copy()
         self.random = (
             0
-        )  # 0 for 0-initialization of model weights, 1 for random init of model weights
+        )  # 0 for 0-initialization of models weights, 1 for random init of models weights
         self.evalMetric = (
             "f1"
         )  # tok.acc (token accuracy), str.acc (string accuracy), f1 (F1-score)
@@ -54,7 +54,7 @@ class Config:
         self.ttlIter = 20  # of training iterations
         self.nUpdate = 10  # for ADF training
         self.outFolder = os.path.join(self.tempFile, "output")
-        self.save = 1  # save model file
+        self.save = 1  # save models file
         self.rawResWrite = True
         self.miniBatch = 1  # mini-batch in stochastic training
         self.nThread = 10  # number of processes
@@ -94,7 +94,7 @@ class Config:
         self.modelDir = os.path.join(
             os.path.dirname(os.path.realpath(__file__)), "models", "ctb8"
         )
-        self.fModel = os.path.join(self.modelDir, "model.txt")
+        self.fModel = os.path.join(self.modelDir, "models.txt")
 
         # feature
         self.numLetterNorm = True

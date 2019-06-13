@@ -15,7 +15,7 @@ import numpy as np
 import sys
 sys.path.append('../src')
 
-from src.utilis import count_words_in_part, count_data_stat_in_part, savestat2file, savewords
+from src.utilis import count_words_in_part, count_data_stat_in_part, savestat2file, savewords, savediffwords
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
 
@@ -80,7 +80,7 @@ def count_stat_data(info_all):
     #set_diff_char_test = store_chars['test'] - store_chars['train']
     #data_stat['oov_char_test'] = len(set_diff_char_test)
 
-    return data_stat, store_chi_chars, store_dicts
+    return data_stat, store_chi_chars, store_dicts, set_diff_test
 
 
 def list_and_stat_docs(data_dir, out_dir):
@@ -101,11 +101,14 @@ def list_and_stat_docs(data_dir, out_dir):
         #with Pool(cpu_count()) as p:
         #data_stat = p.start_new_thread(count_stat_data, info_all)
 
-        data_stat, store_chi_chars, store_dicts = count_stat_data(info_all)
+        data_stat, store_chi_chars, store_dicts, set_diff_test = count_stat_data(info_all)
         print(data_stat)
 
         savestat2file(data_stat, out_file, parts)
         savewords(store_dicts, out_dir, parts, dataset)
+
+        diff_dict_file = os.path.join(out_dir, dataset+'_dict_diff.txt')
+        savediffwords(set_diff_test, diff_dict_file)
 # end listdocs
 
 

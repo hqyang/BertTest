@@ -139,7 +139,7 @@ def use_sparse_qkv(model, keep_bottom_layers=4):
     for layer_index, layer in enumerate(model.bert.encoder.layer):
         if layer_index >= keep_bottom_layers:
             new_attention = customize_modeling.BertSelfAttention(model.bert.config)
-            #layer.attention.self.qkv = BertGroupedQKV(model.bert.config)
+            #layer.attention.self.qkv = BertGroupedQKV(models.bert.config)
             layer.attention.self = new_attention
     return model
 
@@ -167,12 +167,12 @@ class BasicBlock(nn.Module):
 
 
 class BertCRF(PreTrainedBertModel):
-    """BERT model with CRF for Sequence Labeling.
-    This module is composed of the BERT model with a linear layer on top of
+    """BERT models with CRF for Sequence Labeling.
+    This module is composed of the BERT models with a linear layer on top of
     the pooled output via Conditional Random Field.
 
     Params:
-        `config`: a BertConfig class instance with the configuration to build a new model.
+        `config`: a BertConfig class instance with the configuration to build a new models.
         `num_labels`: the number of classes for the classifier. Default = 2.
 
     Inputs:
@@ -207,8 +207,8 @@ class BertCRF(PreTrainedBertModel):
 
     num_tags = 3
 
-    model = BertCRF(config, num_tags)
-    logits = model(input_ids, token_type_ids, input_mask)
+    models = BertCRF(config, num_tags)
+    logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
     def __init__(self, config, num_tags=4):
@@ -252,14 +252,14 @@ class BertCRF(PreTrainedBertModel):
 
 
 class BertCRFCWS(PreTrainedBertModel):
-    """BERT model with CRF for Chinese Word Segmentation.
-    This module is composed of the BERT model with a linear layer on top of
+    """BERT models with CRF for Chinese Word Segmentation.
+    This module is composed of the BERT models with a linear layer on top of
     the pooled output via Conditional Random Field.
 
     Params:
-        `device`: the device to set the model.
-        `config`: a BertConfig class instance with the configuration to build a new model.
-        `vocab_file`: the vocab file for tokenizing the words.
+        `device`: the device to set the models.
+        `config`: a BertConfig class instance with the configuration to build a new models.
+        `vocab_file`: the models file for tokenizing the words.
         `max_length`: the maximum length for tokenization.
         `num_tags`: the number of classes for the classifier. Default = 6.
         `batch_size`: the number of mini-batch size for processing the data
@@ -278,8 +278,8 @@ class BertCRFCWS(PreTrainedBertModel):
 
     num_tags = 6
 
-    model = BertCRFCWS(device, config, vocab_file, max_length, num_tags, batch_size)
-    logits = model(input_ids, token_type_ids, input_mask)
+    models = BertCRFCWS(device, config, vocab_file, max_length, num_tags, batch_size)
+    logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
     def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64):
@@ -393,8 +393,8 @@ class BertCRFCWS(PreTrainedBertModel):
             # of students is 256.
             '''
 
-            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cut(text)
+            models = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = models.cut(text)
         """
         l = ln.strip('\r\n')
         l = l.strip()
@@ -446,8 +446,8 @@ class BertCRFCWS(PreTrainedBertModel):
             # of students is 256.
             '''
 
-            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cut(text)
+            models = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = models.cut(text)
         """
         processed_text_list = []
         merge_index_list = []
@@ -531,8 +531,8 @@ class BertCRFCWS(PreTrainedBertModel):
             # of students is 256.
             '''
 
-            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cutlist_noUNK([text])
+            models = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = models.cutlist_noUNK([text])
         """
         processed_text_list = []
         merge_index_list = []
@@ -628,8 +628,8 @@ class BertCRFCWS(PreTrainedBertModel):
             # of students is 256.
             '''
 
-            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cut(text)
+            models = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = models.cut(text)
         """
         ls = split_text_by_punc(ln)
         len_max = self.max_length-2
@@ -678,12 +678,12 @@ class BertCRFCWS(PreTrainedBertModel):
 
 
 class BertSoftMax(PreTrainedBertModel):
-    """BERT model with CRF for Sequence Labeling.
-    This module is composed of the BERT model with a linear layer on top of
+    """BERT models with CRF for Sequence Labeling.
+    This module is composed of the BERT models with a linear layer on top of
     the pooled output via Conditional Random Field.
 
     Params:
-        `config`: a BertConfig class instance with the configuration to build a new model.
+        `config`: a BertConfig class instance with the configuration to build a new models.
         `num_labels`: the number of classes for the classifier. Default = 2.
 
     Inputs:
@@ -718,8 +718,8 @@ class BertSoftMax(PreTrainedBertModel):
 
     num_tags = 3
 
-    model = BertSoftMax(config, num_tags)
-    logits = model(input_ids, token_type_ids, input_mask)
+    models = BertSoftMax(config, num_tags)
+    logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
     def __init__(self, config, num_tags=4):
@@ -788,14 +788,14 @@ class BertSoftMax(PreTrainedBertModel):
 
 
 class BertClassifiersCWS(PreTrainedBertModel):
-    """BERT model with Multiple Classifiers for Chinese Word Segmentation.
-    This module is composed of the BERT model with a linear layer on top of
+    """BERT models with Multiple Classifiers for Chinese Word Segmentation.
+    This module is composed of the BERT models with a linear layer on top of
     the full hidden state of the last layer for Chinese Word Segmentation.
 
     Params:
-        `device`: the device to set the model.
-        `config`: a BertConfig class instance with the configuration to build a new model.
-        `vocab_file`: the vocab file for tokenizing the words.
+        `device`: the device to set the models.
+        `config`: a BertConfig class instance with the configuration to build a new models.
+        `vocab_file`: the models file for tokenizing the words.
         `max_length`: the maximum length for tokenization.
         `num_tags`: the number of classes for the classifier. Default = 6.
         `batch_size`: the number of mini-batch size for processing the data
@@ -826,8 +826,8 @@ class BertClassifiersCWS(PreTrainedBertModel):
     config = BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
         num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
 
-    model = BertClassifiersCWS(device, config, vocab_file, max_length, num_tags, batch_size)
-    logits = model(input_ids, token_type_ids, input_mask)
+    models = BertClassifiersCWS(device, config, vocab_file, max_length, num_tags, batch_size)
+    logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
     def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64):
@@ -959,8 +959,8 @@ class BertClassifiersCWS(PreTrainedBertModel):
             # of students is 256.
             '''
 
-            model = BertCRFCWS(config, num_tags, vocab_file, max_length)
-            output = model.cutlist_noUNK([text])
+            models = BertCRFCWS(config, num_tags, vocab_file, max_length)
+            output = models.cutlist_noUNK([text])
         """
         processed_text_list = []
         merge_index_list = []
@@ -1084,8 +1084,8 @@ class MultiHeadMultiLayerAttention(nn.Module):
 class BertVariant(PreTrainedBertModel):
     """Apply BERT fixed features with BiLSTM and CRF for Sequence Labeling.
 
-    model = BertVariant(config, num_tags)
-    logits = model(input_ids, token_type_ids, input_mask)
+    models = BertVariant(config, num_tags)
+    logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
     def __init__(self, config, num_tags=4, method=None, fclassifier=None):
@@ -1207,14 +1207,14 @@ class BertVariant(PreTrainedBertModel):
 
 
 class BertCWS(PreTrainedBertModel):
-    """BERT model with CRF for Chinese Word Segmentation.
-    This module is composed of the BERT model with a linear layer on top of
+    """BERT models with CRF for Chinese Word Segmentation.
+    This module is composed of the BERT models with a linear layer on top of
     the pooled output via Conditional Random Field.
 
     Params:
-        `device`: the device to set the model.
-        `config`: a BertConfig class instance with the configuration to build a new model.
-        `vocab_file`: the vocab file for tokenizing the words.
+        `device`: the device to set the models.
+        `config`: a BertConfig class instance with the configuration to build a new models.
+        `vocab_file`: the models file for tokenizing the words.
         `max_length`: the maximum length for tokenization.
         `num_tags`: the number of classes for the classifier. Default = 6.
         `batch_size`: the number of mini-batch size for processing the data
@@ -1234,8 +1234,8 @@ class BertCWS(PreTrainedBertModel):
 
     num_tags = 6
 
-    model = BertCWS(device, config, vocab_file, max_length, num_tags, fclassifier, batch_size)
-    logits = model(input_ids, token_type_ids, input_mask)
+    models = BertCWS(device, config, vocab_file, max_length, num_tags, fclassifier, batch_size)
+    logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
     def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64, fclassifier='Softmax', method='fine_tune'):
@@ -1403,8 +1403,8 @@ class BertCWS(PreTrainedBertModel):
             # of students is 256.
             '''
 
-            model = BertCWS(config, num_tags, vocab_file, max_length)
-            output = model.cutlist_noUNK([text])
+            models = BertCWS(config, num_tags, vocab_file, max_length)
+            output = models.cutlist_noUNK([text])
         """
         processed_text_list = []
         merge_index_list = []

@@ -98,7 +98,7 @@ def load_model(label_list, args):
 
     if args.max_seq_length > bert_config.max_position_embeddings:
         raise ValueError(
-            "Cannot use sequence length {} because the BERT model was only trained up to sequence length {}".format(
+            "Cannot use sequence length {} because the BERT models was only trained up to sequence length {}".format(
             args.max_seq_length, bert_config.max_position_embeddings))
 
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
@@ -141,12 +141,12 @@ def load_model(label_list, args):
                         load(child, prefix + name + '.')
             load(model, prefix='' if hasattr(model, 'bert') else 'bert.')
             if len(missing_keys) > 0:
-                logger.info("Weights of {} not initialized from pretrained model: {}".format(
+                logger.info("Weights of {} not initialized from pretrained models: {}".format(
                     model.__class__.__name__, missing_keys))
             if len(unexpected_keys) > 0:
-                logger.info("Weights from pretrained model not used in {}: {}".format(
+                logger.info("Weights from pretrained models not used in {}: {}".format(
                     model.__class__.__name__, unexpected_keys))
-            logger.info("load model from " + weights_path)
+            logger.info("load models from " + weights_path)
 
     if args.fp16:
         model.half()
@@ -228,7 +228,7 @@ def set_server_eval_param():
             'data_dir': '../data/',
             'output_dir': './tmp/',
             'bert_model_dir': '../models/bert-base-chinese/',
-            'vocab_file': '../models/bert-base-chinese/vocab.txt',
+            'vocab_file': '../models/bert-base-chinese/models.txt',
             'init_checkpoint': './tmp/4CWS/ModelSize/MSR/Softmax/fine_tune/l12/',
             'max_seq_length': 128,
             'do_lower_case': True,
@@ -270,7 +270,7 @@ def eval_layers(kwargs):
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
-    # Prepare model
+    # Prepare models
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
@@ -306,7 +306,7 @@ def eval_layers(kwargs):
 
     global_step = 0
     if args.init_checkpoint is None:
-        raise RuntimeError('Evaluating a random initialized model is not supported...!')
+        raise RuntimeError('Evaluating a random initialized models is not supported...!')
     elif os.path.isdir(args.init_checkpoint):
         ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
         logger.info('ckpt_files: ' + str(ckpt_files))
@@ -349,7 +349,7 @@ def eval_dataset(args):
     if task_name not in processors:
         raise ValueError("Task not found: %s" % (task_name))
 
-    # Prepare model
+    # Prepare models
     processor = processors[task_name]()
     label_list = processor.get_labels() # get_labels
 
@@ -375,7 +375,7 @@ def eval_dataset(args):
 
     global_step = 0
     if args.init_checkpoint is None:
-        raise RuntimeError('Evaluating a random initialized model is not supported...!')
+        raise RuntimeError('Evaluating a random initialized models is not supported...!')
     elif os.path.isdir(args.init_checkpoint):
         ckpt_files = sorted(glob(os.path.join(args.init_checkpoint, '*.pt')))
         logger.info('ckpt_files: ' + str(ckpt_files))

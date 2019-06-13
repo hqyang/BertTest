@@ -41,7 +41,7 @@ def test_BasicTokenizer():
 def test_FullTokenizer():
     from src.tokenization import FullTokenizer, BasicTokenizer
 
-    vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt'
+    vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/models.txt'
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
 
     text = '任天堂游戏商店的加入被业界视为android的革命。'
@@ -279,7 +279,7 @@ def set_local_eval_param():
             'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
             #'bert_model_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/final_data/eval/2019_3_12/models/',
-            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/models.txt',
             'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_12/rs/nhl3/',
             'do_lower_case': True,
@@ -313,7 +313,7 @@ def test_dataloader():
 
     task_name = args.task_name.lower()
 
-    # Prepare model
+    # Prepare models
     processor = processors[task_name]()
     train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=False, type = 'tmp_test')
 
@@ -384,6 +384,21 @@ def test_split():
     at = re.split('(。|，|：|\n|#)', text)
     print(at)
 
+
+def test_write():
+    with open('tmp.txt', 'w+') as f:
+        f.write('abc\n')
+        f.write('dd')
+        f.write(' ee')
+        f.write('\n abc')
+
+    with open('tmp.txt', 'r') as f:
+        line = f.read()
+        while line != '':
+            print(line)
+            line = f.read()
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -404,4 +419,6 @@ if __name__ == '__main__':
     #test_dataloader()
 
     #test_decode()
-    test_split()
+    #test_split()
+
+    test_write()

@@ -258,6 +258,12 @@ def savewords(store_words, out_dir, parts, pre):
                     f.writelines(ch+'\n')
 
 
+def savediffwords(store_words, out_file):
+    with open(out_file, 'w', encoding='utf-8') as f:
+        for word in store_words:
+            f.write(word+'\n')
+
+
 def escape(text):
     '''html转义'''
     text = (text.replace("&quot;", "\"").replace("&ldquo;", "“").replace("&rdquo;", "”")
@@ -417,7 +423,7 @@ def save_model(model, fo='tmp.tsv'):
     df.to_csv(fo, sep='\t', encoding='utf-8', index=False,  header=True, \
               columns=['name', 'max', 'min', 'mean', 'median', 'std'])
 
-    print('Finish writing model data to ' + fo + '!')
+    print('Finish writing models data to ' + fo + '!')
 
 
 RE_SPECIAL_TOKENS = ['.', '^', '$', '*', '+', '?', '{', '}', '\\', '[', ']', '|', '(', ')']

@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.legend_handler import HandlerLine2D
+from src.pkuseg.metrics import getChunks
 import matplotlib.patches as mpatches
 import pdb
 
@@ -101,6 +102,7 @@ def saveScore2File(pre_out_dir, num_epochs = [15]):
                                ostr += str(val[col]) + ' '
                             #pdb.set_trace()
                             fout2.write(ostr+'\n')
+
 
 def plotResults(pre_dir, num_epochs = [15]):
     types = ['train', 'dev', 'test']
@@ -335,6 +337,189 @@ def output2():
     plotResults(tr_score, dev_score, ts_score, nhl=12, am_dev_loss=0)
 
 
+def plotResults(s1, s2, strlabels, strtitle, strYlabels, posY, methods):
+    # F1, P, R, Acc
+    s1 = np.array(s1)
+    s2 = np.array(s2)
+    print('{:s} training time: {:.2f}\pm {:.2f}, test time: {:.4f}\pm {:.2f}'.format( \
+        strlabels[0], s1[:, 0].mean(), s1[:, 0].std(), s1[:, 1].mean(), s1[:, 1].std()))
+    print('{:s} training time: {:.2f}\pm {:.2f}, test time: {:.4f}\pm {:.2f}'.format( \
+        strlabels[2], s2[:, 0].mean(), s2[:, 0].std(), s2[:, 1].mean(), s2[:, 1].std()))
+
+    xl = [v+1 for v in range(len(s1))]
+
+    fig2 = plt.figure()
+    p1, = plt.plot(xl, s1[:, 3], '-', marker='v', color='b', label=strlabels[0])
+    p2, = plt.plot(xl, s2[:, 3], '--', marker='o', color='b', label=strlabels[1])
+    p3, = plt.plot(xl, s1[:, 6], '-.', marker='^', color='r', label=strlabels[2])
+    p4, = plt.plot(xl, s2[:, 6], ':', marker='x', color='r', label=strlabels[3])
+    plt.xlabel('No. of epochs')
+    #plt.ylabel('')
+    plt.legend(strlabels)
+    plt.title(strtitle)
+    plt.text(7, posY-2, '{:s}: Training time/epoch: {:.1f}'.format(methods[0], \
+                        s1[:, 0].mean())+r'$\pm$ ' + '{:.1f}'.format(s1[:, 0].std()),
+             bbox=dict(boxstyle="round",
+                   ec=(1., 0.5, 0.5),
+                   fc=(1., 0.8, 0.8),
+                   )
+             )
+    plt.text(7, posY-4.5, '{:s}: Training time/epoch: {:.1f}'.format(methods[1], \
+                        s2[:, 0].mean())+r'$\pm$ ' + '{:.1f}'.format(s2[:, 0].std()),
+             bbox=dict(boxstyle="round",
+                   ec=(1., 0.5, 0.5),
+                   fc=(1., 0.8, 0.8),
+                   )
+             )
+    #plt.text(10, posY-10, r'time/ep.: {:.2f}$\pm$ {:.2f}'.format(s2[:, 0].mean(), s2[:, 0].std()), 'color'='r')
+
+    # left Y-axis label
+    plt.ylabel(strYlabels[0], {'color': 'b'}) # , 'fontsize': 12
+    #plt.yticks((0, 0.5, 1), (r'\bf{0}', r'\bf{.5}', r'\bf{1}'), color='k', size=20)
+
+    # right Y-axis label
+    plt.text(32, posY, strYlabels[1], {'color': 'r'}, # , 'fontsize': 12
+         horizontalalignment='left',
+         verticalalignment='center',
+         rotation=90,
+#         clip_on=False,
+#         transform=plt.gca().transAxes
+             )
+
+    plt.grid()
+
+
+def compare_CRF_Softmax():
+    infile_dir = './results/'
+
+    ts_scores = {'CRF': [], 'Softmax': []}
+
+    datasets = ['MSR', 'PKU']
+    methods = ['CRF', 'Softmax']
+
+    strlabels = ['F1_CRF', 'F1_Softmax', 'Acc._CRF', 'Acc._Softmax']
+    posYs = {'MSR': 87, 'PKU': 72}
+
+    strYlabels = ['F1', 'Accuracy']
+    for dataset in datasets:
+        strtitle = 'Performance on ' + dataset
+
+        for method in methods:
+            infile = infile_dir + dataset + '_' + method + '_l1.txt'
+
+            _, _, ts_scores[method] = splitScore(infile)
+        plotResults(ts_scores['CRF'], ts_scores['Softmax'], strlabels, strtitle, strYlabels, posYs[dataset], methods)
+
+
+def read_finetune_layers_results():
+    infile_dir = './results/'
+
+    datasets = ['MSR', 'PKU']
+    methods = ['CRF', 'Softmax']
+    layers = [1, 3, 6, 12]
+
+    for dataset in datasets:
+        for layer in layers:
+            for method in methods:
+                infile = infile_dir + dataset + '_' + method + '_l' + str(layer) + '.txt'
+                _, _, ts_score = splitScore(infile)
+                s = np.array(ts_score)
+
+                print('{:s}_{:s}_{:d}: \nmax F1: {:.2f}, max Acc.: {:.2f}' \
+                      'tr_time: {:.1f}\pm {:.1f}, ts_time: {:.3f}\pm {:.3f}, ' \
+                      'loss: {:.2f}\pm {:.2f}, F1: {:.2f}\pm {:.2f}, Acc.: {:.2f}\pm {:.2f}' \
+                      ''.format(dataset, method, layer, s[:, 3].max(), s[:, 6].max(),
+                    s[:, 0].mean(), s[:, 0].std(), s[:, 1].mean(), s[:, 1].std(),
+                    s[:, 2].mean(), s[:, 2].std(), s[:, 3].mean(), s[:, 3].std(),
+                    s[:, 6].mean(), s[:, 6].std()))
+
+
+def read_BiLSTM_activations_results():
+    infile_dir = './results/'
+
+    datasets = ['MSR', 'PKU']
+    methods = ['CRF', 'Softmax']
+    activations = ['l1', 'l11', 'l12', 'SumL4', 'CatL4', 'SumAll']
+
+    for dataset in datasets:
+        for activation in activations:
+            for method in methods:
+                infile = infile_dir + dataset + '_' + method + '_BiLSTM_' + activation + '.txt'
+                _, _, ts_score = splitScore(infile)
+                s = np.array(ts_score)
+                #s = s[0:10, :]
+
+                print('{:s}_{:s}_{:s}: \nmax F1: {:.2f}, max Acc.: {:.2f} ' \
+                      'tr_time: {:.1f}\pm {:.1f}, ts_time: {:.3f}\pm {:.3f}, ' \
+                      'loss: {:.2f}\pm {:.2f}, F1: {:.2f}\pm {:.2f}, Acc.: {:.2f}\pm {:.2f}'\
+                      ''.format(dataset, method, activation, s[:, 3].max(), s[:, 6].max(),
+                    s[:, 0].mean(), s[:, 0].std(), s[:, 1].mean(), s[:, 1].std(),
+                    s[:, 2].mean(), s[:, 2].std(), s[:, 3].mean(), s[:, 3].std(),
+                    s[:, 6].mean(), s[:, 6].std()))
+
+
+def extract_diff(infile, outfile):
+    with open(outfile, 'w+') as fo:
+        with open(infile, 'r') as fi:
+            l_sent = fi.readline()
+            while l_sent != '': # not EOF
+                l_sent_old = l_sent
+                l_t_seg = fi.readline()
+                l_l_seg = fi.readline()
+                l_tl_bio = fi.readline()
+                l_ll_bio = fi.readline()
+                l_sp = fi.readline()
+                l_sent = fi.readline()
+
+                # process difference
+                l_t_seg_l = l_t_seg.split()
+                l_l_seg_l = l_l_seg.split()
+                diff_gold_list = []
+                diff_res_list = []
+
+                l_t_seg_l_used = l_t_seg_l
+                for im in l_l_seg_l:
+                    if im not in l_t_seg_l_used:
+                        diff_res_list.append(im)
+                    else:
+                        l_t_seg_l_used.remove(im)
+
+                l_l_seg_l_used = l_l_seg_l
+                for im in l_t_seg_l:
+                    if im not in l_l_seg_l:
+                        diff_gold_list.append(im)
+                    else:
+                        l_l_seg_l_used.remove(im)
+
+                fo.write(l_sent_old)
+                fo.write('gold: ')
+                for im in diff_gold_list:
+                    fo.write(im + ' ')
+                fo.write('\npredict: ')
+
+                for im in diff_res_list:
+                    fo.write(im + ' ')
+                fo.write('\n\n')
+
+                print(l_sent_old)
+                print(diff_gold_list)
+                print(diff_res_list)
+
+
+
 if __name__=='__main__':
     #output1()
-    output2()
+    #output2()
+    #compare_CRF_Softmax()
+
+    #read_finetune_layers_results()
+    #print('\n\n')
+    #read_BiLSTM_activations_results()
+
+    infile = './results/MSR_test_ft_l12_Softmax_F1_weights_epoch22_diff.txt'
+    outfile = './results/MSR_diff_auto.txt'
+    extract_diff(infile, outfile)
+
+    infile = './results/PKU_test_ft_l12_Softmax_Acc_weights_epoch10_diff.txt'
+    outfile = './results/PKU_diff_auto.txt'
+    extract_diff(infile, outfile)

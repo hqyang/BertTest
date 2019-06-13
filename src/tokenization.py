@@ -82,7 +82,7 @@ def load_vocab(vocab_file):
 
 
 def convert_by_vocab(vocab, items):
-    """Converts a sequence of [tokens|ids] using the vocab."""
+    """Converts a sequence of [tokens|ids] using the models."""
     output = []
     for item in items:
         try:

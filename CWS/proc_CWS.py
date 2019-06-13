@@ -135,7 +135,7 @@ def list2BMESList(text_list, full_tokenizer, basic_tokenizer):
     #    outText = '目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ｆｅｌｌｏｗ）及２位通信協院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者），'
     #    bert_seg_list = ['B', 'E', 'S', 'B', 'M', 'E', 'S', 'B', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'S', 'B', 'E', 'S', 'B', 'M', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'S', 'S', 'B', 'E', 'B', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'S', 'S', 'S', 'B', 'E', 'B', 'M', 'E', 'S', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'M', 'M', 'M', 'E', 'B', 'M', 'M', 'M', 'M', 'E', 'S', 'B', 'E', 'S', 'S', 'B', 'E', 'B', 'M', 'M', 'M', 'E', 'B', 'E', 'S', 'S', 'S']
     #    src_seg_List =  ['B', 'E', 'S', 'S', 'S', 'B', 'E', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'B', 'M', 'E', 'S', 'S', 'S', 'S', 'S', 'S', 'B', 'E', 'B', 'E', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'B', 'E', 'B', 'M', 'E', 'S', 'S', 'S', 'S', 'S', 'B', 'E', 'S', 'S', 'B', 'E', 'B', 'M', 'M', 'M', 'E', 'B', 'E', 'S', 'S', 'S']
-    #vocab_file = '../vocab/bert-base-chinese.txt'
+    #vocab_file = '../models/bert-base-chinese.txt'
     #full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
     #basic_tokenizer = BasicTokenizer(do_lower_case=True)
 
@@ -185,7 +185,7 @@ def gen_data(in_file, out_file, tagType):
     with open(in_file, 'r', encoding='utf8') as f:
         raw_data = [_.strip() for _ in f.readlines()]
 
-    vocab_file = '../vocab/bert-base-chinese.txt'
+    vocab_file = '../models/bert-base-chinese.txt'
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
     basic_tokenizer = BasicTokenizer(do_lower_case=True)
 
@@ -255,7 +255,7 @@ if __name__ == '__main__':
     #remove_u3000('tmp_input.txt', 'tmp_output.txt')
     #batch_remove_u3000()
     if TESTFLAG:
-        vocab_file = '../vocab/bert-base-chinese.txt'
+        vocab_file = '../models/bert-base-chinese.txt'
         full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
         basic_tokenizer = BasicTokenizer(do_lower_case=True)
         sent = """

@@ -413,9 +413,9 @@ def tokenize_text(text, max_length, tokenizer):
     if len(words) > max_length - 2:
         words = words[:max_length - 2]
     words = ['[CLS]'] + words + ['[SEP]']
-    # vocab = tokenizer.vocab
-    # tokens = [vocab[_] if _ in vocab.keys() else vocab['[UNK]'] for _ in words]
-    # tokens = [vocab['[CLS]']] + tokens + [vocab['[SEP]']]
+    # models = tokenizer.models
+    # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
+    # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
     tokens = tokenizer.convert_tokens_to_ids(words)
     if len(tokens) < max_length:
         tokens.extend([0] * (max_length - len(tokens)))
@@ -433,9 +433,9 @@ def tokenize_list(words, max_length, tokenizer):
     if len(words) > max_length - 2:
         words = words[:max_length - 2]
     words = ['[CLS]'] + words + ['[SEP]']
-    # vocab = tokenizer.vocab
-    # tokens = [vocab[_] if _ in vocab.keys() else vocab['[UNK]'] for _ in words]
-    # tokens = [vocab['[CLS]']] + tokens + [vocab['[SEP]']]
+    # models = tokenizer.models
+    # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
+    # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
     tokens = tokenizer.convert_tokens_to_ids(words)
     if len(tokens) < max_length:
         tokens.extend([0] * (max_length - len(tokens)))

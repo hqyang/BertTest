@@ -29,7 +29,7 @@ class CWS_Dict:
         assert model_name in ['DictConcatModel','DictHyperModel']
         self.word2id,self.id2word,self.dict=cPickle.load(open(maps_file,'rb'))
         self.sess=tf.InteractiveSession()
-        self.model = getattr(models,model_name)(vocab_size=len(self.word2id), word_dim=config.word_dim,
+        self.models = getattr(models,model_name)(vocab_size=len(self.word2id), word_dim=config.word_dim,
                                              hidden_dim=config.hidden_dim,
                                              pad_word=self.word2id[utils_data.PAD], init_embedding=None,
                                              num_classes=config.num_classes, clip=config.clip,
@@ -101,7 +101,7 @@ class CWS_Dict:
     def seg_sentence(self,sentence,user_words=None):
         original_sentence,new_sentence,num_lists,eng_lists=self._preprocess(sentence)
         line_x,dict_feature=self._input_from_line(new_sentence,user_words)
-        predict=self.model.predict_step(self.sess,[line_x],[dict_feature])[0]
+        predict=self.models.predict_step(self.sess,[line_x],[dict_feature])[0]
         seg_result=[]
         word=[]
         for char,tag in zip(original_sentence,predict):

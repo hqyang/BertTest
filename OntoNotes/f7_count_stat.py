@@ -45,7 +45,7 @@ def read_tags(filename):
     return frozenset(tags)
 
 
-class Subset(namedtuple("BaseSet", "sentences keys vocab X tagset Y N stream")):
+class Subset(namedtuple("BaseSet", "sentences keys models X tagset Y N stream")):
     def __new__(cls, sentences, keys):
         word_sequences = tuple([sentences[k].words for k in keys])
         tag_sequences = tuple([sentences[k].tags for k in keys])
@@ -65,7 +65,7 @@ class Subset(namedtuple("BaseSet", "sentences keys vocab X tagset Y N stream")):
         return iter(self.sentences.items())
 
 
-class Dataset(namedtuple("_Dataset", "sentences keys vocab X tagset Y training_set testing_set N stream")):
+class Dataset(namedtuple("_Dataset", "sentences keys models X tagset Y training_set testing_set N stream")):
     def __new__(cls, tagfile, datafile, train_test_split=0.8, seed=112890):
         tagset = read_tags(tagfile)
         sentences = read_data(datafile)
@@ -321,5 +321,5 @@ if __name__=='__main__':
     PRE_DIR = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/'
     ANNOTATION_DIR = PRE_DIR+'raw_data/annotations'
     OUTPUT_DIR = PRE_DIR+'proc_data/data_stat/Ontonotes/'
-    vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt'
+    vocab_file = '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/models.txt'
     list_and_stat_docs(anno_dir=ANNOTATION_DIR, out_dir=OUTPUT_DIR)

@@ -31,15 +31,15 @@ logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(messa
 logger = logging.getLogger(__name__)
 
 PRETRAINED_VOCAB_ARCHIVE_MAP = {
-    'bert-base-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-vocab.txt",
-    'bert-large-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-uncased-vocab.txt",
-    'bert-base-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-cased-vocab.txt",
-    'bert-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-cased-vocab.txt",
-    'bert-base-multilingual-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-multilingual-uncased-vocab.txt",
-    'bert-base-multilingual-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-multilingual-cased-vocab.txt",
-    'bert-base-chinese': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-vocab.txt",
+    'bert-base-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-uncased-models.txt",
+    'bert-large-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-uncased-models.txt",
+    'bert-base-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-cased-models.txt",
+    'bert-large-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-large-cased-models.txt",
+    'bert-base-multilingual-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-multilingual-uncased-models.txt",
+    'bert-base-multilingual-cased': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-multilingual-cased-models.txt",
+    'bert-base-chinese': "https://s3.amazonaws.com/models.huggingface.co/bert/bert-base-chinese-models.txt",
 }
-VOCAB_NAME = 'vocab.txt'
+VOCAB_NAME = 'models.txt'
 
 
 def load_vocab(vocab_file):
@@ -72,7 +72,7 @@ class BertTokenizer(object):
         if not os.path.isfile(vocab_file):
             raise ValueError(
                 "Can't find a vocabulary file at path '{}'. To load the vocabulary from a Google pretrained "
-                "model use `tokenizer = BertTokenizer.from_pretrained(PRETRAINED_MODEL_NAME)`".format(vocab_file))
+                "models use `tokenizer = BertTokenizer.from_pretrained(PRETRAINED_MODEL_NAME)`".format(vocab_file))
         self.vocab = load_vocab(vocab_file)
         self.ids_to_tokens = collections.OrderedDict(
             [(ids, tok) for tok, ids in self.vocab.items()])
@@ -87,14 +87,14 @@ class BertTokenizer(object):
         return split_tokens
 
     def convert_tokens_to_ids(self, tokens):
-        """Converts a sequence of tokens into ids using the vocab."""
+        """Converts a sequence of tokens into ids using the models."""
         ids = []
         for token in tokens:
             ids.append(self.vocab[token])
         return ids
 
     def convert_ids_to_tokens(self, ids):
-        """Converts a sequence of ids in wordpiece tokens using the vocab."""
+        """Converts a sequence of ids in wordpiece tokens using the models."""
         tokens = []
         for i in ids:
             tokens.append(self.ids_to_tokens[i])
@@ -103,8 +103,8 @@ class BertTokenizer(object):
     @classmethod
     def from_pretrained(cls, pretrained_model_name, cache_dir=None, *inputs, **kwargs):
         """
-        Instantiate a PreTrainedBertModel from a pre-trained model file.
-        Download and cache the pre-trained model file if needed.
+        Instantiate a PreTrainedBertModel from a pre-trained models file.
+        Download and cache the pre-trained models file if needed.
         """
         if pretrained_model_name in PRETRAINED_VOCAB_ARCHIVE_MAP:
             vocab_file = PRETRAINED_VOCAB_ARCHIVE_MAP[pretrained_model_name]
@@ -117,7 +117,7 @@ class BertTokenizer(object):
             resolved_vocab_file = cached_path(vocab_file, cache_dir=cache_dir)
         except FileNotFoundError:
             logger.error(
-                "Model name '{}' was not found in model name list ({}). "
+                "Model name '{}' was not found in models name list ({}). "
                 "We assumed '{}' was a path or url but couldn't find any file "
                 "associated to this path or url.".format(
                     pretrained_model_name,
