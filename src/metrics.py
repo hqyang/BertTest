@@ -385,11 +385,11 @@ def process2BIOTagList(inputTagList, input_mask=None, mode='BMES'):
             if tmp_mask[ii] == 1:
                 t += ''.join(str(tmp[ii])+',')
 
-        t = t.replace('4,', '')
-        t = t.replace('5,', '')
-        if mode == 'BMES': # B: 0, M: 1, E: 2, S: 3, [START]: 4, [END]:5
-            t = t.replace('2', '1') # replace 'E' by 'I'
-            t = t.replace('3', '2') # replace '[START]' by 'O'
+        t = t.replace('0,', '')
+        t = t.replace('1,', '')
+        if mode == 'BMES': # [START]: 0, [END]: 1, B: 2, M: 3, E: 4, S: 5
+            t = t.replace('4', '3') # replace 'E' by 'I'
+            t = t.replace('5', '4') # replace 'S' by 'O'
 
         outTagList.append(t)
 

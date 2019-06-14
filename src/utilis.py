@@ -17,7 +17,7 @@ import numpy as np
 
 import sys
 sys.path.append('../src')
-from preprocess import dataset_to_dataloader, OntoNotesDataset
+from src.preprocess import dataset_to_dataloader, OntoNotesDataset
 #from src.preprocess import dataset_to_dataloader, OntoNotesDataset
 
 import logging

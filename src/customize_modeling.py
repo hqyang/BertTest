@@ -1088,7 +1088,7 @@ class BertVariant(PreTrainedBertModel):
     logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_tags=4, method=None, fclassifier=None):
+    def __init__(self, config, num_tags=4, method='fine_tune', fclassifier='Softmax'):
         super(BertVariant, self).__init__(config)
         self.num_tags = num_tags
         self.method = method
@@ -1492,3 +1492,153 @@ class BertCWS(PreTrainedBertModel):
             result_str_list.append(result_str.strip().split())
 
         return result_str_list
+
+
+class BertVariantCWSPOS(PreTrainedBertModel):
+    """Apply BERT for Sequence Labeling on Chinese Word Segmentation and Part-of-Speech.
+
+    models = BertVariantCWSPOS(config, num_tags)
+    logits = models(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, config, num_CWStags=4, num_POStags=108, method='fine_tune', fclassifier='Softmax'):
+        super(BertVariantCWSPOS, self).__init__(config)
+        self.num_CWStags = num_CWStags
+        self.num_POStags = num_POStags
+        self.method = method
+        self.fclassifier = fclassifier
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
+
+        if method == 'fine_tune':
+            last_hidden_size = self.config.hidden_size
+        elif method == 'cat_last4':
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+            last_hidden_size = self.config.hidden_size*2
+        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+            last_hidden_size = self.config.hidden_size*2
+        elif self.method == 'MHMLA':
+            self.MHMLA = MultiHeadMultiLayerAttention(config)
+
+        # Maps the output of BERT into tag space.
+        self.hidden2CWStag = nn.Linear(last_hidden_size, num_CWStags)
+        self.hidden2POStag = nn.Linear(last_hidden_size, num_POStags)
+
+        if self.fclassifier == 'CRF':
+            self.CWSclassifier = CRF(num_CWStags, batch_first=True)
+            self.POSclassifier = CRF(num_POStags, batch_first=True)
+
+        self.apply(self.init_bert_weights)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None):
+        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
+        mask = attention_mask.byte()
+        loss = 0
+
+        if labels_CWS is None and labels_POS is None:
+            raise RuntimeError('Input: labels_CWS or labels_POS is missing!')
+        else:
+            logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
+            if labels_CWS:
+                loss = self._compute_loss(logits, mask, labels_CWS, 'CWS')
+            elif labels_POS:
+                loss += self._compute_loss(logits, mask, labels_POS, 'POS')
+
+        return loss
+
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None):
+        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
+        loss = logits
+
+        mask = attention_mask.byte()
+        if labels_CWS is not None:
+            loss_CWS = self._compute_loss(logits, mask, labels_CWS, 'CWS')
+
+        if labels_POS is not None:
+            loss_POS = self._compute_loss(logits, mask, labels_POS, 'CWS')
+
+        if self.fclassifier == 'CRF':
+            best_CWS_tags_list = self.classifier.decode(logits, mask)
+            best_POS_tags_list = self.classifier.decode(logits, mask)
+        elif self.fclassifier == 'Softmax':
+            best_CWS_tags_list = self._decode_Softmax(logits, mask)
+            best_POS_tags_list = self._decode_Softmax(logits, mask)
+
+        return loss_CWS, loss_POS, best_CWS_tags_list, best_POS_tags_list
+
+    def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
+        if self.method in ['last_layer', 'fine_tune']:
+            output_all_encoded_layers = False
+        else: # sum_last4, sum_all, cat_last4, 'MHMLA'
+            output_all_encoded_layers = True
+
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
+
+        if self.method == 'sum_last4':
+            feat_used = self.dropout(sequence_output[-1])
+            for l in range(-2, -5, -1):
+                feat_used += self.dropout(sequence_output[l])
+        elif self.method == 'sum_all':
+            feat_used = self.dropout(sequence_output[-1])
+            for l in range(-2, -13, -1):
+                feat_used += self.dropout(sequence_output[l])
+        elif self.method == 'cat_last4':
+            feat_used = self.dropout(sequence_output[-4])
+            for l in range(-3, 0):
+                feat_used = torch.cat((feat_used, self.dropout(sequence_output[l])), 2)
+        elif self.method in ['last_layer', 'fine_tune']:
+            feat_used = sequence_output
+            feat_used = self.dropout(feat_used)
+        elif self.method == 'MHMLA':
+            feat_used = self.MHMLA(sequence_output)
+
+        if self.method in ['sum_last4', 'sum_all', 'cat_last4', 'last_layer']:
+            feat_used, _ = self.biLSTM(feat_used)
+
+        bert_feats = self.hidden2tag(feat_used)
+
+        return bert_feats
+
+    def _compute_loss(self, logits, mask, labels, task):
+        # mask is a ByteTensor
+
+        if self.fclassifier == 'Softmax':
+            loss_fct = nn.CrossEntropyLoss()
+
+            if task == 'CWS':
+                num_tags = self.num_CWStags
+            elif task == 'POS':
+                num_tags = self.num_POStags
+
+            loss = loss_fct(logits.view(-1, num_tags), labels.view(-1))
+        elif self.fclassifier == 'CRF':
+            if task == 'CWS':
+                loss = -self.CWSclassifier(logits, labels, mask)
+            elif task == 'POS':
+                loss = -self.POSclassifier(logits, labels, mask)
+
+        return loss
+
+    def _decode_Softmax(self, logits, mask):
+        # mask is a ByteTensor
+
+        batch_size, _ = mask.shape
+
+        _, best_selected_tag = logits.max(dim=2)
+
+        best_tags_list = []
+        for n in range(batch_size):
+            selected_tag = torch.masked_select(best_selected_tag[n, :], mask[n, :])
+            best_tags_list.append(selected_tag.tolist())
+
+        return best_tags_list

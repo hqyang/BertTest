@@ -76,7 +76,7 @@ TEST_DROP = ['（ 完 ）\n']
 
 def main(anno_dir, out_dir, correct):
     """
-    annatations/{domain}/{source}/{group}/{word}.{num}.{ext}
+    annatations/{domain}/{resource}/{group}/{word}.{num}.{ext}
     :param anno_dir:Annotations目录
     :param out_dir:train.parse, train.name, ...
     :return:

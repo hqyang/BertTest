@@ -197,12 +197,12 @@ def parse_one2BERTformat(s, full_tokenizer, basic_tokenizer): # store into lists
     buffer = []
     innermost = True
     full_pos = []
-    src_seg = []  # src_seg for storing the segmentation of source words
+    src_seg = []  # src_seg for storing the segmentation of resource words
     bert_seg = [] # bert_seg for storing the segmentation of bert format, additional processing for words and English
-    src_ner = []  # src_ner for storing the ner segmentation of source words
+    src_ner = []  # src_ner for storing the ner segmentation of resource words
     bert_ner = [] # bert_seg for storing the ner segmentation of bert format, additional processing for words and English
     ner_types = []
-    text = []  # store the source words, English words and numbers are separated by space
+    text = []  # store the resource words, English words and numbers are separated by space
     lang_status_list = [] # store the language type: 'C' (Chinese); 'NE' (Number and English)
     #num_ner = 0 # number of NER
     #num_words = 0 # number of words

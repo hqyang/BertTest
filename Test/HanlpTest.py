@@ -129,7 +129,7 @@ def do_eval_with_file(infile, output_dir, otag, tagMode='BMES'):
     output_diff_file = os.path.join(output_dir, otag+"_diff.txt")
 
     with open(output_diff_file, "a+") as writer:
-        writer.write('order: source, true, jieba\n')
+        writer.write('order: resource, true, jieba\n')
 
     for i, data in tqdm(enumerate(df.itertuples())):
         sentence = data.text

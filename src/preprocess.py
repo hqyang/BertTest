@@ -15,6 +15,24 @@ from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
+
+def construct_pos_tags(pos_tags_file, mode = 'BIO'):
+    pos_label_list  = ['START_POS', 'END_POS']
+
+    with open(pos_tags_file) as f:
+        raw_POS_list = f.readlines()
+
+    pos_label_list.extend([m+'-'+x.strip() for x in raw_POS_list for m in mode])
+
+    for i, label in enumerate(pos_label_list):
+        pos_label_map[label] = i
+
+    for i, lmap in enumerate(pos_label_map):
+        pos_idx_to_label_map[i] = lmap
+
+    return pos_label_list, pos_label_map, pos_idx_to_label_map
+
+
 class MeituProcessor:
     def __init__(self, level, multilabel=False, multitask=False, nopunc=False):
         self.label_list = None
@@ -238,9 +256,9 @@ class CWS_BMEO(MeituProcessor):
     def __init__(self, nopunc=False, drop_columns=None):
         self.nopunc = nopunc
         self.drop_columns = drop_columns
-        self.label_list = ['B', 'M', 'E', 'S', '[START]', '[END]']
-        self.label_map = {'B': 0, 'M': 1, 'E': 2, 'S': 3, '[START]': 4, '[END]': 5}
-        self.idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+        self.label_list = ['[START]', '[END]', 'B', 'M', 'E', 'S']
+        self.label_map = {'[START]': 0, '[END]': 1, 'B': 2, 'M': 3, 'E': 4, 'S': 5}
+        self.idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'M', 4: 'E', 5: 'S'}
 
     def get_examples(self, fn):
         """See base class."""
@@ -270,6 +288,52 @@ class CWS_BMEO(MeituProcessor):
 
     def get_labels(self):
         return self.label_list
+
+
+class CWS_POS(MeituProcessor):
+    def __init__(self, nopunc=False, drop_columns=None, pos_tags_file='pos_tags.txt'):
+        self.nopunc = nopunc
+        self.drop_columns = drop_columns
+        self.label_list = ['[START]', '[END]', 'B', 'M', 'E', 'S']
+        self.label_map = {'[START]': 0, '[END]': 1, 'B': 2, 'M': 3, 'E': 4, 'S': 5}
+        self.idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'M', 4: 'E', 5: 'S'}
+        self.pos_label_list, self.pos_label_map, self.pos_idx_to_label_map \
+            = construct_pos_tags(pos_tags_file, mode = 'BIO')
+
+    def get_examples(self, fn):
+        """See base class."""
+        df = pd.read_csv(fn, sep='\t')
+
+        # full_pos (chunk), ner, seg, text
+        # need parameter inplace=True
+        df.drop(columns=self.drop_columns, inplace=True)
+
+        # change name to tag for consistently processing
+        df.rename(columns={'bert_seg': 'label'}, inplace=True)
+
+       # change name to tag for consistently processing
+        df.rename(columns={'bert_pos': 'label_pos'}, inplace=True)
+
+        return df
+
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self.get_examples(os.path.join(data_dir, "train.tsv"))
+
+    def get_dev_examples(self, data_dir):
+        return self.get_examples(os.path.join(data_dir, "dev.tsv"))
+
+    def get_test_examples(self, data_dir):
+        return self.get_examples(os.path.join(data_dir, "test.tsv"))
+
+    def get_other_examples(self, data_dir, fn):
+        return self.get_examples(os.path.join(data_dir, fn))
+
+    def get_labels(self):
+        return self.label_list
+
+    def get_POS_labels(self):
+        return self.pos_label_list
 
 
 class MeituTagDataset(Dataset):
@@ -347,6 +411,12 @@ class OntoNotesDataset(Dataset):
         self.label_list = processor.get_labels()
         self.label_map = processor.label_map
 
+        pos_label_map = getattr(processor, 'pos_label_map', None)
+        if pos_label_map is not None:
+            self.pos_label_map = pos_label_map
+        else:
+            self.pos_label_map = None
+
     def train(self, training=True, ty='train'):
         self.training = training
         if ty=='train':
@@ -374,15 +444,26 @@ class OntoNotesDataset(Dataset):
         st = time.time()
         tokens = []
         labelids = []
+        pos_label_ids = []
+
         for i, data in enumerate(self.df.itertuples()):
             token = tokenize_text(data.text, self.max_length, self.tokenizer)
             labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
+
             tokens.append(token)
             labelids.append(labelid)
+            if self.pos_label_map:
+                pos_label_id = tokenize_label_list(data.label_POS, self.max_length, self.pos_label_map)
+                pos_label_ids.append(pos_label_id)
+
             if i % 100000 == 0:
                 logging.info("Writing example %d of %d" % (i, self.df.shape[0]))
         self.df['token'] = tokens
         self.df['labelid'] = labelids
+
+        if self.pos_label_map:
+            self.df['pos_label_id'] = pos_label_ids
+
         logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
 
         logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
@@ -391,15 +472,32 @@ class OntoNotesDataset(Dataset):
         if 'token' not in self.df.columns: # encode is here
             self._tokenize()
         data = self.df.iloc[i]
-        token, labelid = data.token, data.labelid
-        if not isinstance(labelid, list):
-            labelid = [labelid]
-        return tuple(token + labelid)
+
+        if self.pos_label_map is None:
+            token, labelid = data.token, data.labelid
+            if not isinstance(labelid, list):
+                labelid = [labelid]
+            return tuple(token + labelid)
+        else:
+            token, labelid, pos_label_id = data.token, data.labelid, data.pos_label_id
+            if not isinstance(labelid, list):
+                labelid = [labelid]
+
+            if not isinstance(pos_label_id, list):
+                pos_label_id = [pos_label_id]
+
+            return tuple(token + labelid + pos_label_id)
 
     def __call__(self, i):
         data = self.df.iloc[i]
-        text, label = data.text, data.label
-        return text, label
+
+        if self.pos_label_map is None:
+            text, label = data.text, data.label
+
+            return text, label
+        else:
+            text, label, pos_label = data.text, data.label, data.pos_label
+            return text, label, pos_label
 
     def __len__(self):
         return self.df.shape[0]
