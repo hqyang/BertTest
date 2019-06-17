@@ -301,8 +301,9 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
     for batch in tqdm(eval_dataloader, desc="TestIter"):
         batch = tuple(t.to(device) for t in batch)
         input_ids, segment_ids, input_mask = batch[:3]
-        label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
-        pos_label_ids = batch[4:] if len(batch[4:])>1 else batch[4]
+        label_ids, pos_label_ids = batch[3:]
+        #label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
+        #pos_label_ids = batch[4:] if len(batch[4:])>1 else batch[4]
         with torch.no_grad():
             n_gpu = torch.cuda.device_count()
 
