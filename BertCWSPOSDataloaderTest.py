@@ -472,7 +472,7 @@ def set_local_Ontonotes_param():
 
 
 TEST_FLAG = False
-TEST_FLAG = True
+#TEST_FLAG = True
 
 def main(**kwargs):
     if TEST_FLAG:
