@@ -17,4 +17,4 @@ python BertCWSPOSDataloaderTest.py \
     --method fine_tune \
     --num_hidden_layers 12 \
     --train_batch_size 32 \
-    --visible_device 0 
+    --visible_device 0

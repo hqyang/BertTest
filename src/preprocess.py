@@ -17,16 +17,18 @@ from torch.utils.data.distributed import DistributedSampler
 
 
 def construct_pos_tags(pos_tags_file, mode = 'BIO'):
-    pos_label_list  = ['START_POS', 'END_POS']
+    pos_label_list  = ['[START]', '[END]']
 
     with open(pos_tags_file) as f:
         raw_POS_list = f.readlines()
 
     pos_label_list.extend([m+'-'+x.strip() for x in raw_POS_list for m in mode])
 
+    pos_label_map = {}
     for i, label in enumerate(pos_label_list):
         pos_label_map[label] = i
 
+    pos_idx_to_label_map = {}
     for i, lmap in enumerate(pos_label_map):
         pos_idx_to_label_map[i] = lmap
 
@@ -453,7 +455,7 @@ class OntoNotesDataset(Dataset):
             tokens.append(token)
             labelids.append(labelid)
             if self.pos_label_map:
-                pos_label_id = tokenize_label_list(data.label_POS, self.max_length, self.pos_label_map)
+                pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
                 pos_label_ids.append(pos_label_id)
 
             if i % 100000 == 0:

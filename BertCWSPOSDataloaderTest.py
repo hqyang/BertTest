@@ -18,7 +18,7 @@ from tqdm import tqdm, trange
 from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma, load_4CWS
 import pandas as pd
 from src.config import args
-from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
+from src.preprocess import CWS_POS # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
 from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
 from src.BERT.optimization import BertAdam
@@ -341,7 +341,7 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
 
     cws_score, cws_sInfo = outputFscoreUsedBIO(all_label_ids, cws_all_labels, all_mask_tokens)
 
-    #pdb.set_trace()
+    pdb.set_trace()
     pos_score, pos_sInfo = outputFscoreUsedBIO(pos_all_label_ids, pos_all_labels, all_mask_tokens)
 
     eval_time = (time.time() - st) / 60.
@@ -380,7 +380,8 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
 
 def train_CWS_POS(args):
     processors = {
-        'ontonotes': lambda: CWS_POS(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg'], './resource/pos_tags.txt'),
+        'ontonotes': lambda: CWS_POS(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg'], \
+                                     pos_tags_file='./resource/pos_tags.txt'),
         #'4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
         #'msr': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
         #'pku': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
@@ -397,15 +398,15 @@ def train_CWS_POS(args):
     CWS_label_list = processor.get_labels() # get_CWS_labels
     POS_label_list = processor.get_POS_labels() # get_POS_labels
 
-    args.data_dir += args.task_name
-    print('data_dir: ' + args.data_dir)
+    #args.data_dir += args.task_name
+    #print('data_dir: ' + args.data_dir)
 
-    if args.method == 'last_layer':
-        args.output_dir = args.output_dir + args.task_name + '/' + args.fclassifier \
-                          + '/l' + str(args.num_hidden_layers)
-    else:
-        args.output_dir = args.output_dir + args.task_name + '/' + args.fclassifier \
-                          + '/' + args.method + '/l' + str(args.num_hidden_layers)
+    #if args.method == 'last_layer':
+    #    args.output_dir = args.output_dir + args.task_name + '/' + args.fclassifier \
+    #                      + '/l' + str(args.num_hidden_layers)
+    #else:
+    #    args.output_dir = args.output_dir + args.task_name + '/' + args.fclassifier \
+    #                      + '/' + args.method + '/l' + str(args.num_hidden_layers)
 
     print('output_dir: ' + args.output_dir)
     os.system('mkdir %s' %args.output_dir)
@@ -451,37 +452,38 @@ def train_CWS_POS(args):
              device, args, eval_dataloaders)
 
 
-def set_server_eval_4CWS_param():
-    return {'task_name': '4CWS_CWS',
+def set_local_Ontonotes_param():
+    return {'task_name': 'ontonotes',
             'model_type': 'sequencelabeling',
-            'data_dir': '../data/CWS/BMES/MSR/',
-            'vocab_file': '../models/bert-base-chinese/models.txt',
-            'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp/4CWS/MSR/CRF_BiLSTM_l1',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data',
+            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+            'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS',
             'do_lower_case': True,
-            'train_batch_size': 256,
+            'train_batch_size': 32,
             'max_seq_length': 128,
-            'num_hidden_layers': 1,
-            'init_checkpoint': '../models/bert-base-chinese/',
-            'visible_device': 2,
+            'num_hidden_layers': 12,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'no_cuda': True,
             'num_train_epochs': 10,
-            'bfinetune': False,
-            'learning_rate': 1e-4,
+            'method': 'fine_tune',
+            'learning_rate': 2e-5,
             'override_output': True,
             }
 
 
 TEST_FLAG = False
-
+TEST_FLAG = True
 
 def main(**kwargs):
     if TEST_FLAG:
-        kwargs = set_server_eval_4CWS_param()
+        kwargs = set_local_Ontonotes_param()
     else:
         print('load parameters from .sh')
 
     args._parse(kwargs)
-    train_4CWS(args)
+    train_CWS_POS(args)
 
     if args.method == 'last_layer':
         fn = os.path.join(args.output_dir, args.fclassifier + '_l' + str(args.num_hidden_layers) + '_rs.json')
