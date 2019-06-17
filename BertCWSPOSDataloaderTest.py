@@ -306,7 +306,6 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
         with torch.no_grad():
             n_gpu = torch.cuda.device_count()
 
-            #pdb.set_trace()
             if n_gpu > 1: # multiple gpus
             	# models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
                 loss_cws, loss_POS, best_cws_tags_list, best_pos_tags_list \
@@ -317,7 +316,6 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
                 loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
                     = model.module.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
 
-            #pdb.set_trace()
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
                 pos_label_array = pos_label_ids.data
@@ -455,7 +453,7 @@ def train_CWS_POS(args):
 def set_local_Ontonotes_param():
     return {'task_name': 'ontonotes',
             'model_type': 'sequencelabeling',
-            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data/valid/',
             'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
             'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS',

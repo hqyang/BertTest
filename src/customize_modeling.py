@@ -1538,43 +1538,47 @@ class BertVariantCWSPOS(PreTrainedBertModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None):
-        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
-
         mask = attention_mask.byte()
-        loss = 0
+        loss = 1e10
 
         if labels_CWS is None and labels_POS is None:
             raise RuntimeError('Input: labels_CWS or labels_POS is missing!')
         else:
-            logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+            feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+            cws_logits = self.hidden2CWStag(feat_used)
 
             if labels_CWS:
-                loss = self._compute_loss(logits, mask, labels_CWS, 'CWS')
-            elif labels_POS:
-                loss += self._compute_loss(logits, mask, labels_POS, 'POS')
+                loss = self._compute_loss(cws_logits, mask, labels_CWS, 'CWS')
+
+            if labels_POS:
+                pos_logits = self.hidden2POStag(feat_used)
+                loss += self._compute_loss(pos_logits, mask, labels_POS, 'POS')
 
         return loss
 
     def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None):
-        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
-
-        loss = logits
+        loss = 1e10
 
         mask = attention_mask.byte()
+        feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
         if labels_CWS is not None:
-            loss_CWS = self._compute_loss(logits, mask, labels_CWS, 'CWS')
+            cws_logits = self.hidden2CWStag(feat_used)
+
+            cws_loss = self._compute_loss(cws_logits, mask, labels_CWS, 'CWS')
 
         if labels_POS is not None:
-            loss_POS = self._compute_loss(logits, mask, labels_POS, 'CWS')
+            pos_logits = self.hidden2POStag(feat_used)
+            pos_loss = self._compute_loss(pos_logits, mask, labels_POS, 'POS')
 
         if self.fclassifier == 'CRF':
-            best_CWS_tags_list = self.classifier.decode(logits, mask)
-            best_POS_tags_list = self.classifier.decode(logits, mask)
+            best_cws_tags_list = self.classifier.decode(cws_logits, mask)
+            best_pos_tags_list = self.classifier.decode(pos_logits, mask)
         elif self.fclassifier == 'Softmax':
-            best_CWS_tags_list = self._decode_Softmax(logits, mask)
-            best_POS_tags_list = self._decode_Softmax(logits, mask)
+            best_cws_tags_list = self._decode_Softmax(cws_logits, mask)
+            best_pos_tags_list = self._decode_Softmax(pos_logits, mask)
 
-        return loss_CWS, loss_POS, best_CWS_tags_list, best_POS_tags_list
+        return cws_loss, pos_loss, best_cws_tags_list, best_pos_tags_list
 
     def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
         if self.method in ['last_layer', 'fine_tune']:
@@ -1605,9 +1609,9 @@ class BertVariantCWSPOS(PreTrainedBertModel):
         if self.method in ['sum_last4', 'sum_all', 'cat_last4', 'last_layer']:
             feat_used, _ = self.biLSTM(feat_used)
 
-        bert_feats = self.hidden2tag(feat_used)
+        #bert_feats = self.hidden2tag(feat_used)
 
-        return bert_feats
+        return feat_used
 
     def _compute_loss(self, logits, mask, labels, task):
         # mask is a ByteTensor
