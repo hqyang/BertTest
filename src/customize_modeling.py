@@ -1547,10 +1547,10 @@ class BertVariantCWSPOS(PreTrainedBertModel):
             feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
             cws_logits = self.hidden2CWStag(feat_used)
 
-            if labels_CWS:
+            if labels_CWS is not None:
                 loss = self._compute_loss(cws_logits, mask, labels_CWS, 'CWS')
 
-            if labels_POS:
+            if labels_POS is not None:
                 pos_logits = self.hidden2POStag(feat_used)
                 loss += self._compute_loss(pos_logits, mask, labels_POS, 'POS')
 
