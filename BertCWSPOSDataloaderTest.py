@@ -169,8 +169,8 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 input_ids = input_ids.to(device)
                 label_ids = label_ids.to(device)
             else:
-                label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
-                pos_label_ids = batch[4:] if len(batch[4:])>1 else batch[4]
+                label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
+                #pos_label_ids = batch[4:] if len(batch[4:])>1 else batch[4]
 
             loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
 
