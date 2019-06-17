@@ -308,13 +308,13 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
 
             if n_gpu > 1: # multiple gpus
             	# models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
-                loss_cws, loss_POS, best_cws_tags_list, best_pos_tags_list \
-                    = model.module.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+                loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                    = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
                 loss_cws = loss_cws.mean()
                 loss_pos = loss_pos.mean()
             else:
                 loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                    = model.module.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+                    = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
 
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
