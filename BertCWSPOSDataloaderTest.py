@@ -22,7 +22,7 @@ from src.preprocess import CWS_POS # dataset_to_dataloader, randomly_mask_input,
 import time
 from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
 from src.BERT.optimization import BertAdam
-from src.metrics import outputFscoreUsedBIO
+from src.metrics import outputFscoreUsedBIO, outputPOSFscoreUsedBIO
 
 import numpy as np
 import torch
