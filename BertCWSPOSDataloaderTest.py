@@ -292,7 +292,7 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
     model.eval()
 
     all_label_ids = []
-    all_pos_label_ids = []
+    pos_all_label_ids = []
     all_mask_tokens = []
     all_cws_labels = []
     all_pos_labels = []
