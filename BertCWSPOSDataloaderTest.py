@@ -349,7 +349,8 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
     model.train()
 
     logger.info('Eval time: %.2fmin' % eval_time)
-    output_eval_file = os.path.join(args.output_dir, type+"_eval_results.txt")
+    output_eval_file = os.path.join(args.output_dir, args.method + '_l' + str(args.num_hidden_layers) \
+                                  + type + "_eval_results.txt")
 
     if times is not None:
         np_times = np.array(times)
@@ -510,10 +511,7 @@ def main(**kwargs):
     args._parse(kwargs)
     train_CWS_POS(args)
 
-    if args.method == 'last_layer':
-        fn = os.path.join(args.output_dir, args.fclassifier + '_l' + str(args.num_hidden_layers) + '_rs.json')
-    else:
-        fn = os.path.join(args.output_dir, args.fclassifier + '_' + args.method + '_rs.json')
+    fn = os.path.join(args.output_dir, args.method + '_l' + str(args.num_hidden_layers) + '_rs.json')
 
     TS_WRITER.export_scalars_to_json(fn)
     TS_WRITER.close()
