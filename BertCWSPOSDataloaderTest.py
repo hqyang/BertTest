@@ -344,7 +344,7 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
     cws_score, cws_sInfo = outputFscoreUsedBIO(all_label_ids, cws_all_labels, all_mask_tokens)
 
     pdb.set_trace()
-    pos_score, pos_sInfo = outputFscoreUsedBIO(pos_all_label_ids, pos_all_labels, all_mask_tokens)
+    pos_score, pos_sInfo = outputPOSFscoreUsedBIO(pos_all_label_ids, pos_all_labels, all_mask_tokens)
 
     eval_time = (time.time() - st) / 60.
     model.train()

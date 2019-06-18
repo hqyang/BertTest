@@ -341,7 +341,7 @@ def ner_evaluate(problem, estimator, params):
     return result_dict
 '''
 
-from src.config import segType
+from src.config import segType, posType
 def outBIOTagList(inputTagList, input_mask=None, mode='BMES'):
     if mode == 'BMES':
         idx_to_label_map = segType.BMES_idx_to_label_map
@@ -410,3 +410,32 @@ def outputFscoreUsedBIO(goldTagList, preTagList, input_mask=None, mode='BMES'):
     return scoreList, infoList
 
 
+def process2POSTagList(inputTagList, input_mask=None):
+    outTagList = []
+    for i in range(len(inputTagList)):
+        tmp = inputTagList[i]
+        if input_mask == None:
+            tmp_mask = [1]*len(tmp)
+        else:
+            tmp_mask = input_mask[i]
+
+        t = ''
+        for ii in range(len(tmp)):
+            if tmp_mask[ii] == 1:
+                t += ''.join(str(tmp[ii])+',')
+
+        t = t.replace('0,', '')
+        t = t.replace('1,', '')
+
+        outTagList.append(t)
+
+    return outTagList
+
+
+def outputPOSFscoreUsedBIO(goldTagList, preTagList, input_mask=None): # mode='BIO'
+    goldTagList = process2POSTagList(goldTagList, input_mask)
+    preTagList = process2POSTagList(preTagList, input_mask)
+
+    scoreList, infoList = getFscore(goldTagList, preTagList, posType.BIO_idx_to_label_map)
+
+    return scoreList, infoList
