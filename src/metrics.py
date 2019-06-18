@@ -412,20 +412,24 @@ def outputFscoreUsedBIO(goldTagList, preTagList, input_mask=None, mode='BMES'):
 
 def process2POSTagList(inputTagList, input_mask=None):
     outTagList = []
+
     for i in range(len(inputTagList)):
         tmp = inputTagList[i]
-        if input_mask == None:
-            tmp_mask = [1]*len(tmp)
+
+        if input_mask is not None:
+            msk = [bool(v) for v in input_mask[i]]
+            tmp_used = np.array(tmp)[msk].tolist()
         else:
-            tmp_mask = input_mask[i]
+            tmp_used = tmp
 
-        t = ''
-        for ii in range(len(tmp)):
-            if tmp_mask[ii] == 1:
-                t += ''.join(str(tmp[ii])+',')
+        if tmp_used[0] == 0:
+            tmp_used = tmp_used[1:]
 
-        t = t.replace('0,', '')
-        t = t.replace('1,', '')
+        if tmp_used[-1] == 1:
+            tmp_used = tmp_used[:-1]
+
+        t_o = [''.join(str(v))+',' for v in tmp_used]
+        t = ''.join(t_o)
 
         outTagList.append(t)
 
@@ -434,7 +438,7 @@ def process2POSTagList(inputTagList, input_mask=None):
 
 def outputPOSFscoreUsedBIO(goldTagList, preTagList, input_mask=None): # mode='BIO'
     goldTagList = process2POSTagList(goldTagList, input_mask)
-    preTagList = process2POSTagList(preTagList, input_mask)
+    preTagList = process2POSTagList(preTagList)
 
     scoreList, infoList = getFscore(goldTagList, preTagList, posType.BIO_idx_to_label_map)
 
