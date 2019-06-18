@@ -369,14 +369,14 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
         logger.info("***** Eval results *****")
         if times is not None:
             logger.info(type + ': train time: {:.3f}, test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}'.format( \
-                avg_times, eval_time, cws_avg_loss, pos_avg_loss)
+                avg_times, eval_time, cws_avg_loss, pos_avg_loss))
             logger.info(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}'.format( \
                 cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
             logger.info(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}'.format( \
                 pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]))
 
             writer.write(type + ': train time: {:.3f}, test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}\n'.format( \
-                avg_times, eval_time, cws_avg_loss, pos_avg_loss)
+                avg_times, eval_time, cws_avg_loss, pos_avg_loss))
             writer.write(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}\n'.format( \
                 cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
             writer.write(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}\n'.format( \
@@ -386,14 +386,14 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
                        cws_score[3], cws_sInfo[-1], pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]]
         else:
             logger.info(type + ': test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}'.format( \
-                eval_time, cws_avg_loss, pos_avg_loss)
+                eval_time, cws_avg_loss, pos_avg_loss))
             logger.info(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}'.format( \
                 cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
             logger.info(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}'.format( \
                 pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]))
 
             writer.write(type + ': test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}\n'.format( \
-                eval_time, cws_avg_loss, pos_avg_loss)
+                eval_time, cws_avg_loss, pos_avg_loss))
             writer.write(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}\n'.format( \
                 cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
             writer.write(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}\n'.format( \
