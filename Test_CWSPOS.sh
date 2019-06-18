@@ -17,6 +17,6 @@ do
         --method fine_tune \
         --num_hidden_layers $nhl \
         --train_batch_size 32 \
-        --visible_device 0
+        --visible_device 0 \
         --num_train_epochs 10
 done
