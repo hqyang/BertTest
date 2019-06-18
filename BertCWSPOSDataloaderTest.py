@@ -296,7 +296,10 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
     all_mask_tokens = []
     cws_all_labels = []
     pos_all_labels = []
+    cws_all_losses = []
+    pos_all_losses = []
     results = []
+
     st = time.time()
     for batch in tqdm(eval_dataloader, desc="TestIter"):
         batch = tuple(t.to(device) for t in batch)
@@ -353,26 +356,51 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
         np_times = np.array(times)
         avg_times = np.mean(np_times)
 
-    np_loss = np.array(all_cws_losses)
-    cws_avg_loss = np.mean(np_loss)
+    cws_np_loss = np.array(cws_all_losses)
+    cws_avg_loss = np.mean(cws_np_loss)
 
-    if args.fclassifier == 'Softmax':
-        avg_loss *= 1e5
+    pos_np_loss = np.array(pos_all_losses)
+    pos_avg_loss = np.mean(pos_np_loss)
+
+    #if args.fclassifier == 'Softmax':
+    #    avg_loss *= 1e5
 
     with open(output_eval_file, "a+") as writer:
         logger.info("***** Eval results *****")
         if times is not None:
-            logger.info(type + ': train time: {:.3f}, test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
-                               avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
-            writer.write(type + ': train time: {:.3f}, test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}\n'.format( \
-                               avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
-            results = [avg_times, eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]]
+            logger.info(type + ': train time: {:.3f}, test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}'.format( \
+                avg_times, eval_time, cws_avg_loss, pos_avg_loss)
+            logger.info(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}'.format( \
+                cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
+            logger.info(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}'.format( \
+                pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]))
+
+            writer.write(type + ': train time: {:.3f}, test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}\n'.format( \
+                avg_times, eval_time, cws_avg_loss, pos_avg_loss)
+            writer.write(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}\n'.format( \
+                cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
+            writer.write(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}\n'.format( \
+                pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]))
+
+            results = [avg_times, eval_time, cws_avg_loss, pos_avg_loss, cws_score[0], cws_score[1], cws_score[2], \
+                       cws_score[3], cws_sInfo[-1], pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]]
         else:
-            logger.info(type + ': test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}'.format( \
-                               eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
-            writer.write(type + ': test time: {:.3f}, loss: {:.3f}, F1: {:.3f}, P: {:.3f}, R: {:.3f}, Acc: {:.3f}, Tags: {:d}\n'.format( \
-                               eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]))
-            results = [eval_time, avg_loss, score[0], score[1], score[2], score[3], sInfo[-1]]
+            logger.info(type + ': test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}'.format( \
+                eval_time, cws_avg_loss, pos_avg_loss)
+            logger.info(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}'.format( \
+                cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
+            logger.info(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}'.format( \
+                pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]))
+
+            writer.write(type + ': test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}\n'.format( \
+                eval_time, cws_avg_loss, pos_avg_loss)
+            writer.write(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}\n'.format( \
+                cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
+            writer.write(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}\n'.format( \
+                pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]))
+
+            results = [eval_time, cws_avg_loss, pos_avg_loss, cws_score[0], cws_score[1], cws_score[2], \
+                       cws_score[3], cws_sInfo[-1], pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]]
 
     return results
 
