@@ -294,8 +294,8 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
     all_label_ids = []
     pos_all_label_ids = []
     all_mask_tokens = []
-    all_cws_labels = []
-    all_pos_labels = []
+    cws_all_labels = []
+    pos_all_labels = []
     results = []
     st = time.time()
     for batch in tqdm(eval_dataloader, desc="TestIter"):
