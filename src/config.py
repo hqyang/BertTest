@@ -75,7 +75,7 @@ class Config:
 args = Config()
 
 class SegType:
-    BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
-    BIO_idx_to_label_map = {0: 'B', 1: 'I', 2: 'O', 3: '[START]', 4: '[END]'}
+    BMES_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'M', 4: 'E', 5: 'S'}
+    BIO_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'I', 4: 'O'}
 
 segType = SegType()
