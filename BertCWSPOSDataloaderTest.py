@@ -327,8 +327,8 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
                 label_array = label_ids.data.cpu()
                 pos_label_array = pos_label_ids.cpu()
                 mask_array = input_mask.data.cpu()
-                tmp_el_cws = loss_CWS.cpu()
-                tmp_el_pos = loss_POS.cpu()
+                tmp_el_cws = loss_cws.cpu()
+                tmp_el_pos = loss_pos.cpu()
 
         all_label_ids.extend(label_array.tolist())
         pos_all_label_ids.extend(pos_label_array.tolist())
