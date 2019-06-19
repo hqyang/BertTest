@@ -229,7 +229,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
         if eval_dataloaders:
             rs = {}
-            if ontonotes in args.task_name.lower():
+            if 'ontonotes' in args.task_name.lower():
                 parts = ['test', 'dev', 'train']
             else:
                 parts = ['test', 'train']
