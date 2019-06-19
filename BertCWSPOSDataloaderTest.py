@@ -155,8 +155,10 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
     global_step = 0
     tr_times = []
 
-    old_F1 = 0.
-    old_Acc = 0.
+    old_cws_F1 = 0.
+    old_cws_Acc = 0.
+    old_pos_F1 = 0.
+    old_pos_Acc = 0.
     for ep in trange(int(args.num_train_epochs), desc="Epoch"):
         st = time.time()
         tr_loss = 0
@@ -223,17 +225,17 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         if args.fclassifier == 'Softmax':
             TS_WRITER.add_scalar('data/tr_loss', tr_loss*1e5)
         else:
-            TS_WRITER.add_scalar('data/tr_loss', tr_loss*1e5)
+            TS_WRITER.add_scalar('data/tr_loss', tr_loss)
 
         if eval_dataloaders:
             rs = {}
-            if args.task_name.lower() == 'ontonotes_cws':
+            if ontonotes in args.task_name.lower():
                 parts = ['test', 'dev', 'train']
             else:
                 parts = ['test', 'train']
 
             for part in parts:
-                rs[part] = do_eval(model, eval_dataloaders[part], device, args, times=tr_time, type=part)
+                rs[part] = do_eval(model, eval_dataloaders[part], device, args, times=tr_time, type=part, ep=ep)
 
         if len(rs) != 0:
             for part in parts:
@@ -242,26 +244,41 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
                 TS_WRITER.add_scalar('data/'+part+'_eval_time', rs[part][1])
                 if args.fclassifier == 'Softmax':
-                    TS_WRITER.add_scalar('data/'+part+'_eval_loss', rs[part][2]*1e5)
+                    TS_WRITER.add_scalar('data/'+part+'_eval_cws_loss', rs[part][2]*1e5)
+                    TS_WRITER.add_scalar('data/'+part+'_eval_pos_loss', rs[part][3]*1e5)
                 else:
-                    TS_WRITER.add_scalar('data/'+part+'_eval_loss', rs[part][2])
-                TS_WRITER.add_scalar('data/'+part+'_F1', rs[part][3])
-                TS_WRITER.add_scalar('data/'+part+'_P', rs[part][4])
-                TS_WRITER.add_scalar('data/'+part+'_R', rs[part][5])
-                TS_WRITER.add_scalar('data/'+part+'_Acc', rs[part][6])
+                    TS_WRITER.add_scalar('data/'+part+'_eval_cws_loss', rs[part][2])
+                    TS_WRITER.add_scalar('data/'+part+'_eval_pos_loss', rs[part][3])
 
-        ts_F1 = rs['test'][3]
-        ts_Acc = rs['test'][6]
+                TS_WRITER.add_scalar('data/'+part+'_cws_F1', rs[part][4])
+                TS_WRITER.add_scalar('data/'+part+'_cws_P', rs[part][5])
+                TS_WRITER.add_scalar('data/'+part+'_cws_R', rs[part][6])
+                TS_WRITER.add_scalar('data/'+part+'_cws_Acc', rs[part][7])
+                TS_WRITER.add_scalar('data/'+part+'_cws_tags', rs[part][8])
 
-        if ts_F1 > old_F1: # only save the best models
-            old_F1 = ts_F1
+                TS_WRITER.add_scalar('data/'+part+'_pos_F1', rs[part][9])
+                TS_WRITER.add_scalar('data/'+part+'_pos_P', rs[part][10])
+                TS_WRITER.add_scalar('data/'+part+'_pos_R', rs[part][11])
+                TS_WRITER.add_scalar('data/'+part+'_pos_Acc', rs[part][12])
+                TS_WRITER.add_scalar('data/'+part+'_pos_tags', rs[part][13])
+                # results = [avg_times, eval_time, cws_avg_loss, pos_avg_loss, cws_score[0], cws_score[1], cws_score[2], \
+                # cws_score[3], cws_sInfo[-1], pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]]
 
-            ckpt_files = sorted(glob(os.path.join(args.output_dir, 'F1_*.pt')))
+        ts_cws_F1 = rs['test'][4]
+        ts_cws_Acc = rs['test'][7]
+
+        ts_pos_F1 = rs['test'][9]
+        ts_pos_Acc = rs['test'][12]
+
+        if ts_cws_F1 > old_cws_F1: # only save the best models
+            old_cws_F1 = ts_cws_F1
+
+            ckpt_files = sorted(glob(os.path.join(args.output_dir, 'cws_F1_*.pt')))
             for ckpt_file in ckpt_files:
                 logger.info('rm %s' % ckpt_file)
                 os.system("rm %s" % ckpt_file)
 
-            output_weight_file = os.path.join(args.output_dir, 'F1_weights_epoch%02d.pt'%ep)
+            output_weight_file = os.path.join(args.output_dir, 'cws_F1_weights_epoch%02d.pt'%ep)
 
             state_dict = model.state_dict()
             if isinstance(model, torch.nn.DataParallel):
@@ -270,15 +287,15 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
             torch.save(state_dict, output_weight_file)
 
-        if ts_Acc > old_Acc: # only save the best models
-            old_Acc = ts_Acc
+        if ts_cws_Acc > old_cws_Acc: # only save the best models
+            old_cws_Acc = ts_pos_Acc
 
-            ckpt_files = sorted(glob(os.path.join(args.output_dir, 'Acc_*.pt')))
+            ckpt_files = sorted(glob(os.path.join(args.output_dir, 'cws_Acc_*.pt')))
             for ckpt_file in ckpt_files:
                 logger.info('rm %s' % ckpt_file)
                 os.system("rm %s" % ckpt_file)
 
-            output_weight_file = os.path.join(args.output_dir, 'Acc_weights_epoch%02d.pt'%ep)
+            output_weight_file = os.path.join(args.output_dir, 'cws_Acc_weights_epoch%02d.pt'%ep)
 
             state_dict = model.state_dict()
             if isinstance(model, torch.nn.DataParallel):
@@ -288,7 +305,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             torch.save(state_dict, output_weight_file)
 
 
-def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
+def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=ep):
     model.eval()
 
     all_label_ids = []
@@ -349,8 +366,7 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
     model.train()
 
     logger.info('Eval time: %.2fmin' % eval_time)
-    output_eval_file = os.path.join(args.output_dir, args.method + '_l' + str(args.num_hidden_layers) \
-                                  + type + "_eval_results.txt")
+    output_eval_file = os.path.join(args.output_dir, type + "_eval_results.txt")
 
     if times is not None:
         np_times = np.array(times)
@@ -368,15 +384,15 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
     with open(output_eval_file, "a+") as writer:
         logger.info("***** Eval results *****")
         if times is not None:
-            logger.info(type + ': train time: {:.3f}, test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}'.format( \
-                avg_times, eval_time, cws_avg_loss, pos_avg_loss))
+            logger.info('{:s}: ep: {:.d}, train time: {:.3f}, test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}'.format( \
+                type, ep, avg_times, eval_time, cws_avg_loss, pos_avg_loss))
             logger.info(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}'.format( \
                 cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
             logger.info(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}'.format( \
                 pos_score[0], pos_score[1], pos_score[2], pos_score[3], pos_sInfo[-1]))
 
-            writer.write(type + ': train time: {:.3f}, test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}\n'.format( \
-                avg_times, eval_time, cws_avg_loss, pos_avg_loss))
+            writer.write('{:s}: ep: {:.d}, train time: {:.3f}, test time: {:.3f}, cws_loss: {:.3f}, pos_loss: {:.3f}\n'.format( \
+                type, ep, avg_times, eval_time, cws_avg_loss, pos_avg_loss))
             writer.write(type + ': cws_F1: {:.3f}, cws_P: {:.3f}, cws_R: {:.3f}, cws_Acc: {:.3f}, cws_Tags: {:d}\n'.format( \
                 cws_score[0], cws_score[1], cws_score[2], cws_score[3], cws_sInfo[-1]))
             writer.write(type + ': pos_F1: {:.3f}, pos_P: {:.3f}, pos_R: {:.3f}, pos_Acc: {:.3f}, pos_Tags: {:d}\n'.format( \
@@ -407,7 +423,7 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test'):
 
 def train_CWS_POS(args):
     processors = {
-        'ontonotes': lambda: CWS_POS(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg'], \
+        'ontonotes_cws_pos': lambda: CWS_POS(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg'], \
                                      pos_tags_file='./resource/pos_tags.txt'),
         #'4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
         #'msr': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
@@ -434,6 +450,7 @@ def train_CWS_POS(args):
     #else:
     #    args.output_dir = args.output_dir + args.task_name + '/' + args.fclassifier \
     #                      + '/' + args.method + '/l' + str(args.num_hidden_layers)
+    args.output_dir = args.output_dir + '/l' + str(args.num_hidden_layers)
 
     print('output_dir: ' + args.output_dir)
     os.system('mkdir %s' %args.output_dir)
@@ -479,7 +496,7 @@ def train_CWS_POS(args):
 
 
 def set_local_Ontonotes_param():
-    return {'task_name': 'ontonotes',
+    return {'task_name': 'ontonotes_cws_pos',
             'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data/valid/',
             'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',

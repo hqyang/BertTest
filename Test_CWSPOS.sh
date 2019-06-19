@@ -2,7 +2,7 @@
 for nhl in 1 3 6 12
 do
     python BertCWSPOSDataloaderTest.py \
-        --task_name ontonotes \
+        --task_name ontonotes_cws_pos \
         --model_type sequencelabeling \
         --data_dir ../data/ontonotes5/4nerpos_data \
         --output_dir ./tmp/ontonotes \
