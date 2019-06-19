@@ -39,7 +39,7 @@ def get_dataset_and_dataloader(processor, args, training=True, type='train'):
 
 
 def get_eval_dataloaders(processor, args):
-    if args.task_name == 'ontonotes_CWS':
+    if 'ontonotes' in args.task_name.lower():
         parts = ['test', 'dev', 'train']
     else:
         parts = ['test', 'train']
