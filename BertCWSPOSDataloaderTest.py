@@ -305,7 +305,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             torch.save(state_dict, output_weight_file)
 
 
-def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=ep):
+def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0):
     model.eval()
 
     all_label_ids = []
