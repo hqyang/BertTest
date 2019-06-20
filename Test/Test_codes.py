@@ -11,13 +11,14 @@ Scenario:
 from sklearn.preprocessing import LabelEncoder
 import sys
 sys.path.append('../src')
-from utilis import save_model
-from config import args
-from utilis import get_dataset_and_dataloader, get_eval_dataloaders
-from preprocess import CWS_BMEO
+from src.utilis import save_model
+from src.config import args, segType
+from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
+from src.preprocess import CWS_BMEO
 from tqdm import tqdm
 import time
 import torch
+
 
 def test_BertCRF_constructor():
     from src.BERT.modeling import BertCRF
@@ -474,6 +475,62 @@ def test_outputPOSFscoreUsedBIO():
     print(infoList)
 
 
+def compare_string_directly(text, tag):
+    result_str = ''
+    for idx in range(len(tag)):
+        tt = text[idx]
+        tt = tt.replace('##', '')
+        ti = tag[idx]
+
+        if int(ti) == 2:  # 'B'
+            result_str += ' ' + tt
+        elif int(ti) > 3:  # and (cur_word_is_english)
+            # int(ti)>1: tokens of 'E' and 'S'
+            # current word is english
+            result_str += tt + ' '
+        else:
+            result_str += tt
+
+    return result_str
+
+
+def compare_string_reference(text, tag):
+    result_str = ''
+    for idx in range(len(tag)):
+        tt = text[idx]
+        tt = tt.replace('##', '')
+        ti = tag[idx]
+
+        if int(ti) == segType.BMES_label_map['B']:  # 'B'
+            result_str += ' ' + tt
+        elif int(ti) > segType.BMES_label_map['M']:  # and (cur_word_is_english)
+            # int(ti)>1: tokens of 'E' and 'S'
+            # current word is english
+            result_str += tt + ' '
+        else:
+            result_str += tt
+
+    return result_str
+
+def check_time():
+    import time
+
+    count = 100000
+    text_ele = ['电影首发。']*count
+    text = ''.join(text_ele)
+
+    tag_ele = ['24245']*count
+    tag = ''.join(tag_ele)
+
+    st = time.time()
+    print(compare_string_directly(text, tag))
+    print(time.time()-st)
+
+    st = time.time()
+    print(compare_string_reference(text, tag))
+    print(time.time()-st)
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -500,5 +557,7 @@ if __name__ == '__main__':
 
     #test_construct_pos_tags()
 
-    test_outputPOSFscoreUsedBIO()
+    #test_outputPOSFscoreUsedBIO()
+    check_time()
+
 
