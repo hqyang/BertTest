@@ -77,6 +77,7 @@ args = Config()
 class SegType:
     BMES_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'M', 4: 'E', 5: 'S'}
     BIO_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'I', 4: 'O'}
+    BMES_label_map = {'[START]': 0, '[END]': 1, 'B': 2, 'M': 3, 'E': 4, 'S': 5}
 
 segType = SegType()
 
@@ -102,4 +103,50 @@ class POSType:
         101: 'B-VE', 102: 'I-VE', 103: 'O-VE', 104: 'B-VV', 105: 'I-VV', 106: 'O-VV',
         107: 'B-X', 108: 'I-X', 109: 'O-X'
     }
+    POS_label_map = {
+        0: 'AD', 1: 'AS', 2: 'BA', 3: 'CC', 4: 'CD', 5: 'CS', 6: 'DEC', 7: 'DEG',
+        8: 'DER', 9: 'DEV', 10: 'DT', 11: 'ETC', 12: 'FW', 13: 'IJ', 14: 'INF',
+        15: 'JJ', 16: 'LB', 17: 'LC', 18: 'M', 19: 'MSP', 20: 'NN', 21: 'NR',
+        22: 'NT', 23: 'OD', 24: 'ON', 25: 'P', 26: 'PN', 27: 'PU', 28: 'SB',
+        29: 'SP', 30: 'URL', 31: 'VA', 32: 'VC', 33: 'VE', 34: 'VV', 35: 'X'
+    }
+
 posType = POSType()
+
+    # explain from https://blog.csdn.net/Eliza1130/article/details/40678999
+    # 0 AD: 副词  Adverbs
+    # 1 AS    语态词  --- 了
+    # 2 BA    把
+    # 3 CC    并列连接词（coordinating conj）
+    # 4 CD    许多(many),若干（several),个把(a,few)
+    # 5 CS    从属连接词（subording conj）
+    # 6 DEC   从句“的”
+    # 7 DEG   修饰“的”
+    # 8 DER   得 in V-de-const, and V-de R
+    # 9 DEV   地 before VP
+    # 10 DT    限定词   各（each),全(all),某(certain/some),这(this)
+    # 11 ETC   for words 等，等等
+    # 12 FW    外来词 foreign words
+    # 13 IJ     感叹词  interjecton
+    # 14 INF     那个
+    # 15 JJ     名词修饰语
+    # 16 LB    被,给   in long bei-const
+    # 17 LC    方位词
+    # 18 M     量词
+    # 19 MSP   其他小品词（other particle） 所
+    # 20 NN    口头名词、others
+    # 21 NR    专有名词
+    # 22 NT    时间名词  （temporal noun）
+    # 23 OD    序数（ordinal numbers）
+    # 24 ON    拟声法（onomatopoeia）
+    # 25 P      介词   （对，由于，因为）(除了 “把”和“被”)
+    # 26 PN    代词
+    # 27 PU    标定符号
+    # 28 SB    in short bei-const 被，给
+    # 29 SP    句尾语气词
+    # 30 URL
+    # 31 VA    表语形容词（predicative adjective）
+    # 32 VC    是
+    # 33 VE    有（have，not have ,有，无，没，表示存在的词
+    # 34 VV    情态动词、  动词、possess/拥有 ，rich/富有,具有
+    # 35 X     English x

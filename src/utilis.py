@@ -437,35 +437,44 @@ def findretokens(text):
 
 
 def setspacefortext(strOut, used_idx, text):
-    ftoken, onlytoken = findretokens(text)
-    if not ftoken:
-        idx_obj = re.search(text, strOut[used_idx:])
-    else: # find special token
-        if onlytoken: # only one token
-            text = '\\' + text
-        else: # text consists of chars with special tokens, e.g., [, (, or ), ...
-            text = handle_special_tokens(text)
-        idx_obj = re.search(text, strOut[used_idx:])
+    # strOut: xxxabcxxx
+    # text: abc
+    # strOut: xxx abc xxx
+    idx_obj = findtext(text, strOut[used_idx:].lower())
 
     if idx_obj:
         start_idx, end_idx = idx_obj.span()
         start_idx += used_idx
         end_idx += used_idx
         strOut = strOut[:start_idx] + ' ' + strOut[start_idx:end_idx] + ' ' + strOut[end_idx:]
-        used_idx = end_idx
+        used_idx = end_idx + 2
 
     return strOut, used_idx
 
-def setnospacefortext(strOut, used_idx, text):
+
+def findtext(strIn, text):
     ftoken, onlytoken = findretokens(text)
     if not ftoken:
-        idx_obj = re.search(text, strOut[used_idx:])
+        idx_obj = re.search(text, strIn.lower())
     else: # find special token
         if onlytoken: # only one token
             text = '\\' + text
         else: # text consists of chars with special tokens, e.g., [, (, or ), ...
             text = handle_special_tokens(text)
-        idx_obj = re.search(text, strOut[used_idx:])
+        idx_obj = re.search(text, strIn.lower())
+    return idx_obj
+
+
+def setnospacefortext(strOut, used_idx, text):
+    ftoken, onlytoken = findretokens(text)
+    if not ftoken:
+        idx_obj = re.search(text, strOut[used_idx:].lower())
+    else: # find special token
+        if onlytoken: # only one token
+            text = '\\' + text
+        else: # text consists of chars with special tokens, e.g., [, (, or ), ...
+            text = handle_special_tokens(text)
+        idx_obj = re.search(text, strOut[used_idx:].lower())
 
     if idx_obj:
         start_idx, end_idx = idx_obj.span()
@@ -510,6 +519,100 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
     return strOut
 
 
+def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str):
+    len_original_str = len(original_str)
+
+    text_ls = str_with_unknown_tokens.split()
+    pos_ls = pos_str.split()
+    assert(len(text_ls) == len(pos_ls))
+
+    pos_outstr = ''
+
+    strOut = original_str
+    used_idx = 0
+
+    text_list = []
+    pos_list = []
+    ori_used_idx = 0
+
+    unk_status = False
+
+    for i in range(len(text_ls)):
+        text = text_ls[i]
+        pos = pos_ls[i]
+
+        if '[UNK]' not in text:
+            if '[unused1]' in text:
+                if len(text)>len('[unused1]'):
+                    tmp_text_list = text.split('[unused1]')
+                    tmp_text_list = [v for v in tmp_text_list if v]
+
+                    if unk_status:
+                        idx_obj = findtext(original_str[ori_used_idx:].lower(), tmp_text_list[0])
+                        s_idx, e_idx = idx_obj.span()
+
+                        # append unknown token
+                        text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx])
+                        pos_list.append(unk_pos)
+                        ori_used_idx += s_idx
+
+                    for v in tmp_text_list:
+                        idx_obj = findtext(original_str[ori_used_idx:].lower(), v)
+
+                        s_idx, e_idx = idx_obj.span()
+                        text_list.append(original_str[ori_used_idx+s_idx:ori_used_idx+e_idx])
+                        pos_list.append(pos)
+
+                        ori_used_idx += e_idx
+            else: # normal text
+                if unk_status: # previous is an unknown token
+                    idx_obj = findtext(original_str[ori_used_idx:].lower(), text)
+
+                    pos_list.append(unk_pos)
+
+                    s_idx, e_idx = idx_obj.span()
+                    text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx])
+                    ori_used_idx += s_idx
+                    e_idx = ori_used_idx + e_idx - s_idx
+                else: # previous is a normal token
+                    idx_obj = findtext(original_str[ori_used_idx:].lower(), text)
+                    if idx_obj:
+                        s_idx, e_idx = idx_obj.span()
+                        e_idx += ori_used_idx
+                    else:
+                        while len(original_str[ori_used_idx])==0 and ori_used_idx<len_original_str: # remove the space
+                            ori_used_idx += 1
+
+                        e_idx = ori_used_idx + len(text)
+
+                text_list.append(original_str[ori_used_idx:e_idx])
+                ori_used_idx = e_idx
+
+                pos_list.append(pos)
+
+            unk_status = False
+        else:
+            if len(text.replace('[UNK]', '')) == 0: # only unknown token(s)
+                unk_status = True
+                unk_pos = pos
+            else: # unknown token in the middle
+                idx_obj = re.search('\[UNK\]', text)
+                s_idx, e_idx = idx_obj.span()
+
+                if e_idx < len(text):
+                    sel_text = text[e_idx:]
+                    idx_obj = findtext(original_str[ori_used_idx:], sel_text)
+                    s_idx, e_idx = idx_obj.span()
+                    text_list.append(original_str[ori_used_idx:ori_used_idx+e_idx])
+                    ori_used_idx += e_idx
+                    pos_list.append(pos)
+                else: # [UNK] is in the end
+                    unk_status = True
+                    unk_pos = pos
+
+    return text_list, pos_list
+
+
 def append_to_buff(processed_text_list, buff, append_text, len_max, merge_index):
     if len(buff) + len(append_text) > len_max:
         processed_text_list.append(buff)
@@ -528,3 +631,28 @@ def split_text_by_punc(text):
     text_chunk_list = re.split('(。|，|：|\n|#)', text)
 
     return text_chunk_list
+
+
+def extract_pos(pos_list):
+    result_pos_str = ''
+
+    for pos in pos_list:
+        if len(pos)<=2:
+            pos_used = pos[0]
+        else:
+            pos_set = {}
+
+            max_count = 0
+            for pos_i in pos:
+                if pos_i in pos_set:
+                    pos_set[pos_i] += 1
+                else:
+                    pos_set[pos_i] = 1
+
+                if pos_set[pos_i] > max_count:
+                    max_count = pos_set[pos_i]
+                    pos_used = pos_i
+
+        result_pos_str += pos_used + ' '
+
+    return result_pos_str

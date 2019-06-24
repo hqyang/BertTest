@@ -14,12 +14,12 @@ sys.path.append('./src')
 import os
 
 from src.config import args
-from src.preprocess import CWS_BMEO # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
+from src.preprocess import CWS_BMEO, CWS_POS # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import torch
 import time
 
 from src.BERT.modeling import BertConfig
-from src.customize_modeling import BertCRFCWS
+from src.customize_modeling import BertCWSPOS
 from src.utilis import save_model
 
 import logging
@@ -32,7 +32,7 @@ CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
 
-def load_model(label_list, args):
+def load_CWS_POS_model(label_list, pos_label_list, args):
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
             args.visible_device = str(args.visible_device)
@@ -76,14 +76,15 @@ def load_model(label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
+    model = BertCWSPOS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list), len(pos_label_list), \
+                       batch_size = args.train_batch_size)
 
-    if args.bert_model_dir is None:
+    if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized models is not supported...!')
     #elif os.path.isdir(args.init_checkpoint):
     #    raise ValueError("init_checkpoint is not a file")
     else:
-        weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
+        weights_path = os.path.join(args.init_checkpoint, WEIGHTS_NAME)
 
         # main code copy from modeling.py line after 506
         state_dict = torch.load(weights_path)
@@ -124,6 +125,8 @@ def load_model(label_list, args):
 def preload(args):
     processors = {
         "ontonotes_cws": lambda: CWS_BMEO(nopunc=args.nopunc),
+        'ontonotes_cws_pos': lambda: CWS_POS(nopunc=args.nopunc, drop_columns=None, \
+                                     pos_tags_file='./resource/pos_tags.txt'),
     }
 
     task_name = args.task_name.lower()
@@ -134,7 +137,9 @@ def preload(args):
     processor = processors[task_name]()
 
     label_list = processor.get_labels()
-    model, device = load_model(label_list, args)
+    pos_label_list = processor.get_POS_labels()
+
+    model, device = load_CWS_POS_model(label_list, pos_label_list, args)
 
     if args.bert_model is not None:
         weights = torch.load(args.bert_model, map_location='cpu')
@@ -150,20 +155,21 @@ def preload(args):
     return model
 
 def set_local_eval_param():
-    return {'task_name': 'ontonotes_CWS',
+    return {'task_name': 'ontonotes_cws_pos',
             'model_type': 'sequencelabeling',
-            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
-            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/models.txt',
-            'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
-            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/rs/nhl3/',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data'
+                        '4nerpos_data/valid',
+            'vocab_file': './src/BERT/models/bert-base-chinese/bert-base-chinese.txt',
+            'bert_config_file': './src/BERT/models/bert-base-chinese/bert_config.json',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWS_POS/L6/',
             'do_lower_case': True,
-            'train_batch_size': 128,
+            'train_batch_size': 64,
             'max_seq_length': 128,
-            'num_hidden_layers': 3,
+            'num_hidden_layers': 6,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3_weights_epoch03.pt',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/'
+                          '/ontonotes/CWS_POS/l6_cws_F1_weights_epoch05.pt',
             'override_output': True,
-            'tensorboardWriter': False
             }
 
 def set_server_eval_param():
@@ -185,7 +191,26 @@ def set_server_eval_param():
             }
 
 
-def test_cases(model):
+def test_cases0(model):
+    tt00 = '''
+        ６６位协院士（Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ｆｅｌｌｏｗ）及２位通信协院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）组成（不包括一九九四年当选者），
+    '''
+    print(tt00)
+    t0 = time.time()
+    outputT0 = model.cutlist_noUNK([tt00])
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
+    o0 = '\t'
+    for x in output0: o0 += x + '\t'
+    print(o0+'\n')
+    print('Processing time: ' + str(time.time()-t0))
+
+    # ６６ / CD    位 / M    协 / NN    院士 / NN    （ / PU    Ａｓｓｏｃｉａｔｅ / NR    Ｆｅｌｌｏ / NN    ｗ） / NN
+    # ２４位 / NN    通 / CD    信院 / M    士 / NN    （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ / NN
+    # Ｆｅ / NN    ｌ / NN    ｌ / NN    ｏ / NN    ｗ） / NN    及 / NN    ２ / NN    位 / PU
+    # 通 / CD    信 / PU    协院 / NN    士 / VV    （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ / NN    Ａｓｓｏｃｉａｔｅ / NN
+    # Ｆ / NN    ｅ / NN    ｌ / NN    ｌ / NN    ｏ / NN    ｗ） / NN    组 / PU    成 / PU
+    # （不 / NN    包 / PU    括一 / VV    九九四年当 / NT    选 / X    者） / NN    ， / X
+
     tt00 = '''
         ✨今日份牛仔外套穿搭打卡|初春一定要有一件万能牛仔外套鸭💯。-我今天又双叒叕没化妆出门逛街了、懒癌晚期间歇性发作哈哈哈哈、。
         -落肩袖、不会显肩宽/后背有涂鸦和蕾丝拼接、见图六/。-Look1:搭配了衬衫和黑灰色牛仔裤/。-Look2：搭配了白色短T和牛仔裤/。
@@ -194,12 +219,31 @@ def test_cases(model):
     print(tt00)
     t0 = time.time()
     outputT0 = model.cutlist_noUNK([tt00])
-    output0 = [' '.join(lst)+' ' for lst in outputT0]
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
     o0 = '\t'
     for x in output0: o0 += x + '\t'
     print(o0+'\n')
     print('Processing time: ' + str(time.time()-t0))
 
+    '''
+    ✨ / PU    今日份 / NT    牛仔 / NN    外套 / NN    穿搭 / NN    打卡 / VV    | / PU    初春 / NT    一定 / X
+    要 / VV    有 / VE    一 / CD    件 / M    万能 / JJ    牛仔 / NN    外套 / NN    鸭 / NN    💯 / PU    。 / PU
+    - / PU    我 / PN    今天 / NT    又 / AD    双 / CD    叒叕 / PU    没 / AD    化妆 / VV    出门 / VV
+    逛街 / VV    了 / SP    、 / PU    懒癌 / NN    晚期 / NN    间 / LC    歇性 / X    发作 / VV    哈哈哈哈 / IJ
+    、 / PU    。 / PU    - / PU    落 / VV    肩袖 / NN    、 / PU    不 / AD    会 / VV    显 / VV    肩宽 / NN
+    / / PU    后背 / NN    有 / VE    涂鸦 / NN    和 / CC    蕾丝 / NN    拼接 / NN    、 / PU    见 / VV
+    图六 / NN    / / PU    。 / PU    - / PU    Look / NN    1: / OD    搭配 / VV    了 / AS    衬衫 / NN
+    和 / CC    黑 / JJ    灰色 / NN    牛仔裤 / NN    / / PU    。 / PU    - / PU    Look / NN    2 / OD
+    ： / PU    搭配 / VV    了 / AS    白色 / NN    短T / NN    和 / CC    牛仔裤 / NN    / / PU    。 / PU
+    牛仔裤 / NN    我 / PN    尝试 / VV    了 / AS    两 / CD    种 / M    颜色 / NN    、 / PU    浅 / JJ
+    色系 / NN    蓝色 / NN    牛仔裤 / NN    整体 / X    就 / AD    偏 / VV    复古风 / NN    一点 / X    、 / PU
+    配 / VV    深 / JJ    色系 / NN    就 / AD    更 / AD    日常 / X    活力 / VA    一些 / X    、 / PU    。 / PU
+    # / PU    春天 / NT    花会 / VV    开 / VV    # / PU    # / PU    每日 / JJ    穿搭 / NN    # / PU    # / PU
+    日常 / JJ    穿搭 / NN    # / PU
+    '''
+
+def test_cases(model):
+    # Proce
     tt00 = '''
         #大鱼海棠# #大鱼海棠壁纸# 很感人的一部电影《大鱼海棠》，椿为了救鲲，不惜牺牲自己的一半寿命，湫喜欢椿，
         却把自己的一半寿命给了椿……人一但死后都会化成一条大鱼，椿听我的，数到3，2，1，我们一起跳下去，3.2.1跳，
@@ -209,27 +253,55 @@ def test_cases(model):
     print(tt00)
     t0 = time.time()
     outputT0 = model.cutlist_noUNK([tt00])
-    output0 = [' '.join(lst)+' ' for lst in outputT0]
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
     o0 = '\t'
     for x in output0: o0 += x + '\t'
     print(o0+'\n')
     print('Processing time: ' + str(time.time()-t0))
 
     '''
-    	# 大 鱼 海棠 # # 大 鱼 海棠 壁纸 # 很 感人 的 一 部 电影 《 大 鱼 海棠 》 ， 椿 为了 救 鲲 ， 不惜 牺牲 
-    	自己 的 一半 寿命 ， 湫 喜欢椿 ， 却 把 自己 的 一半 寿命 给 了 椿 …… 人 一但 死 后 都 会 化成 一 条 大 鱼 ， 
-    	椿 听 我 的 ， 数 到 3 ， 2 ， 1 ， 我们 一起 跳 下去 ， 3.2.1 跳 ， 我 会 化 成 ****** 陪 着 你 。 。 椿 ， 
-    	我 喜欢 你 ！ ！ 。 “ 北冥 有 鱼 ， 其 名 为 鲲 。 ”。“ 鲲 之 大 。 ”。“ 一 锅 炖 不 下 。 。“ 化 而 为 鸟 。 ”。
-    	“ 其 名 为 鹏 。 ”。“ 鹏 之 大 。 ”。“ 需要 两 个 烧烤 架 。 ”。“ 一 个 秘制 。 ”。“ 一 个 麻辣 。 ”。“ 来 瓶 
-    	雪花 ！ ！！” 。 “ 带 你 勇闯 天涯 	
+    # / PU    大鱼 / NN    海棠 / NN    # / PU    # / PU    大鱼 / NN    海棠 / NN    壁纸 / NN    # / PU    
+    很 / AD    感人 / VA    的 / DEC    一 / CD    部 / M    电影 / NN    《 / PU    大 / NN    鱼 / NN    
+    海棠 / NN    》 / PU    ， / PU    椿 / NR    为了 / P    救 / VV    鲲 / NN    ， / PU    不惜 / X    
+    牺牲 / VV    自己 / PN    的 / DEG    一半 / CD    寿命 / NN    ， / PU    湫 / NN    喜欢 / VV    
+    椿 / NR    ， / PU    却 / AD    把 / BA    自己 / PN    的 / DEG    一半 / CD    寿命 / NN    
+    给 / VV    了 / AS    椿 / NN    …… / PU    人 / NN    一但 / X    死 / VV    后 / LC    都 / AD    
+    会 / VV    化成 / VV    一 / CD    条 / M    大 / JJ    鱼 / NN    ， / PU    椿 / NN    听 / VV    
+    我 / PN    的 / DEG    ， / PU    数 / VV    到 / VV    3 / CD    ， / PU    2 / CD    ， / PU    
+    1 / CD    ， / PU    我们 / PN    一起 / X    跳 / VV    下去 / VV    ， / PU    3.2.1 / CD    跳 / VV    
+    ， / PU    我 / PN    会 / VV    化 / PU    成 / VV    ****** / PU    陪 / PU    着 / VV    你 / PN    
+    。 / PU    。 / PU    椿 / PU    ， / PU    我 / PN    喜 / PU    欢 / VV    你 / PN    ！ / PU    ！ / PU    
+    。 / PU    “ / PU    北冥 / NR    有 / VE    鱼 / NN    ， / PU    其 / PN    名 / PU    为 / VC    鲲 / NN   
+     。 / PU    ” / PU    。 / PU    “ / PU    鲲 / NN    之 / DEG    大 / NN    。 / PU    ” / PU    。 / PU   
+      “ / PU    一 / CD    锅 / NN    炖 / VV    不 / AD    下 / VV    。 / PU    。 / PU    “ / PU    化而为 / VV    
+      鸟 / NN    。 / PU    ” / PU    。 / PU    “ / PU    其 / PN    名 / NN    为 / VC    鹏 / NN    。 / PU    
+      ” / PU    。 / PU    “ / PU    鹏 / NN    之 / DEG    大 / NN    。 / PU    ” / PU    。 / PU    “ / PU    
+      需要 / VV    两 / CD    个 / M    烧烤架 / NN    。 / PU    ” / PU    。 / PU    “ / PU    一 / CD    个 / M    
+      秘制 / NN    。 / PU    ” / PU    。 / PU    “ / PU    一 / CD    个 / M    麻辣 / NN    。 / PU    ” / PU   
+       。 / PU    “ / PU    来 / VV    瓶 / M    雪花 / NN    ！ / PU    ！ / PU    ！ / PU    ” / PU    。 / PU    
+       “ / PU    带 / VV    你 / PN    勇闯 / VV    天涯 / NN 	
     '''
 
     tt0 = '''
           兰心餐厅\n
           咳咳￣ ￣)σ第一次穿汉服出门🎀💞开心ing
     '''
+    print(tt0)
 
-    tt01 = '安一波情侣壁纸ヾ(･ω･｀＝´･ω･)ﾉ♪ 单身的我要起身去学校了#晒晒我的手账# #我好棒求表扬# #今日份滤镜推荐# #仗着好看为所欲为#'
+    t0 = time.time()
+    outputT0 = model.cutlist_noUNK([tt0]) #
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
+    o0 = '\t'
+    for x in output0: o0 += x + '\t'
+    print(o0+'\n')
+    print('Processing time: ' + str(time.time()-t0))
+
+    '''
+	兰心 / NR    餐厅 / NN    咳咳 / IJ    ￣ / IJ    ￣ / PU    ) / PU    σ / PU    第 / X    一次 / OD    穿 / VV    
+	汉服 / NN    出门 / VV    🎀💞 / PU    开心 / VA    ing / X 	
+    '''
+
+    tt0 = '安一波情侣壁纸ヾ(･ω･｀＝´･ω･)ﾉ♪ 单身的我要起身去学校了#晒晒我的手账# #我好棒求表扬# #今日份滤镜推荐# #仗着好看为所欲为#'
 
     tt02 = '''
     #显瘦搭配##小个子显高穿搭##每日穿搭[话题]##晒腿battle##仙女裙##度假这样穿##仙女必备##春的气息#👧🏻。
@@ -253,47 +325,15 @@ def test_cases(model):
         伦敦是一座改过自新的城市，人家痛定思痛，紧急刹车，及时的治理了污染，我们在泰吾士河里可以看到鱼儿在自由的翻滚，
         天空湛蓝，翠绿的草地与兰天辉映着，一片“污染大战”后的和平景象    
         '''
-    print(tt0 + '\n' + text0)
+    print(tt0)
 
     t0 = time.time()
-    outputT0 = model.cutlist_noUNK([tt0, tt01, tt02, text0])
-    output0 = [' '.join(lst)+' ' for lst in outputT0]
+    outputT0 = model.cutlist_noUNK([tt0]) #
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
     o0 = '\t'
     for x in output0: o0 += x + '\t'
     print(o0+'\n')
     print('Processing time: ' + str(time.time()-t0))
-
-    '''
-    	兰心 餐厅 
-    	
-    	咳咳￣ ￣ ) σ 第一 次 穿 汉服 出门 🎀💞 开心 ing 	
-    	
-    	安一波 情侣 壁纸 ヾ ( ･ω･ ｀＝´･ω･) ﾉ ♪ 单身 的 我 要 起身 去 学校 了 # 晒晒 我 的 手账 # 
-    	# 我 好 棒 求 表扬 # # 今日 份 滤镜 推荐 # # 仗着 好看 为所欲为 # 	
-    	
-    	# 显瘦 搭配 # # 小 个子 显高 穿搭 # # 每日 穿搭 [ 话题 ] # # 晒腿 battle # # 仙女裙 # # 度假 这样 
-    	穿 # # 仙女 必备 # # 春 的 气息 # 👧🏻 。 春装 穿搭 做 一 个 又 酷 又 仙 的 少女 啊 👧🏻 。 今天 小脸 
-    	去 踏春 啦 🌿 这个 裙子 直接 给 我 暴击 ！ 。 小 个子 对于 裙子 长度 是 要求 非常 严格 的 ， 这 件 简直 
-    	满足 了 所有 要求 好 吗 ！ ！！ 长度 刚好 可以 遮住 大腿 的 肉肉 ， 又 温柔 又 仙 ？ ！ 简直 就 是 仙女 
-    	本仙 了 ❗️❗️ 。 第一眼 是 看 中 吊带 上 的 珠珠 小 设计 ， 还 有 裙子 上 的 小 流苏 ， 让 整 件 裙子 
-    	简单 又 不 失 温柔 。 真的 是 太 仙 了 吧 …… 。 颜色 是 那 种 纯 白色 ， 但 不 是 那 种 死白 的 ！ ！！！！！！ 
-    	度假 ❗️ 踏春 ❗️ 逛街 ❗️ 简直 你 就 是 温柔 小 姐姐 啊 🎀 上面 我 搭配 的 是 微 毛绒 设计感 的 透明带 拖鞋 必须 
-    	要 综合 一下 这样 才 能 又 酷 又 仙哈哈哈 。 鞋子 也 是 百搭 。 @ MT 小美酱 @ MT 情报局 
-    		
-        单枪 匹马 逛 英国 —— 伦敦 篇 。 伦敦 就 是 这个 样子 初次 来到 这个 “ 老牌 资本主义 ” 的 “ 雾都 “ ， 
-        就 像 回到 了 上海 ， 一 幢 幢 不 高 的 小 楼 ， 显得 异常 陈旧 ， 很多 楼房 被 数百 年 烟尘熏 的 就 
-        像 被 刷 了 一 层 黑色 的 油漆 ， 油光 锃亮 ， 如果 不 是 旁边 的 楼房 正在 清洗 ， 很 难 让 人 相信 
-        如今 的 伦敦 是 饱经 污染 沧桑 后 及时 刹车 的 高手 ， 因为 一 座 现代化 的 国际 大都市 也 是 有 不少 
-        楼房 是 黑色 的 呢 ， 黑色 显得 凝重 、 高雅 ， 但是 绝对 不 能 靠 油烟 去 熏 …… 堵车 ， 是 所有 大都市 
-        的 通病 ， 虽然 不足为怪 ， 但是 ， 1988年 的 北京 还 没有 那么 多 的 车 ， 也 没有 全 城 大 堵车 的 现象 ， 
-        有的 是 刚刚 开始 的 “ 靠 油烟 和 汽车 的 尾气 烟熏火燎 美丽 的 古城 ” ， 有 谁 能够 想到 ， 短短 的 十 年 ， 
-        北京 就 气喘吁吁 的 追赶 上 了 伦敦 ， 没有 一 条 洁净 的 河流 ， 没有 清新 的 空气 ， 有的 是 让 人 窒息 
-        的 空气 污 染 ……. 以及 ， 让 人 始料 未及 的 全 城 大 堵车 。 如果 ， 我们 那些 负责 城市 建设 规划 的 先生们 ， 
-        在 国外 ， 不 只 只 是 游山玩水 的话 ， 带回 别人 的 教训 、 总结 别人 的 经验 的话 ， 我们 这个 被 穷 祖先 毁 的 
-        “ 一塌糊涂 ” 的 脆弱 的 生态 环境 也 不 会 再 经受 20世纪 90年代 的 现代化 的 大 污染 了 。 但是 ， 伦敦 是 一 
-        座 改 过 自 新 的 城市 ， 人家 痛定思痛 ， 紧急 刹车 ， 及时 的 治理 了 污染 ， 我们 在 泰吾士河 里 可以 看到 鱼儿 
-        在 自由 的 翻滚 ， 天空 湛蓝 ， 翠绿 的 草地 与 兰天 辉映 着 ， 一 片 “ 污染 大战 ” 后 的 和平 景象 	
-    '''
 
     text1 = '''
         兰心餐厅\n作为一个无辣不欢的妹子，对上海菜的偏清淡偏甜真的是各种吃不惯。
@@ -304,9 +344,10 @@ def test_cases(model):
         上海的名气却非常大。烧的就是家常菜，普通到和家里烧的一样，生意非常好，外面排
         队的比里面吃的人还要多。
     '''
+    print(text1)
     t0 = time.time()
     outputT1 = model.cutlist_noUNK([text1])
-    output1 = [' '.join(lst) for lst in outputT1]
+    output1 = ['    '.join(lst) for lst in outputT1]
     o1 = ''
     for x in output1: o1 += x + '\t'
     print(text1)
@@ -329,7 +370,7 @@ def test_cases(model):
         '''
     t0 = time.time()
     outputT2 = model.cutlist_noUNK([text2])
-    output2 = [' '.join(lst) for lst in outputT2]
+    output2 = ['    '.join(lst) for lst in outputT2]
     o2 = ''
     for x in output2: o2 += x + '\t'
     print(text2)
@@ -352,12 +393,27 @@ def test_case_meitu(model):
     '''
     text = '#我超甜的##口红安利##最热口红色号#今天给大家安利一款平价口红，卡拉泡泡唇膏笔，我比较喜欢的色号是Who   run   this。这个色号是一款非常正的土橘色，不论是你是白皮、黄皮、黄黑皮和黑皮都可以很安心的闭眼入。白皮涂简直就像仙女下凡了一样，黄皮和黄黑皮涂上特别提气色，而且还超级显白，超级安利这一款，这款唇膏笔我已经入了好几只了。这款土橘色已经快被我用完了，超级好看。就酱紫啦！拜拜！#口红安利#'
     outputT = model.cutlist_noUNK([text])
-    output = [' '.join(lst) for lst in outputT]
+    output = ['    '.join(lst) for lst in outputT]
     o2 = ''
     for x in output: o2 += x + '\t'
     print(text)
     print(o2+'\n')
-
+    # # / PU    我 / PN    超 / AD    甜 / VA    的 / SP    # / PU    # / PU    口红 / NN    安利 / NR    # / PU
+    # # / PU    最 / AD    热 / VA    口红 / NN    色号 / NN    # / PU    今天 / NT    给 / P    大家 / PN
+    # 安利 / VV    一 / CD    款 / M    平价 / JJ    口红 / NN    ， / PU    卡拉泡泡 / NN    唇膏笔 / NN    ， / PU
+    # 我 / PN    比较 / AD    喜欢 / VV    的 / DEC    色号 / NN    是 / VC    Who / PN    run / NN    this / NN
+    # 。 / PU    这 / PU    个 / DT    色号 / NN    是 / VC    一 / CD    款 / M    非 / AD    常 / AD    正 / VA
+    # 的 / DEG    土 / NN    橘 / PU    色 / NN    ， / PU    不论 / CS    是 / VC    你 / PN    是 / VC    白 / NN
+    # 皮 / NN    、 / PU    黄 / PU    皮 / NN    、 / PU    黄 / PU    黑 / PU    皮 / NN    和 / CC    黑 / PU
+    # 皮 / NN    都 / AD    可 / AD    以 / VV    很 / AD    安心 / VA    的 / DEV    闭眼 / VV    入 / VV
+    # 。 / PU    白 / NN    皮 / NN    涂 / VV    简直 / AD    就 / AD    像 / P    仙女 / NN    下凡 / NN
+    # 了 / AS    一样 / VA    ， / PU    黄 / NN    皮 / NN    和 / CC    黄 / JJ    黑 / JJ    皮 / NN
+    # 涂上 / VV    特别 / AD    提 / VV    气色 / NN    ， / PU    而且 / AD    还 / AD    超级 / AD    显白 / VV
+    # ， / PU    超级 / AD    安利 / VA    这 / DT    一 / CD    款 / M    ， / PU    这 / DT    款 / M
+    # 唇膏笔 / NN    我 / PN    已经 / AD    入 / VV    了 / AS    好几 / CD    只 / M    了 / SP    。 / PU
+    # 这 / DT    款 / M    土橘色 / NN    已经 / AD    快 / AD    被 / LB    我 / PN    用完 / VV    了 / AS
+    # ， / PU    超级 / AD    好看 / VA    。 / PU    就 / AD    酱紫 / VV    啦 / SP    ！ / PU    拜拜 / VV
+    # ！ / PU    # / PU    口红 / NN    安利 / NR    # / PU
 
 LOCAL_FLAG = False
 LOCAL_FLAG = True
@@ -372,7 +428,8 @@ if __name__=='__main__':
     args._parse(kwargs)
     model = preload(args)
 
-    #test_cases(models)
+    test_cases0(model)
+    test_cases(model)
     test_case_meitu(model)
 
 

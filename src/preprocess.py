@@ -544,6 +544,27 @@ def tokenize_list(words, max_length, tokenizer):
     segment = np.array([0] * max_length)
     return [tokens, segment, mask]
 
+
+def tokenize_list_no_seg(words, max_length, tokenizer):
+    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
+    # words = list(filter(lambda x: x!=' ', words))
+    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
+    #words = tokenizer.tokenize(text)
+    #if len(words) > max_length - 2:
+    #    words = words[:max_length - 2]
+    #words = ['[CLS]'] + words + ['[SEP]']
+    # models = tokenizer.models
+    # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
+    # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
+    tokens = tokenizer.convert_tokens_to_ids(words)
+    if len(tokens) < max_length:
+        tokens.extend([0] * (max_length - len(tokens)))
+    tokens = np.array(tokens)
+    mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
+    segment = np.array([0] * max_length)
+    return [tokens, segment, mask]
+
+
 def tokenize_text_tag(text, tag, max_length, tokenizer):
     text_words = tokenizer.tokenize(text)
     tag_words = tokenizer.tokenize(tag)
