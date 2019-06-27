@@ -21,6 +21,7 @@ import time
 from src.BERT.modeling import BertConfig
 from src.customize_modeling import BertCWSPOS
 from src.utilis import save_model
+from tqdm import tqdm
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -191,7 +192,112 @@ def set_server_eval_param():
             }
 
 
+def test_badcase(model):
+    tt00 = '''
+    ““        希望以后喜欢的人，。         不要让我哭，让我受委屈，。         不要不理我，更不要放弃我。。         要陪我长大，给我回应，。         更懂得要保护我，也要喜欢我。 ​​​ ​​​​  ​​​​<200b>
+    '''
+    # some problems in the above cases
+
+    print(tt00)
+    t0 = time.time()
+    outputT0 = model.cutlist_noUNK([tt00])
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
+    o0 = '\t'
+    for x in output0: o0 += x + '\t'
+    print(o0+'\n')
+    print('Processing time: ' + str(time.time()-t0))
+
+    '''
+    	““         / PU    希 / PU    望 / PU    以后 / AD    喜 / VV    欢 / VV    的 / VV    人 / NN    ， / PU    
+    	。 / PU             不 / PU    要 / VV    让 / VV    我 / PN    哭 / VV    ， / PU    让 / PU    我 / PN    
+    	受 / AD    委 / PU    屈 / PU    ， / PU    。 / PU             不 / PU    要 / PU    不 / AD    理 / VV    
+    	我 / PN    ， / PU    更 / PU    不 / AD    要 / VV    放 / VV    弃 / VV    我 / VV    。 / PU    。 / PU  
+       要 / PU    陪 / PU    我 / PN    长 / VV    大 / VV    ， / PU    给 / PU    我 / PN    回 / PU    
+       应 / PU    ， / PU    。 / PU             更 / PU    懂 / PU    得 / PU    要 / VV    保 / PU    护 / X    
+       我 / PN    ， / PU    也 / PU    要 / VV    喜 / PU    欢 / X    我 / PN    。 / X    ​​​ ​​​​  ​​​​ / PU    < / PU    
+       200 / PU    b / PU    > / X 	
+   '''
+
 def test_cases0(model):
+    tt00 = '''
+    夏日冰淇淋调色盘🎨你值得拥有。能打的花西子-金陵栖霞 01。了解我的应该都知道我喜欢橘调吧 嘻嘻🤭。古风包装 这大地➕橘 一股东方美韵。没有欧美盘那么显色 但也不至于不上色（我在说啥？）。总之 我觉得值👍。#这不是化妆是魔##试色##眼妆##眼妆教程##眼妆分享#
+    '''
+    print(tt00)
+    t0 = time.time()
+    outputT0 = model.cutlist_noUNK([tt00])
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
+    o0 = '\t'
+    for x in output0: o0 += x + '\t'
+    print(o0+'\n')
+    print('Processing time: ' + str(time.time()-t0))
+    '''
+        夏日 / NT    冰淇淋 / NN    调色盘 / NN    🎨 / PU    你 / PN    值得 / VV    拥有 / VV    。 / PU    能 / VV    
+        打 / VV    的 / DEC    花西子 / NN    - / PU    金陵 / NR    栖霞 / NR     01 / PU    。 / PU    了解 / VV    
+        我 / PN    的 / DEC    应该 / VV    都 / AD    知道 / VV    我 / PN    喜欢 / VV    橘调 / NN    吧 / SP     
+        嘻嘻 / IJ    🤭 / PU    。 / PU    古 / JJ    风 / NN    包装 / NN     这 / DT    大 / NN    地 / NN    ➕ / PU    
+        橘 / NN     一 / CD    股 / M    东 / NN    方 / NN    美韵 / NN    。 / PU    没有 / VE    欧 / NR    美盘 / NN    
+        那么 / X    显色 / VV     但 / AD    也 / AD    不 / X    至于 / AD    不 / AD    上色 / VV    （ / PU    我 / PN    
+        在 / AD    说 / VV    啥 / PN    ？ / PU    ） / PU    。 / PU    总之 / X     我 / PN    觉得 / VV    值 / VV    
+        👍 / SP    。 / PU    # / PU    这 / PN    不 / AD    是 / VC    化妆 / NN    是 / VC    魔 / NN    # / PU    
+        # / PU    试 / NN    色 / NN    # / NN    # / PU    眼妆 / NN    # / NN    # / PU    眼 / NN    妆教 / NN    
+        程 / NN    # / NN    # / PU    眼妆 / NN    分享 / NN    # / PU 	
+    '''
+
+    tt00 = '''
+    酱酱，仙女们～。今天是睡睡推少女的第一天，元气满满！。不过，今天的主题是:招特价【8.8软妹币】呆梨！。
+    有网购经历的女孩们应该大多数都听说过我们的品牌，质量有保障，作用效果好……哎呀，反正有点很多嘛。做我呆梨的好处:。①不用自己囤货，
+    一件代发。②活动结束后会有我亲自叫你们写文案，引流什么的。③最基础的当然是自用巨无敌划算！比售价会便宜很多哟～。➕我q1349178766  
+    做pong友叭！。爱你们！mua～#逆袭小仙女# #逆袭小仙女#
+    '''
+    print(tt00)
+    t0 = time.time()
+    outputT0 = model.cutlist_noUNK([tt00])
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
+    o0 = '\t'
+    for x in output0: o0 += x + '\t'
+    print(o0+'\n')
+    print('Processing time: ' + str(time.time()-t0))
+
+    '''
+    	酱酱 / IJ    ， / PU    仙女们 / NN    ～ / PU    。 / PU    今天 / NT    是 / VC    睡睡 / VV    推 / VV    
+    	少女 / NN    的 / DEC    第一 / OD    天 / M    ， / PU    元气 / NN    满满 / VA    ！ / PU    。 / PU    
+    	不过 / X    ， / PU    今天 / NT    的 / DEG    主题 / NN    是 / VC    : / PU    招 / VV    特价 / NN    
+    	【 / PU    8.8 / CD    软妹币 / NN    】 / PU    呆梨 / NN    ！ / PU    。 / PU    有 / VE    网购 / NN    
+    	经历 / NN    的 / DEC    女孩们 / NN    应该 / VV    大多数 / CD    都 / AD    听说 / VV    过 / AS    
+    	我们 / PN    的 / DEG    品牌 / NN    ， / PU    质量 / NN    有 / VE    保障 / NN    ， / PU    作用 / NN    
+    	效果 / NN    好 / VA    …… / PU     / IJ    哎呀， / PU    反正 / X    有点 / X    很 / AD    多 / CD    
+    	嘛 / SP    。 / PU    做 / VV    我 / PN    呆梨 / NN    的 / DEC    好处 / NN    : / PU    。 / PU    
+    	① / PU    不用 / AD    自己 / PN    囤货 / VV    ， / PU    一 / CD    件 / M    代发 / VV    。 / PU    
+    	② / PU    活动 / NN    结束 / VV    后 / LC    会 / VV    有 / VE    我 / PN    亲自 / X    叫 / VV    
+    	你们 / PN    写 / VV    文案 / NN    ， / PU    引流 / VV    什么 / PN    的 / PN    。 / PU    ③ / PU    
+    	最 / AD    基础 / JJ    的 / DEC    当然 / X    是 / VC    自用 / VV    巨无敌 / NN    划算 / VA    ！ / PU    
+    	比 / P    售价 / NN    会 / VV    便宜 / VA    很 / AD    多 / AD    哟 / SP    ～ / PU    。 / PU    ➕ / PU    
+    	 / PN    我q134917876 / PU    6 / NN    做 / NN    pong / VV    友 / PU    叭 / PU    ！ / PU    。 / PU    
+    	 爱 / PU    你 / PN    们 / PN    ！ / PU    mu / PU    a / PU    ～ / PU    # / PU    逆袭 / VV    小 / JJ    
+    	 仙女 / NN    # / PU     # / PU    逆袭 / VV    小 / NN    仙女 / NN    # / PU 	
+    '''
+
+    tt00 = '''
+        花生是个美姑娘
+        此条下的愿望都会实现
+        连云都那么可爱
+        入住广州丽思卡尔顿
+        雨中最美的崂山
+        在田园风光的小店里约上2.3姐们
+        图一二三都是P图后
+    '''
+    print(tt00)
+    t0 = time.time()
+    outputT0 = model.cutlist_noUNK([tt00])
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
+    o0 = '\t'
+    for x in output0: o0 += x + '\t'
+    print(o0+'\n')
+    print('Processing time: ' + str(time.time()-t0))
+    '''
+    花生 / NN    是 / VC    个 / M    美 / JJ    姑娘 / NN    此 / DT    条 / M    下 / LC    的 / DEG    愿望 / NN    都 / AD    会 / VV    实现 / VV    连 / AD    云 / NR    都 / AD    那么 / X    可爱 / VA    入住 / VV    广州 / NR    丽思卡尔顿 / NR    雨 / NN    中 / LC    最 / AD    美 / VA    的 / DEC    崂山 / NR    在 / P    田园 / NN    风光 / NN    的 / DEC    小 / JJ    店 / NN    里约 / LC    上 / VV    2.3 / CD    姐们 / NN    图 / NN    一二三 / CD    都 / AD    是 / VC    p图 / NN    后 / LC 	
+    '''
+
     tt00 = '''
         ６６位协院士（Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ｆｅｌｌｏｗ）及２位通信协院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）组成（不包括一九九四年当选者），
     '''
@@ -302,6 +408,13 @@ def test_cases(model):
     '''
 
     tt0 = '安一波情侣壁纸ヾ(･ω･｀＝´･ω･)ﾉ♪ 单身的我要起身去学校了#晒晒我的手账# #我好棒求表扬# #今日份滤镜推荐# #仗着好看为所欲为#'
+    '''
+        安一波 / NR    情侣 / NN    壁纸 / NN    ヾ / PU    (･ω･｀＝´･ω･) / PU    ﾉ / PU    ♪ / PU     单身 / NN    
+        的 / DEC    我 / PN    要 / VV    起身 / VV    去 / VV    学校 / NN    了 / SP    # / PU    晒晒 / VV    
+        我 / PN    的 / DEG    手账 / NN    # / PU     # / PU    我 / PN    好 / AD    棒 / VA    求 / VV    
+        表扬 / NN    # / PU     # / PU    今日 / NT    份 / CD    滤镜 / NN    推荐 / NN    # / PU     # / PU    
+        仗着 / P    好看 / VV    为所欲为 / VV    # / PU 	
+    '''
 
     tt02 = '''
     #显瘦搭配##小个子显高穿搭##每日穿搭[话题]##晒腿battle##仙女裙##度假这样穿##仙女必备##春的气息#👧🏻。
@@ -415,9 +528,37 @@ def test_case_meitu(model):
     # ， / PU    超级 / AD    好看 / VA    。 / PU    就 / AD    酱紫 / VV    啦 / SP    ！ / PU    拜拜 / VV
     # ！ / PU    # / PU    口红 / NN    安利 / NR    # / PU
 
+
+def test_from_file(model, infile, outfile): # line 77
+    with open(infile, 'r', encoding='utf8') as f:
+        raw_data = f.readlines()
+
+    #text_list = [s.strip() for s in raw_data]
+
+    t0 = time.time()
+    #outputT0 = model.cutlist_noUNK(text_list) #
+    #output0 = ['    '.join(lst)+' ' for lst in outputT0]
+    #o0 = '\t'
+    #for x in output0: o0 += x + '\t'
+    #print(o0+'\n')
+
+    with open(outfile, 'w+') as fo:
+        for x in tqdm(raw_data):
+            print(x)
+
+            outputT0 = model.cutlist_noUNK([x])
+            output0 = ['    '.join(lst)+' ' for lst in outputT0]
+
+            print(output0[0])
+            fo.write(output0[0]+'\n')
+
+    print('Processing time: ' + str(time.time()-t0))
+
+
 LOCAL_FLAG = False
 LOCAL_FLAG = True
 
+TEST_FLAG = False
 
 if __name__=='__main__':
     if LOCAL_FLAG:
@@ -428,8 +569,12 @@ if __name__=='__main__':
     args._parse(kwargs)
     model = preload(args)
 
-    test_cases0(model)
-    test_cases(model)
-    test_case_meitu(model)
+    if TEST_FLAG:
+        test_badcase(model)
 
+        test_cases0(model)
+        test_cases(model)
+        test_case_meitu(model)
+
+    test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
 

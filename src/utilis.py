@@ -430,6 +430,9 @@ RE_SPECIAL_TOKENS = ['.', '^', '$', '*', '+', '?', '{', '}', '\\', '[', ']', '|'
 
 
 def findretokens(text):
+    # first output indicates whether there is special tokens
+    # second output indicates whether it is only special token
+
     for st in RE_SPECIAL_TOKENS:
         if st in text:
             return True, len(st)==len(text)
@@ -520,6 +523,7 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
 
 
 def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str):
+    s_str = original_str.lower()
     len_original_str = len(original_str)
 
     text_ls = str_with_unknown_tokens.split()
@@ -548,8 +552,11 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
                     tmp_text_list = [v for v in tmp_text_list if v]
 
                     if unk_status:
-                        idx_obj = findtext(original_str[ori_used_idx:].lower(), tmp_text_list[0])
-                        s_idx, e_idx = idx_obj.span()
+                        unk_status = False
+                        #idx_obj = findtext(original_str[ori_used_idx:].lower(), tmp_text_list[0])
+                        s_idx = s_str[ori_used_idx:].find(tmp_text_list[0])
+                        assert(s_idx != -1)
+                        #s_idx, e_idx = idx_obj.span()
 
                         # append unknown token
                         text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx])
@@ -557,42 +564,56 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
                         ori_used_idx += s_idx
 
                     for v in tmp_text_list:
-                        idx_obj = findtext(original_str[ori_used_idx:].lower(), v)
+                        #idx_obj = findtext(original_str[ori_used_idx:].lower(), v)
+                        s_idx = s_str[ori_used_idx:].find(v)
+                        assert(s_idx != -1)
 
-                        s_idx, e_idx = idx_obj.span()
-                        text_list.append(original_str[ori_used_idx+s_idx:ori_used_idx+e_idx])
+                        #s_idx, e_idx = idx_obj.span()
+                        ori_used_idx += s_idx
+                        e_idx = len(v)
+                        text_list.append(original_str[ori_used_idx:ori_used_idx+e_idx])
                         pos_list.append(pos)
 
                         ori_used_idx += e_idx
             else: # normal text
                 if unk_status: # previous is an unknown token
-                    idx_obj = findtext(original_str[ori_used_idx:].lower(), text)
+                    unk_status = False
+
+                    #idx_obj = findtext(original_str[ori_used_idx:].lower(), text)
+                    s_idx = s_str[ori_used_idx:].find(text)
+                    assert(s_idx != -1)
 
                     pos_list.append(unk_pos)
 
-                    s_idx, e_idx = idx_obj.span()
+                    #s_idx, e_idx = idx_obj.span()
+                    e_idx = len(text)
                     text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx])
                     ori_used_idx += s_idx
-                    e_idx = ori_used_idx + e_idx - s_idx
+                    e_idx = ori_used_idx + e_idx
                 else: # previous is a normal token
-                    idx_obj = findtext(original_str[ori_used_idx:].lower(), text)
-                    if idx_obj:
-                        s_idx, e_idx = idx_obj.span()
-                        e_idx += ori_used_idx
-                    else:
-                        while len(original_str[ori_used_idx])==0 and ori_used_idx<len_original_str: # remove the space
-                            ori_used_idx += 1
+                    #idx_obj = findtext(original_str[ori_used_idx:].lower(), text)
+                    #if idx_obj:
+                    #    s_idx, e_idx = idx_obj.span()
+                    #    e_idx += ori_used_idx
+                    #else:
+                    #    while len(original_str[ori_used_idx])==0 and ori_used_idx<len_original_str: # remove the space
+                    #        ori_used_idx += 1
+                    #    e_idx = ori_used_idx + len(text)
+                    idx = s_str[ori_used_idx:].find(text)
 
-                        e_idx = ori_used_idx + len(text)
+                    if idx == -1:
+                        while len(original_str[ori_used_idx]) == 0 and ori_used_idx < len_original_str:
+                            ori_used_idx += 1
+                        idx = 0
+
+                    e_idx = ori_used_idx + idx + len(text)
 
                 text_list.append(original_str[ori_used_idx:e_idx])
                 ori_used_idx = e_idx
 
                 pos_list.append(pos)
-
-            unk_status = False
         else:
-            if len(text.replace('[UNK]', '')) == 0: # only unknown token(s)
+            if len(text.replace('[UNK]', '')) == 0 or len(text.replace('[UNK]', '').replace('[unused1]', '')) == 0: # only unknown token(s)
                 unk_status = True
                 unk_pos = pos
             else: # unknown token in the middle
@@ -601,8 +622,11 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
 
                 if e_idx < len(text):
                     sel_text = text[e_idx:]
-                    idx_obj = findtext(original_str[ori_used_idx:], sel_text)
-                    s_idx, e_idx = idx_obj.span()
+                    #idx_obj = findtext(original_str[ori_used_idx:], sel_text)
+                    s_idx = s_str[ori_used_idx:].find(sel_text)
+                    assert(s_idx != -1)
+                    #s_idx, e_idx = idx_obj.span()
+                    e_idx = s_idx + len(sel_text)
                     text_list.append(original_str[ori_used_idx:ori_used_idx+e_idx])
                     ori_used_idx += e_idx
                     pos_list.append(pos)

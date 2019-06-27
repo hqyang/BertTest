@@ -179,8 +179,11 @@ class BasicTokenizer(object):
 
     def _run_split_on_punc(self, text):
         """Splits punctuation on a piece of text."""
-        if text == '[unused1]' or text == '[unk]':
+        if text == '[unused1]':
             return [text]
+
+        if text == '[unk]':
+            return ['UNK']
 
         chars = list(text)
         i = 0
