@@ -194,9 +194,8 @@ def set_server_eval_param():
 
 def test_badcase(model):
     tt00 = '''
-    ““        希望以后喜欢的人，。         不要让我哭，让我受委屈，。         不要不理我，更不要放弃我。。         要陪我长大，给我回应，。         更懂得要保护我，也要喜欢我。 ​​​ ​​​​  ​​​​<200b>
+    女人保养：不仅要外养，还要内调，内外双管齐下，才能调养出好气色，主内调，副外养！。藏红花——斑的克星，妇科病的救星！。每天早晨泡3---6根，坚持服用三个月，会有你意想不到的效果！
     '''
-    # some problems in the above cases
 
     print(tt00)
     t0 = time.time()
@@ -206,6 +205,19 @@ def test_badcase(model):
     for x in output0: o0 += x + '\t'
     print(o0+'\n')
     print('Processing time: ' + str(time.time()-t0))
+
+    '''
+    女人 / NN    保养 / VV    ： / PU    不仅 / X    要 / VV    外养 / VV    ， / PU    还 / AD    要 / VV    内调 / VV    
+    ， / PU    内外 / NN    双管齐下 / VV    ， / PU    才 / AD    能 / VV    调养 / VV    出 / VV    好 / JJ    气色 / NN  
+    ， / PU    主 / AD    内调 / VV    ， / PU    副 / AD    外养 / VV    ！ / PU    。 / PU    藏红花 / NR    ——斑 / NN    
+    的 / DEG    克星 / NN    ， / PU    妇科病 / NN    的 / DEG    救星 / NN    ！ / PU    。 / PU    每 / X    天 / M    
+    早晨 / NT    泡 / VV    3--- / CD    6 / CD    根 / M    ， / PU    坚持 / X    服用 / VV    三 / CD    个 / M    
+    月 / NN    ， / PU    会 / VV    有 / VE    你 / PN    意想不到 / VV    的 / DEC    效果 / NN    ！ / PU 	
+    '''
+
+    '''
+    ““        希望以后喜欢的人，。         不要让我哭，让我受委屈，。         不要不理我，更不要放弃我。。         要陪我长大，给我回应，。         更懂得要保护我，也要喜欢我。 ​​​ ​​​​  ​​​​<200b>
+    '''
 
     '''
     	““         / PU    希 / PU    望 / PU    以后 / AD    喜 / VV    欢 / VV    的 / VV    人 / NN    ， / PU    
@@ -559,6 +571,7 @@ LOCAL_FLAG = False
 LOCAL_FLAG = True
 
 TEST_FLAG = False
+#TEST_FLAG = True
 
 if __name__=='__main__':
     if LOCAL_FLAG:
@@ -575,6 +588,6 @@ if __name__=='__main__':
         test_cases0(model)
         test_cases(model)
         test_case_meitu(model)
-
-    test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
+    else:
+        test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
 

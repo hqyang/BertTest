@@ -613,22 +613,25 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
 
                 pos_list.append(pos)
         else:
-            if len(text.replace('[UNK]', '')) == 0 or len(text.replace('[UNK]', '').replace('[unused1]', '')) == 0: # only unknown token(s)
+            tmp_text = text.replace('[UNK]', '')
+            tmp_text = tmp_text.replace('[unused1]', '')
+            if len(tmp_text) == 0: # only unknown token(s)
                 unk_status = True
                 unk_pos = pos
-            else: # unknown token in the middle
-                idx_obj = re.search('\[UNK\]', text)
-                s_idx, e_idx = idx_obj.span()
+            else: # unknown tokens with word
+                #idx_obj = re.search('\[UNK\]', text)
+                #s_idx, e_idx = idx_obj.span()
 
-                if e_idx < len(text):
-                    sel_text = text[e_idx:]
-                    #idx_obj = findtext(original_str[ori_used_idx:], sel_text)
-                    s_idx = s_str[ori_used_idx:].find(sel_text)
+                len_tmp_text = len(tmp_text)
+
+                s_idx = text.find(tmp_text)
+
+                if s_idx+len_tmp_text == len(text): # word in the end
+                    s_idx = s_str[ori_used_idx:].find(tmp_text)
                     assert(s_idx != -1)
-                    #s_idx, e_idx = idx_obj.span()
-                    e_idx = s_idx + len(sel_text)
-                    text_list.append(original_str[ori_used_idx:ori_used_idx+e_idx])
-                    ori_used_idx += e_idx
+
+                    text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx+len_tmp_text])
+                    ori_used_idx += s_idx+len_tmp_text
                     pos_list.append(pos)
                 else: # [UNK] is in the end
                     unk_status = True
