@@ -522,6 +522,16 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
     return strOut
 
 
+def findtextdirect(strIn, start_idx, len_original_str, text):
+    s_idx = strIn[start_idx:].find(text)
+
+    if s_idx == -1: # different tokens after processing
+        while len(strIn[start_idx]) == 0 and start_idx < len_original_str:
+            start_idx += 1
+        s_idx = 0
+
+    return s_idx
+
 def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str):
     s_str = original_str.lower()
     len_original_str = len(original_str)
@@ -541,22 +551,20 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
 
     unk_status = False
 
-    for i in range(len(text_ls)):
-        text = text_ls[i]
+    for i, text in enumerate(text_ls):
+        if i == 67:
+            print(text)
         pos = pos_ls[i]
 
         if '[UNK]' not in text:
             if '[unused1]' in text:
-                if len(text)>len('[unused1]'):
-                    tmp_text_list = text.split('[unused1]')
-                    tmp_text_list = [v for v in tmp_text_list if v]
+                tmp_text_list = text.split('[unused1]')
+                tmp_text_list = [v for v in tmp_text_list if v]
 
+                if len(tmp_text_list) > 0:
                     if unk_status:
                         unk_status = False
-                        #idx_obj = findtext(original_str[ori_used_idx:].lower(), tmp_text_list[0])
-                        s_idx = s_str[ori_used_idx:].find(tmp_text_list[0])
-                        assert(s_idx != -1)
-                        #s_idx, e_idx = idx_obj.span()
+                        s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, tmp_text_list[0])
 
                         # append unknown token
                         text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx])
@@ -564,11 +572,8 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
                         ori_used_idx += s_idx
 
                     for v in tmp_text_list:
-                        #idx_obj = findtext(original_str[ori_used_idx:].lower(), v)
-                        s_idx = s_str[ori_used_idx:].find(v)
-                        assert(s_idx != -1)
+                        s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, v)
 
-                        #s_idx, e_idx = idx_obj.span()
                         ori_used_idx += s_idx
                         e_idx = len(v)
                         text_list.append(original_str[ori_used_idx:ori_used_idx+e_idx])
@@ -579,34 +584,16 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
                 if unk_status: # previous is an unknown token
                     unk_status = False
 
-                    #idx_obj = findtext(original_str[ori_used_idx:].lower(), text)
-                    s_idx = s_str[ori_used_idx:].find(text)
-                    assert(s_idx != -1)
+                    s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, text)
 
                     pos_list.append(unk_pos)
-
-                    #s_idx, e_idx = idx_obj.span()
                     e_idx = len(text)
                     text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx])
                     ori_used_idx += s_idx
                     e_idx = ori_used_idx + e_idx
                 else: # previous is a normal token
-                    #idx_obj = findtext(original_str[ori_used_idx:].lower(), text)
-                    #if idx_obj:
-                    #    s_idx, e_idx = idx_obj.span()
-                    #    e_idx += ori_used_idx
-                    #else:
-                    #    while len(original_str[ori_used_idx])==0 and ori_used_idx<len_original_str: # remove the space
-                    #        ori_used_idx += 1
-                    #    e_idx = ori_used_idx + len(text)
-                    idx = s_str[ori_used_idx:].find(text)
-
-                    if idx == -1:
-                        while len(original_str[ori_used_idx]) == 0 and ori_used_idx < len_original_str:
-                            ori_used_idx += 1
-                        idx = 0
-
-                    e_idx = ori_used_idx + idx + len(text)
+                    s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, text)
+                    e_idx = ori_used_idx + s_idx + len(text)
 
                 text_list.append(original_str[ori_used_idx:e_idx])
                 ori_used_idx = e_idx
