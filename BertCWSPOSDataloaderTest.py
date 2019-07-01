@@ -8,8 +8,6 @@ Feature:
 
 Scenario: 
 """
-import sys
-sys.path.append('./src')
 
 import os
 

@@ -160,7 +160,7 @@ def set_local_eval_param():
             'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data'
                         '4nerpos_data/valid',
-            'vocab_file': './src/BERT/models/bert-base-chinese/bert-base-chinese.txt',
+            'vocab_file': './src/BERT/models/bert-base-chinese/vocab.txt',
             'bert_config_file': './src/BERT/models/bert-base-chinese/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWS_POS/L6/',
             'do_lower_case': True,
