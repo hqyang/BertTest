@@ -614,5 +614,5 @@ if __name__=='__main__':
         test_cases(model)
         test_case_meitu(model)
     else:
-        test_from_file(model, './Test/fenci.txt', './Test/fenci_rs0.txt')
+        test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
 

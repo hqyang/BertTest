@@ -624,6 +624,10 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
                     unk_status = True
                     unk_pos = pos
 
+    if unk_status:
+        text_list.append(original_str[ori_used_idx:])
+        pos_list.append(pos)
+
     return text_list, pos_list
 
 
