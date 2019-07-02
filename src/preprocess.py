@@ -1,19 +1,42 @@
-import pandas as pd
 import os
+import pandas as pd
 import logging
 import itertools
 import re
 import torch
-# import tokenization # ModuleNotFoundError: No module named 'tokenization'
-from tokenization import FullTokenizer
-#from src.tokenization import FullTokenizer
-
+from src.BERT.tokenization import BertTokenizer
 
 import time
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
+
+
+def define_tokens_set(tokens, do_whole_word_mask=True):
+    # Whole Word Masking means that if we mask all of the wordpieces
+    # corresponding to an original word. When a word has been split into
+    # WordPieces, the first token does not have any marker and any subsequence
+    # tokens are prefixed with ##. So whenever we see the ## token, we
+    # append it to the previous set of word indexes.
+    #
+    # Note that Whole Word Masking does *not* change the training code
+    # at all -- we still predict each WordPiece independently, softmaxed
+    # over the entire vocabulary.
+
+    cand_indexes = []
+
+    for (i, token) in enumerate(tokens):
+        if token == "[CLS]" or token == "[SEP]":
+            continue
+
+        if (do_whole_word_mask and len(cand_indexes) >= 1 and
+            token.startswith("##")):
+            cand_indexes[-1].append(i)
+        else:
+            cand_indexes.append([i])
+
+    return cand_indexes
 
 
 def construct_pos_tags(pos_tags_file, mode = 'BIO'):
@@ -171,7 +194,7 @@ class MeituProcessor:
 
 class MeituDataset(Dataset):
     def __init__(self, processor, data_dir, vocab_file, max_length, training=True):
-        self.tokenizer = FullTokenizer(
+        self.tokenizer = BertTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
         self.max_length = max_length
         self.processor = processor
@@ -340,7 +363,7 @@ class CWS_POS(MeituProcessor):
 
 class MeituTagDataset(Dataset):
     def __init__(self, processor, data_dir, vocab_file, max_length, training=True):
-        self.tokenizer = FullTokenizer(
+        self.tokenizer = BertTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
         self.max_length = max_length
         self.processor = processor
@@ -398,8 +421,8 @@ class MeituTagDataset(Dataset):
 
 
 class OntoNotesDataset(Dataset):
-    def __init__(self, processor, data_dir, vocab_file, max_length, training=True, type='train'):
-        self.tokenizer = FullTokenizer(
+    def __init__(self, processor, data_dir, vocab_file, max_length, training=True, type='train', do_mask_as_whole=False):
+        self.tokenizer = BertTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
         self.max_length = max_length
         self.processor = processor
@@ -412,6 +435,7 @@ class OntoNotesDataset(Dataset):
         self.train(training=training, ty=type)
         self.label_list = processor.get_labels()
         self.label_map = processor.label_map
+        self.do_mask_as_whole = do_mask_as_whole
 
         pos_label_map = getattr(processor, 'pos_label_map', None)
         if pos_label_map is not None:
@@ -447,13 +471,19 @@ class OntoNotesDataset(Dataset):
         tokens = []
         labelids = []
         pos_label_ids = []
+        cand_indexes = []
 
         for i, data in enumerate(self.df.itertuples()):
             token = tokenize_text(data.text, self.max_length, self.tokenizer)
             labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
 
+            if self.do_mask_as_whole:
+                cand_index = define_tokens_set(token)
+
             tokens.append(token)
             labelids.append(labelid)
+            cand_indexes.append(cand_index)
+
             if self.pos_label_map:
                 pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
                 pos_label_ids.append(pos_label_id)
@@ -463,8 +493,9 @@ class OntoNotesDataset(Dataset):
         self.df['token'] = tokens
         self.df['labelid'] = labelids
 
-        if self.pos_label_map:
-            self.df['pos_label_id'] = pos_label_ids
+        # The rest two components may be empty
+        self.df['pos_label_id'] = pos_label_ids
+        self.df['cand_index'] = cand_indexes
 
         logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
 
@@ -476,30 +507,64 @@ class OntoNotesDataset(Dataset):
         data = self.df.iloc[i]
 
         if self.pos_label_map is None:
-            token, labelid = data.token, data.labelid
-            if not isinstance(labelid, list):
-                labelid = [labelid]
-            return tuple(token + labelid)
+            if not self.do_mask_as_whole: # no cand_index
+                token, labelid = data.token, data.labelid
+                if not isinstance(labelid, list):
+                    labelid = [labelid]
+
+                return tuple(token + labelid)
+            else: # contain cand_index
+                token, labelid, cand_index = data.token, data.labelid, data.cand_index
+
+                if not isinstance(labelid, list):
+                    labelid = [labelid]
+
+                if not isinstance(cand_index, list):
+                    cand_index = [cand_index]
+
+                return tuple(token + labelid + cand_index) # three tuples
         else:
-            token, labelid, pos_label_id = data.token, data.labelid, data.pos_label_id
-            if not isinstance(labelid, list):
-                labelid = [labelid]
+            if not self.do_mask_as_whole: # no cand_index
+                token, labelid, pos_label_id = data.token, data.labelid, data.pos_label_id
 
-            if not isinstance(pos_label_id, list):
-                pos_label_id = [pos_label_id]
+                if not isinstance(labelid, list):
+                    labelid = [labelid]
 
-            return tuple(token + labelid + pos_label_id)
+                if not isinstance(pos_label_id, list):
+                    pos_label_id = [pos_label_id]
+
+                return tuple(token + labelid + pos_label_id) # three tuples
+            else: # contain can_index
+                token, labelid, pos_label_id, cand_index = data.token, data.labelid, data.pos_label_id, data.cand_indexes
+
+                if not isinstance(labelid, list):
+                    labelid = [labelid]
+
+                if not isinstance(pos_label_id, list):
+                    pos_label_id = [pos_label_id]
+
+                if not isinstance(cand_index, list):
+                    cand_index = [cand_index]
+
+                return tuple(token + labelid + pos_label_id + cand_index) # four tuples
 
     def __call__(self, i):
         data = self.df.iloc[i]
 
         if self.pos_label_map is None:
-            text, label = data.text, data.label
-
-            return text, label
-        else:
-            text, label, pos_label = data.text, data.label, data.pos_label
-            return text, label, pos_label
+            if not self.do_mask_as_whole: # no cand_index
+                text, label = data.text, data.label
+                return text, label
+            else: # contain cand_index
+                text, label, can_index = data.text, data.label, data.cand_index
+                return text, label, can_index
+        else: # no pos_label_map
+            if not self.do_mask_as_whole: # no cand_index
+                text, label, pos_label = data.text, data.label, data.pos_label
+                return text, label, pos_label
+            else: # contain cand_index
+                text, label, pos_label, can_index = data.text, data.label, data.pos_label, data.cand_index
+                return text, label, pos_label, can_index
 
     def __len__(self):
         return self.df.shape[0]

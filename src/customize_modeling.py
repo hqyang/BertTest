@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-from .BERT.modeling import PreTrainedBertModel, BertModel
+from .BERT.modeling import PreTrainedBertModel, BertModel, BertEmbeddings, BertEncoder, BertPooler
 from .TorchCRF import CRF
 from .preprocess import tokenize_text, tokenize_list, tokenize_list_no_seg
 from .tokenization import FullTokenizer
@@ -1507,7 +1507,7 @@ class BertVariantCWSPOS(PreTrainedBertModel):
     logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_CWStags=4, num_POStags=108, method='fine_tune', fclassifier='Softmax'):
+    def __init__(self, config, num_CWStags=6, num_POStags=108, method='fine_tune', fclassifier='Softmax'):
         super(BertVariantCWSPOS, self).__init__(config)
         self.num_CWStags = num_CWStags
         self.num_POStags = num_POStags
@@ -2018,3 +2018,279 @@ class BertCWSPOS(PreTrainedBertModel):
             result_str_list.append(rs)
 
         return result_str_list
+
+
+class BertMIModel(PreTrainedBertModel):
+    """Modified from BERT models ("Bidirectional Embedding Representations from a Transformer").
+        allowing the input of cand_indexes
+
+    Params:
+        config: a BertConfig class instance with the configuration to build a new models
+
+    Inputs:
+        `input_ids`: a torch.LongTensor of shape [batch_size, sequence_length]
+            with the word token indices in the vocabulary(see the tokens preprocessing logic in the scripts
+            `extract_features.py`, `run_classifier.py` and `run_squad.py`)
+        `token_type_ids`: an optional torch.LongTensor of shape [batch_size, sequence_length] with the token
+            types indices selected in [0, 1]. Type 0 corresponds to a `sentence A` and type 1 corresponds to
+            a `sentence B` token (see BERT paper for more details).
+        `attention_mask`: an optional torch.LongTensor of shape [batch_size, sequence_length] with indices
+            selected in [0, 1]. It's a mask to be used if the input sequence length is smaller than the max
+            input sequence length in the current batch. It's the mask that we typically use for attention when
+            a batch has varying length sentences.
+        `output_all_encoded_layers`: boolean which controls the content of the `encoded_layers` output as described below. Default: `True`.
+
+    Outputs: Tuple of (encoded_layers, pooled_output)
+        `encoded_layers`: controled by `output_all_encoded_layers` argument:
+            - `output_all_encoded_layers=True`: outputs a list of the full sequences of encoded-hidden-states at the end
+                of each attention block (i.e. 12 full sequences for BERT-base, 24 for BERT-large), each
+                encoded-hidden-state is a torch.FloatTensor of size [batch_size, sequence_length, hidden_size],
+            - `output_all_encoded_layers=False`: outputs only the full sequence of hidden-states corresponding
+                to the last attention block of shape [batch_size, sequence_length, hidden_size],
+        `pooled_output`: a torch.FloatTensor of size [batch_size, hidden_size] which is the output of a
+            classifier pretrained on top of the hidden state associated to the first character of the
+            input (`CLF`) to train on the Next-Sentence task (see BERT's paper).
+
+    Example usage:
+    ```python
+    # Already been converted into WordPiece token ids
+    input_ids = torch.LongTensor([[31, 51, 99], [15, 5, 0]])
+    input_mask = torch.LongTensor([[1, 1, 1], [1, 1, 0]])
+    token_type_ids = torch.LongTensor([[0, 0, 1], [0, 1, 0]])
+    cand_indexes = torch.LongTensor([[0, 1, 2], [0, 1]])
+
+    config = modeling.BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
+        num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
+
+    models = modeling.BertMIModel(config=config)
+    all_encoder_layers, pooled_output = models(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, config, update_method='mean'):
+        super(BertMIModel, self).__init__(config)
+        self.update_method = update_method
+        self.embeddings = BertEmbeddings(config)
+        self.encoder = BertEncoder(config)
+        self.pooler = BertPooler(config)
+        self.apply(self.init_bert_weights)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=True, cand_indexes=None):
+        if attention_mask is None:
+            attention_mask = torch.ones_like(input_ids)
+        if token_type_ids is None:
+            token_type_ids = torch.zeros_like(input_ids)
+
+        # We create a 3D attention mask from a 2D tensor mask.
+        # Sizes are [batch_size, 1, 1, to_seq_length]
+        # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
+        # this attention mask is more simple than the triangular masking of causal attention
+        # used in OpenAI GPT, we just need to prepare the broadcast dimension here.
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+
+        # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+        # masked positions, this operation will create a tensor which is 0.0 for
+        # positions we want to attend and -10000.0 for masked positions.
+        # Since we are adding it to the raw scores before the softmax, this is
+        # effectively the same as removing these entirely.
+        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+
+        embedding_output = self.embeddings(input_ids, token_type_ids)
+
+        # update embedding_output
+        if cand_indexes is not None:
+            embedding_output = self.update_embedding(embedding_output, cand_indexes)
+
+        encoded_layers = self.encoder(embedding_output,
+                                      extended_attention_mask,
+                                      output_all_encoded_layers=output_all_encoded_layers)
+        sequence_output = encoded_layers[-1]
+        pooled_output = self.pooler(sequence_output)
+        if not output_all_encoded_layers:
+            encoded_layers = encoded_layers[-1]
+        return encoded_layers, pooled_output
+
+    def update_embedding(self, embedding_output, cand_indexes):
+        for i, cand_index_s in enumerate(cand_indexes): # each sentence
+            embedding_output_i[0] = embedding_output[i][0][0]
+
+            for j, cand_index in enumerate(cand_index_s): # cand_index for each sentence
+                sz_idx = len(cand_index)
+                feat = torch.zeros_like(embedding_output_i[0])
+
+                for k, idx in enumerate(cand_index):
+                    if self.update_method == 'mean':
+                        feat += embedding_output[i][idx]
+
+                if self.update_method == 'mean':
+                    feat /= sz_idx
+
+                embedding_output_i[j] = feat.clone()
+
+            embedding_output_i[j+1] = embedding_output[i][idx+1]
+
+            new_embedding_output[i] = embedding_output_i.clone()
+
+        return new_embedding_output
+
+
+class BertMIVariantCWSPOS(PreTrainedBertModel):
+    """Apply BERT for Sequence Labeling on Chinese Word Segmentation and Part-of-Speech.
+
+    models = BertMIVariantCWSPOS(config, num_tags)
+    logits = models(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, config, num_CWStags=6, num_POStags=108, method='fine_tune', fclassifier='Softmax', do_mask_as_whole=False):
+        super(BertMIVariantCWSPOS, self).__init__(config)
+        self.num_CWStags = num_CWStags
+        self.num_POStags = num_POStags
+        self.method = method
+        self.fclassifier = fclassifier
+        self.do_mask_as_whole = do_mask_as_whole
+
+        if self.do_mask_as_whole:
+            self.bert = BertMIModel(config)
+        else:
+            self.bert = BertModel(config)
+
+        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
+
+        if method == 'fine_tune':
+            last_hidden_size = self.config.hidden_size
+        elif method == 'cat_last4':
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+            last_hidden_size = self.config.hidden_size*2
+        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+            last_hidden_size = self.config.hidden_size*2
+        elif self.method == 'MHMLA':
+            self.MHMLA = MultiHeadMultiLayerAttention(config)
+
+        # Maps the output of BERT into tag space.
+        self.hidden2CWStag = nn.Linear(last_hidden_size, num_CWStags)
+        self.hidden2POStag = nn.Linear(last_hidden_size, num_POStags)
+
+        if self.fclassifier == 'CRF':
+            self.CWSclassifier = CRF(num_CWStags, batch_first=True)
+            self.POSclassifier = CRF(num_POStags, batch_first=True)
+
+        self.apply(self.init_bert_weights)
+
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None, cand_indexes=None):
+        mask = attention_mask.byte()
+        loss = 1e10
+
+        if labels_CWS is None and labels_POS is None:
+            raise RuntimeError('Input: labels_CWS or labels_POS is missing!')
+        else:
+            feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask, cand_indexes)
+            cws_logits = self.hidden2CWStag(feat_used)
+
+            if labels_CWS is not None:
+                loss = self._compute_loss(cws_logits, mask, labels_CWS, 'CWS')
+
+            if labels_POS is not None:
+                pos_logits = self.hidden2POStag(feat_used)
+                loss += self._compute_loss(pos_logits, mask, labels_POS, 'POS')
+
+        return loss
+
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None):
+        loss = 1e10
+
+        mask = attention_mask.byte()
+        feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+
+        cws_logits = self.hidden2CWStag(feat_used)
+        pos_logits = self.hidden2POStag(feat_used)
+
+        if labels_CWS is not None:
+            cws_loss = self._compute_loss(cws_logits, mask, labels_CWS, 'CWS')
+
+        if labels_POS is not None:
+            pos_loss = self._compute_loss(pos_logits, mask, labels_POS, 'POS')
+
+        if self.fclassifier == 'CRF':
+            best_cws_tags_list = self.classifier.decode(cws_logits, mask)
+            best_pos_tags_list = self.classifier.decode(pos_logits, mask)
+        elif self.fclassifier == 'Softmax':
+            best_cws_tags_list = self._decode_Softmax(cws_logits, mask)
+            best_pos_tags_list = self._decode_Softmax(pos_logits, mask)
+
+        return cws_loss, pos_loss, best_cws_tags_list, best_pos_tags_list
+
+    def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None, cand_indexes=None):
+        if self.method in ['last_layer', 'fine_tune']:
+            output_all_encoded_layers = False
+        else: # sum_last4, sum_all, cat_last4, 'MHMLA'
+            output_all_encoded_layers = True
+
+        if self.do_mask_as_whole:
+            raise RuntimeError('Input: cand_indexes is missing!')
+
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, \
+                   output_all_encoded_layers=output_all_encoded_layers, cand_indexes=cand_indexes)
+
+        if self.method == 'sum_last4':
+            feat_used = self.dropout(sequence_output[-1])
+            for l in range(-2, -5, -1):
+                feat_used += self.dropout(sequence_output[l])
+        elif self.method == 'sum_all':
+            feat_used = self.dropout(sequence_output[-1])
+            for l in range(-2, -13, -1):
+                feat_used += self.dropout(sequence_output[l])
+        elif self.method == 'cat_last4':
+            feat_used = self.dropout(sequence_output[-4])
+            for l in range(-3, 0):
+                feat_used = torch.cat((feat_used, self.dropout(sequence_output[l])), 2)
+        elif self.method in ['last_layer', 'fine_tune']:
+            feat_used = sequence_output
+            feat_used = self.dropout(feat_used)
+        elif self.method == 'MHMLA':
+            feat_used = self.MHMLA(sequence_output)
+
+        if self.method in ['sum_last4', 'sum_all', 'cat_last4', 'last_layer']:
+            feat_used, _ = self.biLSTM(feat_used)
+
+        return feat_used
+
+    def _compute_loss(self, logits, mask, labels, task):
+        # mask is a ByteTensor
+
+        if self.fclassifier == 'Softmax':
+            loss_fct = nn.CrossEntropyLoss()
+
+            if task == 'CWS':
+                num_tags = self.num_CWStags
+            elif task == 'POS':
+                num_tags = self.num_POStags
+
+            loss = loss_fct(logits.view(-1, num_tags), labels.view(-1))
+        elif self.fclassifier == 'CRF':
+            if task == 'CWS':
+                loss = -self.CWSclassifier(logits, labels, mask)
+            elif task == 'POS':
+                loss = -self.POSclassifier(logits, labels, mask)
+
+        return loss
+
+    def _decode_Softmax(self, logits, mask):
+        # mask is a ByteTensor
+
+        batch_size, _ = mask.shape
+
+        _, best_selected_tag = logits.max(dim=2)
+
+        best_tags_list = []
+        for n in range(batch_size):
+            selected_tag = torch.masked_select(best_selected_tag[n, :], mask[n, :])
+            best_tags_list.append(selected_tag.tolist())
+
+        return best_tags_list

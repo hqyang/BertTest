@@ -15,10 +15,7 @@ import pandas as pd
 import torch
 import numpy as np
 
-import sys
-sys.path.append('../src')
 from src.preprocess import dataset_to_dataloader, OntoNotesDataset
-#from src.preprocess import dataset_to_dataloader, OntoNotesDataset
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -682,29 +679,3 @@ def extract_pos(pos_list):
         result_pos_str += pos_used + ' '
 
     return result_pos_str
-
-
-def define_tokens_set(tokens, do_whole_word_mask=True):
-    # Whole Word Masking means that if we mask all of the wordpieces
-    # corresponding to an original word. When a word has been split into
-    # WordPieces, the first token does not have any marker and any subsequence
-    # tokens are prefixed with ##. So whenever we see the ## token, we
-    # append it to the previous set of word indexes.
-    #
-    # Note that Whole Word Masking does *not* change the training code
-    # at all -- we still predict each WordPiece independently, softmaxed
-    # over the entire vocabulary.
-
-    cand_indexes = []
-
-    for (i, token) in enumerate(tokens):
-        if token == "[CLS]" or token == "[SEP]":
-            continue
-
-        if (do_whole_word_mask and len(cand_indexes) >= 1 and
-            token.startswith("##")):
-            cand_indexes[-1].append(i)
-        else:
-            cand_indexes.append([i])
-
-    return cand_indexes
