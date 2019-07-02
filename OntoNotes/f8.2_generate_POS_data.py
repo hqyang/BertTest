@@ -14,6 +14,7 @@ from src.BERT.tokenization import BertTokenizer
 import numpy as np
 from src.utilis import check_english_words, check_chinese_words, define_tokens_set
 from src.config import langtype, bmes2bio
+from tqdm import tqdm
 
 def output_seg_tokens(word, full_tokenizer, ner_type=''):
     # only one word, e.g., director, 日子， 在
@@ -218,7 +219,7 @@ def genDataWithBERTSeg(full_tokenizer, in_file, out_dir, part, pos_set):
     with open(in_file, 'r', encoding='utf8') as f:
         raw_data = f.readlines()
 
-    data_all = [parse_one2BERT2Dict(s, full_tokenizer, pos_set) for s in raw_data]
+    data_all = [parse_one2BERT2Dict(s, full_tokenizer, pos_set) for s in tqdm(raw_data)]
 
     import pandas as pd
     df = pd.DataFrame(data_all)
@@ -236,19 +237,20 @@ def gen_4ner_type(full_tokenizer, in_dir, out_dir, parts):
     pos_all = set()
 
     fs = os.walk(in_dir)
+    (p, d, f) = zip(*fs)
 
     files = {}
     for part in parts:
         files[part] = ''
 
-    for p, d, f in fs:
+    for fi in f[0]:
         for part in parts:
-            if part in f[0]: files[part] = f[0]
+            if part in fi: files[part] = fi
 
     for part in parts:
         if len(files[part]) == 0: continue
 
-        infile = os.path.join(p, f[0])
+        infile = os.path.join(p[0], files[part])
 
         pos = set()
         genDataWithBERTSeg(full_tokenizer, infile, out_dir, part, pos)
@@ -310,7 +312,8 @@ if __name__ == '__main__':
         print('bert_pos:' +out_dict['bert_pos'])
 
     TEST_FLAG = False
-    TEST_FLAG = True
+    inServer = False
+    #TEST_FLAG = True
     if TEST_FLAG:
         out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data/valid/'
         in_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data/valid/src/'
@@ -323,9 +326,14 @@ if __name__ == '__main__':
         print(pos_set)
         print('Finish processing files in ' + in_dir)
     else:
+        if inServer:
+            in_dir = '../../data/'
+            out_dir = '../../data/ontonotes5/4nerpos_update'
+        else:
+            in_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/'
+            out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_update/'
+
         parts = ['train', 'test', 'dev']
-        in_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/'
-        out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data/'
         os.makedirs(out_dir, exist_ok=True)
 
         gen_4ner_type(full_tokenizer, in_dir, out_dir, parts)
