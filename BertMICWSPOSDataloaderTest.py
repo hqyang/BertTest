@@ -558,7 +558,7 @@ isServer = True
 def main(**kwargs):
     if TEST_FLAG:
         if isServer:
-            set_server_Ontonotes_param()
+            kwargs = set_server_Ontonotes_param()
         else:
             kwargs = set_local_Ontonotes_param()
     else:
