@@ -2100,7 +2100,7 @@ class BertMIModel(PreTrainedBertModel):
 
         # update embedding_output
         if cand_indexes is not None:
-            embedding_output = self.update_embedding(embedding_output, cand_indexes, attention_mask)
+            embedding_output = self.update_embedding(embedding_output, cand_indexes)
 
         encoded_layers = self.encoder(embedding_output,
                                       extended_attention_mask,
@@ -2111,7 +2111,7 @@ class BertMIModel(PreTrainedBertModel):
             encoded_layers = encoded_layers[-1]
         return encoded_layers, pooled_output
 
-    def update_embedding(self, embedding_output, cand_indexes, attention_mask):
+    def update_embedding(self, embedding_output, cand_indexes):
         new_embedding_output = torch.zeros_like(embedding_output)
         embedding_output_i = torch.zeros_like(embedding_output[0])
 
@@ -2119,7 +2119,7 @@ class BertMIModel(PreTrainedBertModel):
         for i, cand_index_s in enumerate(cand_indexes): # each sentence
             # copy feature for [CLS]
             embedding_output_i[0] = embedding_output[i][0].clone()
-            last_index = torch.sum(attention_mask[i])-1 
+            last_sel_index = 0
 
             for j, cand_index in enumerate(cand_index_s): # cand_index for each sentence
                 if cand_index[0] == -1: # end of sentence
@@ -2127,6 +2127,7 @@ class BertMIModel(PreTrainedBertModel):
 
                 tmp_mask = cand_index.ge(0)
                 sel_index = torch.masked_select(cand_index, tmp_mask)
+                last_sel_index = sel_index[-1]
 
                 if self.update_method == 'mean':
                     feat = torch.mean(embedding_output[i][sel_index], dim=0, keepdim=True)
@@ -2153,7 +2154,7 @@ class BertMIModel(PreTrainedBertModel):
                     break
                 '''
             # copy feature for [SEP]
-            embedding_output_i[j+1] = embedding_output[i][last_index].clone()
+            embedding_output_i[j+1] = embedding_output[i][last_sel_index+1].clone()
 
             new_embedding_output[i] = embedding_output_i.clone()
 

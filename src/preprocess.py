@@ -57,7 +57,7 @@ def cand_indexes2nparray(cand_indexes, max_length):
         if max_subwords < len_cand:
             max_subwords = len_cand
 
-    if max_subwords > MAX_SUBWORDS: print('The length of maximum sub-words is '+str(max_subwords))
+    print('The length of maximum sub-words is '+str(max_subwords))
 
     # 2. convert into np array with the same size
     o_cand_indexes = copy.deepcopy(cand_indexes)
@@ -84,7 +84,7 @@ def cand2nparray(cand_indexes):
         len_cand = len(cand_index)
         if max_subwords < len_cand:
             max_subwords = len_cand
-    if max_subwords > MAX_SUBWORDS: print('The length of maximum sub-words is '+str(max_subwords))
+    print('The length of maximum sub-words is '+str(max_subwords))
 
     # 2. convert into np array with the same size
     o_cand_indexes = copy.deepcopy(cand_indexes)
@@ -108,7 +108,7 @@ def cand_max2nparray(cand_indexes, max_length):
         if max_subwords < len_cand:
             max_subwords = len_cand
 
-    if max_subwords > MAX_SUBWORDS: print('The length of maximum sub-words is '+str(max_subwords))
+    print('The length of maximum sub-words is '+str(max_subwords))
 
     # 2. convert into np array with the same size
     o_cand_indexes = copy.deepcopy(cand_indexes)
@@ -564,15 +564,12 @@ class OntoNotesDataset(Dataset):
         #cand_masks = []
 
         for i, data in enumerate(self.df.itertuples()):
-            words = text2tokens(data.text, self.max_length, self.tokenizer)
-            token = tokens2ids(words, self.max_length, self.tokenizer)
-            labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
-
-            cand_index = []
             if self.do_mask_as_whole:
-                cand_index = define_tokens_set(words)
-                cand_index = cand_indexes2nparray(cand_index, self.max_length)
-                #np_cand_index, np_cand_mask = cand_max2nparray(cand_index, self.max_length)
+                token, cand_index = tokenize_text_with_cand_indexes(data.text, self.max_length, self.tokenizer)
+            else: # no cand_index
+                token = tokenize_text(data.text, self.max_length, self.tokenizer)
+
+            labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
 
             tokens.append(token)
             labelids.append(labelid)
@@ -702,6 +699,34 @@ def tokens2ids(tokens, max_length, tokenizer):
     mask = np.array([1] * len_tokens + [0] * (max_length - len_tokens))
     segment = np.array([0] * max_length)
     return [tokens, segment, mask]
+
+
+def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
+    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
+    # words = list(filter(lambda x: x!=' ', words))
+    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
+    words = tokenizer.tokenize(text)
+    words = ['[CLS]'] + words
+
+    cand_index = define_tokens_set(words)
+    len_cand_index = len(cand_index)
+
+    if len_cand_index > max_length - 1:
+        words = words[:max_length - 1]
+    words += ['[SEP]']
+    # models = tokenizer.models
+    # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
+    # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
+    tokens = tokenizer.convert_tokens_to_ids(words)
+    if len(tokens) < max_length:
+        tokens.extend([0] * (max_length - len(tokens)))
+    tokens = np.array(tokens)
+    mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
+    segment = np.array([0] * max_length)
+
+    cand_index = cand_indexes2nparray(cand_index, max_length)
+
+    return [tokens, segment, mask], cand_index
 
 
 def tokenize_text(text, max_length, tokenizer):

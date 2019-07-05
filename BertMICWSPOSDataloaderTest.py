@@ -160,6 +160,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         tr_loss = 0
         nb_tr_examples, nb_tr_steps = 0, 0
 
+        step = 1
         if args.do_mask_as_whole:
             for step, (batch, cand_indexes) in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
@@ -554,9 +555,9 @@ def set_local_Ontonotes_param():
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS2/',
             'do_lower_case': False,
-            'train_batch_size': 32,
+            'train_batch_size': 4,
             'max_seq_length': 128,
-            'num_hidden_layers': 12,
+            'num_hidden_layers': 1,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'no_cuda': True,
@@ -591,9 +592,9 @@ def set_server_Ontonotes_param():
 
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
 isServer = True
-#isServer = False
+isServer = False
 
 def main(**kwargs):
     if TEST_FLAG:
