@@ -159,60 +159,99 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         st = time.time()
         tr_loss = 0
         nb_tr_examples, nb_tr_steps = 0, 0
-        for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
-            batch = tuple(t.to(device) for t in batch)
-            input_ids, segment_ids, input_mask = batch[:3]
-            if args.pretraining:
-                input_ids, label_ids = randomly_mask_input(input_ids, train_dataloader.dataset.tokenizer)
-                input_ids = input_ids.to(device)
-                label_ids = label_ids.to(device)
 
-                loss = model(input_ids, segment_ids, input_ids, label_ids)
-            else:
-                if args.do_mask_as_whole:
-                    label_ids, pos_label_ids, cand_indexes = batch[3:]
-                    loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes)
+        if args.do_mask_as_whole:
+            for step, (batch, cand_indexes) in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                batch = tuple(t.to(device) for t in batch)
+                cand_indexes = cand_indexes[0].to(device) # for t in cand_indexes
+                input_ids, segment_ids, input_mask = batch[:3]
+
+                label_ids, pos_label_ids = batch[3:]
+
+                loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes)
+
+                n_gpu = torch.cuda.device_count()
+                if n_gpu > 1: # or loss.shape[0] > 1:
+                    loss = loss.mean() # mean() to average on multi-gpu or multitask.
+                if args.fp16 and args.loss_scale != 1.0:
+                    # rescale loss for fp16 training
+                    # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
+                    loss = loss * args.loss_scale
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
+
+                if args.fclassifier == 'Softmax':
+                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
                 else:
-                    label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
-                    loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
 
-            n_gpu = torch.cuda.device_count()
-            if n_gpu > 1: # or loss.shape[0] > 1:
-                loss = loss.mean() # mean() to average on multi-gpu or multitask.
-            if args.fp16 and args.loss_scale != 1.0:
-                # rescale loss for fp16 training
-                # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
-                loss = loss * args.loss_scale
-            if args.gradient_accumulation_steps > 1:
-                loss = loss / args.gradient_accumulation_steps
+                loss.backward()
+                tr_loss += loss.item()
+                nb_tr_examples += input_ids.size(0)
+                nb_tr_steps += 1
+                if (step + 1) % args.gradient_accumulation_steps == 0:
+                    if args.fp16 or args.optimize_on_cpu:
+                        if args.fp16 and args.loss_scale != 1.0:
+                            # scale down gradients for fp16 training
+                            for param in model.parameters():
+                                param.grad.data = param.grad.data / args.loss_scale
+                        is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
+                        if is_nan:
+                            logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
+                            args.loss_scale = args.loss_scale / 2
+                            model.zero_grad()
+                            continue
+                        optimizer.step()
+                        copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                    else:
+                        optimizer.step()
+                    model.zero_grad()
+                    global_step += 1
+        else: # no cand_info
+            for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                batch = tuple(t.to(device) for t in batch)
+                input_ids, segment_ids, input_mask = batch[:3]
 
-            if args.fclassifier == 'Softmax':
-                logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
-            else:
-                logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+                label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
+                loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
 
-            loss.backward()
-            tr_loss += loss.item()
-            nb_tr_examples += input_ids.size(0)
-            nb_tr_steps += 1
-            if (step + 1) % args.gradient_accumulation_steps == 0:
-                if args.fp16 or args.optimize_on_cpu:
-                    if args.fp16 and args.loss_scale != 1.0:
-                        # scale down gradients for fp16 training
-                        for param in model.parameters():
-                            param.grad.data = param.grad.data / args.loss_scale
-                    is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
-                    if is_nan:
-                        logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
-                        args.loss_scale = args.loss_scale / 2
-                        model.zero_grad()
-                        continue
-                    optimizer.step()
-                    copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                n_gpu = torch.cuda.device_count()
+                if n_gpu > 1: # or loss.shape[0] > 1:
+                    loss = loss.mean() # mean() to average on multi-gpu or multitask.
+                if args.fp16 and args.loss_scale != 1.0:
+                    # rescale loss for fp16 training
+                    # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
+                    loss = loss * args.loss_scale
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
+
+                if args.fclassifier == 'Softmax':
+                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
                 else:
-                    optimizer.step()
-                model.zero_grad()
-                global_step += 1
+                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+
+                loss.backward()
+                tr_loss += loss.item()
+                nb_tr_examples += input_ids.size(0)
+                nb_tr_steps += 1
+                if (step + 1) % args.gradient_accumulation_steps == 0:
+                    if args.fp16 or args.optimize_on_cpu:
+                        if args.fp16 and args.loss_scale != 1.0:
+                            # scale down gradients for fp16 training
+                            for param in model.parameters():
+                                param.grad.data = param.grad.data / args.loss_scale
+                        is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
+                        if is_nan:
+                            logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
+                            args.loss_scale = args.loss_scale / 2
+                            model.zero_grad()
+                            continue
+                        optimizer.step()
+                        copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                    else:
+                        optimizer.step()
+                    model.zero_grad()
+                    global_step += 1
 
         tr_time = time.time()-st
         tr_times.append(tr_time)
@@ -554,6 +593,7 @@ def set_server_Ontonotes_param():
 TEST_FLAG = False
 TEST_FLAG = True
 isServer = True
+isServer = False
 
 def main(**kwargs):
     if TEST_FLAG:

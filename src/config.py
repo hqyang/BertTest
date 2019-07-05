@@ -166,3 +166,5 @@ posType = POSType()
     # 33 VE    有（have，not have ,有，无，没，表示存在的词
     # 34 VV    情态动词、  动词、possess/拥有 ，rich/富有,具有
     # 35 X     English x
+
+MAX_SUBWORDS = 5

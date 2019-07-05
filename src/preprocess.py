@@ -5,13 +5,14 @@ import itertools
 import re
 import torch
 from src.BERT.tokenization import BertTokenizer
+import copy
 
 import time
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-
+from .config import MAX_SUBWORDS
 
 def define_tokens_set(tokens, do_whole_word_mask=True):
     # Whole Word Masking means that if we mask all of the wordpieces
@@ -37,6 +38,94 @@ def define_tokens_set(tokens, do_whole_word_mask=True):
             cand_indexes.append([i])
 
     return cand_indexes
+
+
+def cand_indexes2nparray(cand_indexes, max_length):
+    '''
+     Inputs:
+       cand_indexes: e.g., [[1], [2, 3], [4], ...]
+       max_length: e.g., 128 (<=512)
+    # Output:
+       o_cand_indexes: array([[1, -1, -1, -1, -1], [2, 3, -1, -1, -1], [4, -1, -1, -1, -1], ...])
+       since the index is at least 1, we set -1 to indicate unused indexes and set MAX_SUBWORDS=5
+    '''
+
+    # 1. get max length
+    max_subwords = 0
+    for cand_index in cand_indexes:
+        len_cand = len(cand_index)
+        if max_subwords < len_cand:
+            max_subwords = len_cand
+
+    if max_subwords > MAX_SUBWORDS: print('The length of maximum sub-words is '+str(max_subwords))
+
+    # 2. convert into np array with the same size
+    o_cand_indexes = copy.deepcopy(cand_indexes)
+    #o_cand_mask = []
+    for cand_index in o_cand_indexes:
+        len_cand = len(cand_index)
+        cand_index.extend([-1]*(MAX_SUBWORDS-len_cand))
+        #o_cand_mask.append([1]*len_cand + [0]*(MAX_SUBWORDS-len_cand))
+
+    len_cand_indexes = len(o_cand_indexes)
+    if len_cand_indexes < max_length:
+        o_cand_indexes.extend([[-1]*MAX_SUBWORDS]*(max_length-len_cand_indexes))
+
+    o_cand_indexes = np.array(o_cand_indexes)
+    #o_cand_mask = np.array(o_cand_mask)
+
+    return o_cand_indexes#, o_cand_mask
+
+
+def cand2nparray(cand_indexes):
+    # 1. get max length
+    max_subwords = 0
+    for cand_index in cand_indexes:
+        len_cand = len(cand_index)
+        if max_subwords < len_cand:
+            max_subwords = len_cand
+    if max_subwords > MAX_SUBWORDS: print('The length of maximum sub-words is '+str(max_subwords))
+
+    # 2. convert into np array with the same size
+    o_cand_indexes = copy.deepcopy(cand_indexes)
+    o_cand_mask = []
+    for cand_index in o_cand_indexes:
+        len_cand = len(cand_index)
+        cand_index.extend([0]*(MAX_SUBWORDS-len_cand))
+        o_cand_mask.append([1]*len_cand + [0]*(MAX_SUBWORDS-len_cand))
+
+    o_cand_indexes = np.array(o_cand_indexes)
+    o_cand_mask = np.array(o_cand_mask)
+
+    return o_cand_indexes, o_cand_mask
+
+
+def cand_max2nparray(cand_indexes, max_length):
+    # 1. get max length
+    max_subwords = 0
+    for cand_index in cand_indexes:
+        len_cand = len(cand_index)
+        if max_subwords < len_cand:
+            max_subwords = len_cand
+
+    if max_subwords > MAX_SUBWORDS: print('The length of maximum sub-words is '+str(max_subwords))
+
+    # 2. convert into np array with the same size
+    o_cand_indexes = copy.deepcopy(cand_indexes)
+    o_cand_mask = []
+    for cand_index in o_cand_indexes:
+        len_cand = len(cand_index)
+        cand_index.extend([0]*(MAX_SUBWORDS-len_cand))
+        o_cand_mask.append([1]*len_cand + [0]*(MAX_SUBWORDS-len_cand))
+
+    len_cand_indexes = len(o_cand_indexes)
+    if len_cand_indexes < max_length:
+        o_cand_indexes.extend([[0]*MAX_SUBWORDS]*(max_length-len_cand_indexes))
+
+    o_cand_indexes = np.array(o_cand_indexes)
+    o_cand_mask = np.array(o_cand_mask)
+
+    return o_cand_indexes, o_cand_mask
 
 
 def construct_pos_tags(pos_tags_file, mode = 'BIO'):
@@ -71,19 +160,19 @@ class MeituProcessor:
         self.train_df = None
         if not self.multitask:
             self.label_col = 1 if self.level == 1 else 2
-        else:   
+        else:
             self.label_col = [1, 2]
 
     def get_train_examples(self, data_dir):
         """See base class."""
         logging.info("LOOKING AT {}".format(os.path.join(data_dir, "train.tsv")))
         if self.train_df is None:
-            df = pd.read_csv(os.path.join(data_dir, "train_bert.tsv"), 
+            df = pd.read_csv(os.path.join(data_dir, "train_bert.tsv"),
                          sep='\t', low_memory=False)
             df = df.iloc[df.iloc[:, self.label_col].dropna(how='all').index]
         else:
             df = self.train_df
-        if self.label_list is None: 
+        if self.label_list is None:
             self.get_labels(data_dir=data_dir, df=None)
         train_examples = self._create_examples(df.values, "train")
         return train_examples
@@ -92,10 +181,10 @@ class MeituProcessor:
         if self.label_list is None:
             self.get_labels(data_dir=data_dir, df=None)
         """See base class."""
-        df = pd.read_csv(os.path.join(data_dir, "dev_bert.tsv"), 
+        df = pd.read_csv(os.path.join(data_dir, "dev_bert.tsv"),
                          sep='\t', low_memory=False)
         df = df.iloc[df.iloc[:, self.label_col].dropna(how='all').index]
-        return self._create_examples(df.values, "dev") 
+        return self._create_examples(df.values, "dev")
 
     def _get_label_by_sample(self, line):
         l = line[self.label_col]
@@ -139,7 +228,7 @@ class MeituProcessor:
                  for name, series in all_labels.iteritems():
                     l = sorted(list(set(itertools.chain(
                         *[_.split(',') for _ in series.dropna().unique()]))))
-                    label_list.append(l)               
+                    label_list.append(l)
         return label_list
 
     def get_labels(self, data_dir=None, df=None):
@@ -147,13 +236,13 @@ class MeituProcessor:
         if self.label_list is None:
             #hardcode here
             if df is None:
-                df = pd.read_csv(os.path.join(data_dir, "train_bert.tsv"), 
+                df = pd.read_csv(os.path.join(data_dir, "train_bert.tsv"),
                              sep='\t', low_memory=False)
                 df = df.iloc[df.iloc[:, self.label_col].dropna(how='all').index]
                 self.train_df = df
             self.label_list = self._get_label_list_from_df(df)
         label_list = self.label_list
-        
+
         if not self.multitask:
             self.label_map = dict()
             for i, label in enumerate(self.label_list):
@@ -453,13 +542,13 @@ class OntoNotesDataset(Dataset):
             if self.dev_df is None:
                 self.dev_df = self.processor.get_dev_examples(self.data_dir)
             self.df = self.dev_df
-        elif ty=='test': 
+        elif ty=='test':
             if self.test_df is None:
                 self.test_df = self.processor.get_test_examples(self.data_dir)
             self.df = self.test_df
         else:
             self.df = self.processor.get_other_examples(self.data_dir, ty+".tsv")
-        
+
         return self
 
     def dev(self):
@@ -472,17 +561,25 @@ class OntoNotesDataset(Dataset):
         labelids = []
         pos_label_ids = []
         cand_indexes = []
+        #cand_masks = []
 
         for i, data in enumerate(self.df.itertuples()):
-            token = tokenize_text(data.text, self.max_length, self.tokenizer)
+            words = text2tokens(data.text, self.max_length, self.tokenizer)
+            token = tokens2ids(words, self.max_length, self.tokenizer)
             labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
 
+            cand_index = []
             if self.do_mask_as_whole:
-                cand_index = define_tokens_set(token)
+                cand_index = define_tokens_set(words)
+                cand_index = cand_indexes2nparray(cand_index, self.max_length)
+                #np_cand_index, np_cand_mask = cand_max2nparray(cand_index, self.max_length)
 
             tokens.append(token)
             labelids.append(labelid)
-            cand_indexes.append(cand_index)
+
+            if self.do_mask_as_whole:
+                cand_indexes.append(cand_index)
+                #cand_masks.append(np_cand_mask)
 
             if self.pos_label_map:
                 pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
@@ -496,6 +593,7 @@ class OntoNotesDataset(Dataset):
         # The rest two components may be empty
         self.df['pos_label_id'] = pos_label_ids
         self.df['cand_index'] = cand_indexes
+        #self.df['cand_mask'] = cand_masks
 
         logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
 
@@ -522,9 +620,12 @@ class OntoNotesDataset(Dataset):
                 if not isinstance(cand_index, list):
                     cand_index = [cand_index]
 
-                return tuple(token + labelid + cand_index) # three tuples
+                #if not isinstance(cand_mask, list):
+                #    cand_mask = [cand_mask]
+
+                return tuple(token + labelid), cand_index # three tuples
         else:
-            if not self.do_mask_as_whole: # no cand_index
+            if not self.do_mask_as_whole: # no cand_index, cand_mask
                 token, labelid, pos_label_id = data.token, data.labelid, data.pos_label_id
 
                 if not isinstance(labelid, list):
@@ -534,8 +635,9 @@ class OntoNotesDataset(Dataset):
                     pos_label_id = [pos_label_id]
 
                 return tuple(token + labelid + pos_label_id) # three tuples
-            else: # contain can_index
-                token, labelid, pos_label_id, cand_index = data.token, data.labelid, data.pos_label_id, data.cand_indexes
+            else: # contain cand_index, cand_mask
+                token, labelid, pos_label_id, cand_index \
+                    = data.token, data.labelid, data.pos_label_id, data.cand_index
 
                 if not isinstance(labelid, list):
                     labelid = [labelid]
@@ -546,7 +648,10 @@ class OntoNotesDataset(Dataset):
                 if not isinstance(cand_index, list):
                     cand_index = [cand_index]
 
-                return tuple(token + labelid + pos_label_id + cand_index) # four tuples
+                #if not isinstance(cand_mask, list):
+                #    cand_mask = [cand_mask]
+
+                return tuple(token + labelid + pos_label_id), cand_index # four tuples
 
     def __call__(self, i):
         data = self.df.iloc[i]
@@ -556,18 +661,47 @@ class OntoNotesDataset(Dataset):
                 text, label = data.text, data.label
                 return text, label
             else: # contain cand_index
-                text, label, can_index = data.text, data.label, data.cand_index
-                return text, label, can_index
+                text, label, cand_index = data.text, data.label, data.cand_index#, data.cand_mask
+                return text, label, cand_index#, cand_mask
         else: # no pos_label_map
             if not self.do_mask_as_whole: # no cand_index
                 text, label, pos_label = data.text, data.label, data.pos_label
                 return text, label, pos_label
             else: # contain cand_index
-                text, label, pos_label, can_index = data.text, data.label, data.pos_label, data.cand_index
-                return text, label, pos_label, can_index
+                text, label, pos_label, cand_index \
+                    = data.text, data.label, data.pos_label,data.cand_index
+
+                return text, label, pos_label, cand_index#, cand_mask
 
     def __len__(self):
         return self.df.shape[0]
+
+
+def text2tokens(text, max_length, tokenizer):
+    tokens = tokenizer.tokenize(text)
+    if len(tokens) > max_length - 2:
+        tokens = tokens[:max_length - 2]
+    tokens = ['[CLS]'] + tokens + ['[SEP]']
+
+    return tokens
+
+
+def tokens2ids(tokens, max_length, tokenizer):
+    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
+    # words = list(filter(lambda x: x!=' ', words))
+    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
+
+    # models = tokenizer.models
+    # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
+    # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
+    tokens = tokenizer.convert_tokens_to_ids(tokens)
+    len_tokens = len(tokens)
+    if len_tokens < max_length:
+        tokens.extend([0] * (max_length - len_tokens))
+    tokens = np.array(tokens)
+    mask = np.array([1] * len_tokens + [0] * (max_length - len_tokens))
+    segment = np.array([0] * max_length)
+    return [tokens, segment, mask]
 
 
 def tokenize_text(text, max_length, tokenizer):
@@ -639,7 +773,7 @@ def tokenize_text_tag(text, tag, max_length, tokenizer):
     tokens = tokenizer.convert_tokens_to_ids(words)
     if len(tokens) < max_length:
         tokens.extend([0] * (max_length - len(tokens)))
-    
+
     tokens = np.array(tokens)
     mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
     '''这个segment要看一下是怎么的结构'''

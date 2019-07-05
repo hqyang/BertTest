@@ -2074,7 +2074,8 @@ class BertMIModel(PreTrainedBertModel):
         self.pooler = BertPooler(config)
         self.apply(self.init_bert_weights)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=True, cand_indexes=None):
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=True, \
+                cand_indexes=None):
         if attention_mask is None:
             attention_mask = torch.ones_like(input_ids)
         if token_type_ids is None:
@@ -2099,7 +2100,7 @@ class BertMIModel(PreTrainedBertModel):
 
         # update embedding_output
         if cand_indexes is not None:
-            embedding_output = self.update_embedding(embedding_output, cand_indexes)
+            embedding_output = self.update_embedding(embedding_output, cand_indexes, attention_mask)
 
         encoded_layers = self.encoder(embedding_output,
                                       extended_attention_mask,
@@ -2110,24 +2111,49 @@ class BertMIModel(PreTrainedBertModel):
             encoded_layers = encoded_layers[-1]
         return encoded_layers, pooled_output
 
-    def update_embedding(self, embedding_output, cand_indexes):
+    def update_embedding(self, embedding_output, cand_indexes, attention_mask):
+        new_embedding_output = torch.zeros_like(embedding_output)
+        embedding_output_i = torch.zeros_like(embedding_output[0])
+
+
         for i, cand_index_s in enumerate(cand_indexes): # each sentence
-            embedding_output_i[0] = embedding_output[i][0][0]
+            # copy feature for [CLS]
+            embedding_output_i[0] = embedding_output[i][0].clone()
+            last_index = torch.sum(attention_mask[i])
 
             for j, cand_index in enumerate(cand_index_s): # cand_index for each sentence
-                sz_idx = len(cand_index)
+                if cand_index[0] == -1: # end of sentence
+                    break
+
+                tmp_mask = cand_index.ge(0)
+                sel_index = torch.masked_select(cand_index, tmp_mask)
+
+                if self.update_method == 'mean':
+                    feat = torch.mean(embedding_output[i][sel_index], dim=0, keepdim=True)
+
+                embedding_output_i[j+1] = feat.clone()
+                '''
                 feat = torch.zeros_like(embedding_output_i[0])
 
                 for k, idx in enumerate(cand_index):
+                    if idxc != -1:
+                        sz_idx += 1
+
+                        if self.update_method == 'mean':
+                            feat += embedding_output[i][idx]
+                    else:
+                        break
+
+                if sz_idx > 0:
                     if self.update_method == 'mean':
-                        feat += embedding_output[i][idx]
+                        feat /= sz_idx
 
-                if self.update_method == 'mean':
-                    feat /= sz_idx
-
-                embedding_output_i[j] = feat.clone()
-
-            embedding_output_i[j+1] = embedding_output[i][idx+1]
+                    embedding_output_i[j] = feat.clone()
+                else:
+                    break
+                '''
+            # copy feature for [SEP]
+            embedding_output_i[j+1] = embedding_output[i][last_index].clone()
 
             new_embedding_output[i] = embedding_output_i.clone()
 
@@ -2233,7 +2259,8 @@ class BertMIVariantCWSPOS(PreTrainedBertModel):
             output_all_encoded_layers = True
 
         if self.do_mask_as_whole:
-            raise RuntimeError('Input: cand_indexes is missing!')
+            if cand_indexes is None:
+                raise RuntimeError('Input: cand_indexes is missing!')
 
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, \
                    output_all_encoded_layers=output_all_encoded_layers, cand_indexes=cand_indexes)
