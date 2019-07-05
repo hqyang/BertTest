@@ -2119,7 +2119,7 @@ class BertMIModel(PreTrainedBertModel):
         for i, cand_index_s in enumerate(cand_indexes): # each sentence
             # copy feature for [CLS]
             embedding_output_i[0] = embedding_output[i][0].clone()
-            last_index = torch.sum(attention_mask[i])
+            last_index = torch.sum(attention_mask[i])-1 
 
             for j, cand_index in enumerate(cand_index_s): # cand_index for each sentence
                 if cand_index[0] == -1: # end of sentence
