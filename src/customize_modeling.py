@@ -10,6 +10,7 @@ from .utilis import check_english_words, restore_unknown_tokens, restore_unknown
 import re
 import copy
 from .config import segType, posType
+import time
 
 import pdb
 
@@ -2100,7 +2101,14 @@ class BertMIModel(PreTrainedBertModel):
 
         # update embedding_output
         if cand_indexes is not None:
+            st1 = time.time()
             embedding_output = self.update_embedding(embedding_output, cand_indexes)
+            et1 = time.time()-st1
+
+            st2 = time.time()
+            embedding_output2 = self.update_embedding_speed(embedding_output, cand_indexes)
+            et2 = time.time()-st2
+            print('T1: {:.2f}, T2: {:.2f}'.format(et1, et2))
 
         encoded_layers = self.encoder(embedding_output,
                                       extended_attention_mask,
@@ -2110,6 +2118,25 @@ class BertMIModel(PreTrainedBertModel):
         if not output_all_encoded_layers:
             encoded_layers = encoded_layers[-1]
         return encoded_layers, pooled_output
+
+    def update_embedding_speed(self, word_embedding, cand_indexes):
+        # word_embedding is defined by nn.Embedding and has shape [vocab_size, hidden_size]
+        batch_size, max_seq_len, max_chunk_per_word = cand_indexes.size()
+
+        cand_indexes_2d = cand_indexes.view(batch_size*max_seq_len*max_chunk_per_word, 1)
+
+        # word_embedding has shape [batch_size*max_seq_len*max_chunk_per_word, hidden_size]
+        cand_embedding_2d = word_embedding(cand_indexes_2d)
+
+        # [batch_size, max_seq_len, max_chunk_per_word, hidden_size]
+        cand_embedding_3d = cand_embedding_2d.view(batch_size, max_seq_len, max_chunk_per_word, -1)
+
+        # [batch_size, max_seq_len, hidden_size]
+        embedding_output = torch.mean(cand_embedding_3d, dim=2, keepdim=False)
+
+        embedding_output = torch.sum(
+            cand_embedding_3d*cand_mask, dim=2, keepdim=False) / torch.sum(cand_mask, dim=2)
+        return embedding_output
 
     def update_embedding(self, embedding_output, cand_indexes):
         new_embedding_output = torch.zeros_like(embedding_output)
@@ -2229,11 +2256,11 @@ class BertMIVariantCWSPOS(PreTrainedBertModel):
 
         return loss
 
-    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None):
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None, cand_indexes=None):
         loss = 1e10
 
         mask = attention_mask.byte()
-        feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+        feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask, cand_indexes)
 
         cws_logits = self.hidden2CWStag(feat_used)
         pos_logits = self.hidden2POStag(feat_used)

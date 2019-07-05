@@ -358,27 +358,12 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
     results = []
 
     st = time.time()
-    for batch in tqdm(eval_dataloader, desc="TestIter"):
-        batch = tuple(t.to(device) for t in batch)
-        input_ids, segment_ids, input_mask = batch[:3]
+    if args.do_mask_as_whole:
+        for batch, cand_indexes in tqdm(eval_dataloader, desc="TestIter"):
+            batch = tuple(t.to(device) for t in batch)
+            cand_indexes = cand_indexes[0].to(device) # for t in cand_indexes
+            input_ids, segment_ids, input_mask = batch[:3]
 
-        if args.do_mask_as_whole: # cand_indexes
-            label_ids, pos_label_ids, cand_indexes = batch[3:]
-
-            with torch.no_grad():
-                n_gpu = torch.cuda.device_count()
-
-                if n_gpu > 1: # multiple gpus
-                    # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
-                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes)
-                    loss_cws = loss_cws.mean()
-                    loss_pos = loss_pos.mean()
-                else:
-                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes)
-
-        else: # no cand_indexes
             label_ids, pos_label_ids = batch[3:]
 
             with torch.no_grad():
@@ -387,6 +372,46 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
                 if n_gpu > 1: # multiple gpus
                     # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes)
+                    loss_cws = loss_cws.mean()
+                    loss_pos = loss_pos.mean()
+                else:
+                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes)
+
+            if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
+                label_array = label_ids.data
+                pos_label_array = pos_label_ids.data
+                mask_array = input_mask.data
+                tmp_el_cws = loss_cws
+                tmp_el_pos = loss_pos
+            else:
+                label_array = label_ids.data.cpu()
+                pos_label_array = pos_label_ids.cpu()
+                mask_array = input_mask.data.cpu()
+                tmp_el_cws = loss_cws.cpu()
+                tmp_el_pos = loss_pos.cpu()
+
+            all_label_ids.extend(label_array.tolist())
+            pos_all_label_ids.extend(pos_label_array.tolist())
+            all_mask_tokens.extend(mask_array.tolist())
+            cws_all_labels.extend(best_cws_tags_list)
+            pos_all_labels.extend(best_pos_tags_list)
+            cws_all_losses.append(tmp_el_cws.tolist())
+            pos_all_losses.append(tmp_el_pos.tolist())
+    else:
+        for batch in tqdm(eval_dataloader, desc="TestIter"):
+            batch = tuple(t.to(device) for t in batch)
+            input_ids, segment_ids, input_mask = batch[:3]
+
+            label_ids, pos_label_ids, cand_indexes = batch[3:]
+
+            with torch.no_grad():
+                n_gpu = torch.cuda.device_count()
+
+                if n_gpu > 1: # multiple gpus
+                    # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
+                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
                         = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
                     loss_cws = loss_cws.mean()
                     loss_pos = loss_pos.mean()
@@ -394,26 +419,26 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
                         = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
 
-        if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
-            label_array = label_ids.data
-            pos_label_array = pos_label_ids.data
-            mask_array = input_mask.data
-            tmp_el_cws = loss_cws
-            tmp_el_pos = loss_pos
-        else:
-            label_array = label_ids.data.cpu()
-            pos_label_array = pos_label_ids.cpu()
-            mask_array = input_mask.data.cpu()
-            tmp_el_cws = loss_cws.cpu()
-            tmp_el_pos = loss_pos.cpu()
+            if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
+                label_array = label_ids.data
+                pos_label_array = pos_label_ids.data
+                mask_array = input_mask.data
+                tmp_el_cws = loss_cws
+                tmp_el_pos = loss_pos
+            else:
+                label_array = label_ids.data.cpu()
+                pos_label_array = pos_label_ids.cpu()
+                mask_array = input_mask.data.cpu()
+                tmp_el_cws = loss_cws.cpu()
+                tmp_el_pos = loss_pos.cpu()
 
-        all_label_ids.extend(label_array.tolist())
-        pos_all_label_ids.extend(pos_label_array.tolist())
-        all_mask_tokens.extend(mask_array.tolist())
-        cws_all_labels.extend(best_cws_tags_list)
-        pos_all_labels.extend(best_pos_tags_list)
-        cws_all_losses.append(tmp_el_cws.tolist())
-        pos_all_losses.append(tmp_el_pos.tolist())
+            all_label_ids.extend(label_array.tolist())
+            pos_all_label_ids.extend(pos_label_array.tolist())
+            all_mask_tokens.extend(mask_array.tolist())
+            cws_all_labels.extend(best_cws_tags_list)
+            pos_all_labels.extend(best_pos_tags_list)
+            cws_all_losses.append(tmp_el_cws.tolist())
+            pos_all_losses.append(tmp_el_pos.tolist())
 
     cws_score, cws_sInfo = outputFscoreUsedBIO(all_label_ids, cws_all_labels, all_mask_tokens)
 
