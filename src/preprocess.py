@@ -63,7 +63,8 @@ def cand_indexes2nparray(max_length, cand_indexes, token_ids):
         if max_subwords < len_cand:
             max_subwords = len_cand
 
-    print('The length of maximum sub-words is '+str(max_subwords))
+    if max_subwords > MAX_SUBWORDS/2:
+        print('The length of maximum sub-words is '+str(max_subwords))
 
     # 2. convert into np array with the same size
     o_cand_indexes = copy.deepcopy(cand_indexes)
@@ -85,6 +86,9 @@ def cand_indexes2nparray(max_length, cand_indexes, token_ids):
 
     o_cand_indexes = np.array(o_cand_indexes)
     o_token_ids = np.array(o_token_ids)
+
+    print(o_cand_indexes.shape)
+    print(o_token_ids.shape)
 
     return o_cand_indexes, o_token_ids
 
