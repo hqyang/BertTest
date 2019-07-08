@@ -87,8 +87,9 @@ def cand_indexes2nparray(max_length, cand_indexes, token_ids):
     o_cand_indexes = np.array(o_cand_indexes)
     o_token_ids = np.array(o_token_ids)
 
-    print(o_cand_indexes.shape)
-    print(o_token_ids.shape)
+    #print(o_cand_indexes.shape)
+    #print(o_token_ids.shape)
+    assert(o_cand_indexes.shape==o_token_ids.shape)
 
     return o_cand_indexes, o_token_ids
 
