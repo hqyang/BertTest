@@ -12,7 +12,8 @@ import os
 import re
 from src.BERT.tokenization import BertTokenizer
 import numpy as np
-from src.utilis import check_english_words, check_chinese_words, define_tokens_set
+from src.utilis import check_english_words, check_chinese_words
+from src.preprocess import define_words_set
 from src.config import langtype, bmes2bio
 from tqdm import tqdm
 
@@ -39,7 +40,7 @@ def output_seg_tokens(word, full_tokenizer, ner_type=''):
             bert_ner_gt = src_ner_gt # the same when there is no English
         else: #multiple chars
             wl = full_tokenizer.tokenize(word)
-            cand_ind = define_tokens_set(wl)
+            cand_ind = define_words_set(wl)
             len_wl = len(cand_ind)
 
             src_seg_gt = ['B'] + ['M'] * (len_w - 2) + ['E']
@@ -60,7 +61,7 @@ def output_seg_tokens(word, full_tokenizer, ner_type=''):
             src_ner_gt = ['O']
 
         wl = full_tokenizer.tokenize(word)
-        cand_ind = define_tokens_set(wl)
+        cand_ind = define_words_set(wl)
         len_wl = len(cand_ind)
 
         if len_wl == 1:
@@ -313,10 +314,10 @@ if __name__ == '__main__':
 
     TEST_FLAG = False
     inServer = False
-    #TEST_FLAG = True
+    TEST_FLAG = True
     if TEST_FLAG:
-        out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data/valid/'
-        in_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data/valid/src/'
+        out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_update/valid/'
+        in_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_update/valid/src/'
 
         parts = ['train', 'test', 'dev']
 

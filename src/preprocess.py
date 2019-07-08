@@ -14,7 +14,34 @@ from torch.utils.data import RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from .config import MAX_SUBWORDS
 
-def define_tokens_set(words, tokens, do_whole_word_mask=True):
+
+def define_words_set(words, do_whole_word_mask=True):
+    # Whole Word Masking means that if we mask all of the wordpieces
+    # corresponding to an original word. When a word has been split into
+    # WordPieces, the first token does not have any marker and any subsequence
+    # tokens are prefixed with ##. So whenever we see the ## token, we
+    # append it to the previous set of word indexes.
+    #
+    # Note that Whole Word Masking does *not* change the training code
+    # at all -- we still predict each WordPiece independently, softmaxed
+    # over the entire vocabulary.
+
+    cand_indexes = []
+
+    for (i, word) in enumerate(words):
+        if word == "[CLS]" or word == "[SEP]":
+            continue
+
+        if (do_whole_word_mask and len(cand_indexes) >= 1 and
+            word.startswith("##")):
+            cand_indexes[-1].append(i)
+        else:
+            cand_indexes.append([i])
+
+    return cand_indexes
+
+
+def define_tokens_set(words, tokens, max_length, do_whole_word_mask=True):
     # Whole Word Masking means that if we mask all of the wordpieces
     # corresponding to an original word. When a word has been split into
     # WordPieces, the first token does not have any marker and any subsequence
@@ -27,6 +54,7 @@ def define_tokens_set(words, tokens, do_whole_word_mask=True):
 
     cand_indexes = []
     token_ids = []
+    last_index = 0
 
     for (i, word) in enumerate(words):
         if word == "[CLS]" or word == "[SEP]":
@@ -41,7 +69,11 @@ def define_tokens_set(words, tokens, do_whole_word_mask=True):
             cand_indexes.append([i])
             token_ids.append([tokens[i]])
 
-    return cand_indexes, token_ids
+        if len(token_ids) > max_length - 1: # keep one more token for ['SEP']
+            last_index = i
+            break
+
+    return cand_indexes, token_ids, last_index
 
 
 def cand_indexes2nparray(max_length, cand_indexes, token_ids):
@@ -89,7 +121,9 @@ def cand_indexes2nparray(max_length, cand_indexes, token_ids):
 
     #print(o_cand_indexes.shape)
     #print(o_token_ids.shape)
-    assert(o_cand_indexes.shape==o_token_ids.shape)
+    #if o_cand_indexes.shape!=o_token_ids.shape:
+    #    pdb.set_trace()
+    #assert(o_cand_indexes.shape==o_token_ids.shape)
 
     return o_cand_indexes, o_token_ids
 
@@ -726,12 +760,13 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     words = ['[CLS]'] + words
 
     tokens = tokenizer.convert_tokens_to_ids(words)
-    cand_indexes, token_ids = define_tokens_set(words, tokens)
-    len_cand_index = len(cand_indexes)
+    cand_indexes, token_ids, last_index = define_tokens_set(words, tokens, max_length)
 
-    if len_cand_index > max_length - 1:
-        words = words[:max_length - 1]
-    words += ['[SEP]']
+    words = words[:last_index+1] + ['[SEP]']
+    #if len_cand_index > max_length - 1:
+    #    words = words[:max_length - 1]
+    #words += ['[SEP]']
+
     # models = tokenizer.models
     # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
     # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
