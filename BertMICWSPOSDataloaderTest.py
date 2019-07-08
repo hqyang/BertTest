@@ -162,14 +162,16 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
         step = 1
         if args.do_mask_as_whole:
-            for step, (batch, cand_indexes) in enumerate(tqdm(train_dataloader, desc="Iteration")):
+            for step, (batch, batch2) in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
-                cand_indexes = cand_indexes[0].to(device) # for t in cand_indexes
+                batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
+
                 input_ids, segment_ids, input_mask = batch[:3]
+                cand_indexes, token_ids = batch2[:2]
 
                 label_ids, pos_label_ids = batch[3:]
 
-                loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes)
+                loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
 
                 n_gpu = torch.cuda.device_count()
                 if n_gpu > 1: # or loss.shape[0] > 1:

@@ -14,7 +14,7 @@ from torch.utils.data import RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from .config import MAX_SUBWORDS
 
-def define_tokens_set(tokens, do_whole_word_mask=True):
+def define_tokens_set(words, tokens, do_whole_word_mask=True):
     # Whole Word Masking means that if we mask all of the wordpieces
     # corresponding to an original word. When a word has been split into
     # WordPieces, the first token does not have any marker and any subsequence
@@ -26,28 +26,34 @@ def define_tokens_set(tokens, do_whole_word_mask=True):
     # over the entire vocabulary.
 
     cand_indexes = []
+    token_ids = []
 
-    for (i, token) in enumerate(tokens):
-        if token == "[CLS]" or token == "[SEP]":
+    for (i, word) in enumerate(words):
+        if word == "[CLS]" or word == "[SEP]":
+            token_ids.append([tokens[i]])
             continue
 
         if (do_whole_word_mask and len(cand_indexes) >= 1 and
-            token.startswith("##")):
+            word.startswith("##")):
             cand_indexes[-1].append(i)
+            token_ids[-1].append(tokens[i])
         else:
             cand_indexes.append([i])
+            token_ids.append([tokens[i]])
 
-    return cand_indexes
+    return cand_indexes, token_ids
 
 
-def cand_indexes2nparray(cand_indexes, max_length):
+def cand_indexes2nparray(max_length, cand_indexes, token_ids):
     '''
      Inputs:
-       cand_indexes: e.g., [[1], [2, 3], [4], ...]
        max_length: e.g., 128 (<=512)
+       cand_indexes: e.g., [[1], [2, 3], [4], ...]
+       token_ids: e.g., [[101], [1738, 4501], [5110], ...]
     # Output:
-       o_cand_indexes: array([[1, -1, -1, -1, -1], [2, 3, -1, -1, -1], [4, -1, -1, -1, -1], ...])
-       since the index is at least 1, we set -1 to indicate unused indexes and set MAX_SUBWORDS=5
+       o_cand_indexes: array([[1, 0, 0, 0, 0], [2, 3, 0, 0, 0], [4, 0, 0, 0, 0], ...])
+       token_ids: array([[101, 0, 0, 0, 0], [1738, 4501, 0, 0, 0], [5110, 0, 0, 0, 0], ...]
+       since the index is at least 1, we set -1 to indicate unused indexes if MAX_SUBWORDS=5
     '''
 
     # 1. get max length
@@ -61,20 +67,26 @@ def cand_indexes2nparray(cand_indexes, max_length):
 
     # 2. convert into np array with the same size
     o_cand_indexes = copy.deepcopy(cand_indexes)
-    #o_cand_mask = []
+    o_token_ids = copy.deepcopy(token_ids)
+
     for cand_index in o_cand_indexes:
-        len_cand = len(cand_index)
-        cand_index.extend([-1]*(MAX_SUBWORDS-len_cand))
-        #o_cand_mask.append([1]*len_cand + [0]*(MAX_SUBWORDS-len_cand))
+        cand_index.extend([0]*(MAX_SUBWORDS-len(cand_index)))
+
+    for o_token_id in o_token_ids:
+        o_token_id.extend([0]*(MAX_SUBWORDS-len(o_token_id)))
 
     len_cand_indexes = len(o_cand_indexes)
     if len_cand_indexes < max_length:
-        o_cand_indexes.extend([[-1]*MAX_SUBWORDS]*(max_length-len_cand_indexes))
+        o_cand_indexes.extend([[0]*MAX_SUBWORDS]*(max_length-len_cand_indexes))
+
+    len_token_ids = len(o_token_ids)
+    if len_token_ids < max_length:
+        o_token_ids.extend([[0]*MAX_SUBWORDS]*(max_length-len_token_ids))
 
     o_cand_indexes = np.array(o_cand_indexes)
-    #o_cand_mask = np.array(o_cand_mask)
+    o_token_ids = np.array(o_token_ids)
 
-    return o_cand_indexes#, o_cand_mask
+    return o_cand_indexes, o_token_ids
 
 
 def cand2nparray(cand_indexes):
@@ -708,8 +720,9 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     words = tokenizer.tokenize(text)
     words = ['[CLS]'] + words
 
-    cand_index = define_tokens_set(words)
-    len_cand_index = len(cand_index)
+    tokens = tokenizer.convert_tokens_to_ids(words)
+    cand_indexes, token_ids = define_tokens_set(words, tokens)
+    len_cand_index = len(cand_indexes)
 
     if len_cand_index > max_length - 1:
         words = words[:max_length - 1]
@@ -717,16 +730,19 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     # models = tokenizer.models
     # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
     # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
-    tokens = tokenizer.convert_tokens_to_ids(words)
+    sep_token = tokenizer.convert_tokens_to_ids(['[SEP]'])
+    tokens.extend(sep_token)
+    #tokens = tokenizer.convert_tokens_to_ids(words)
+    token_ids.append(sep_token)
+
     if len(tokens) < max_length:
         tokens.extend([0] * (max_length - len(tokens)))
     tokens = np.array(tokens)
     mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
     segment = np.array([0] * max_length)
 
-    cand_index = cand_indexes2nparray(cand_index, max_length)
-
-    return [tokens, segment, mask], cand_index
+    cand_indexes, token_ids = cand_indexes2nparray(max_length, cand_indexes, token_ids)
+    return [tokens, segment, mask], [cand_indexes, token_ids]
 
 
 def tokenize_text(text, max_length, tokenizer):
