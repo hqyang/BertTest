@@ -599,14 +599,14 @@ def set_local_Ontonotes_param():
 def set_server_Ontonotes_param():
     return {'task_name': 'ontonotes_cws_pos2.0',
             'model_type': 'sequencelabeling',
-            'data_dir': '../data/ontonotes5/4nerpos_update/',
+            'data_dir': '../data/ontonotes5/4nerpos_update/valid/',
             'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': './tmp/ontonotes/CWSPOS2/',
             'do_lower_case': False,
             'train_batch_size': 32,
             'max_seq_length': 128,
-            'num_hidden_layers': 12,
+            'num_hidden_layers': 1,
             'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
             'bert_model_dir': '../models/multi_cased_L-12_H-768_A-12/',
             'visible_device': 0,
@@ -619,7 +619,7 @@ def set_server_Ontonotes_param():
 
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
 isServer = True
 #isServer = False
 
