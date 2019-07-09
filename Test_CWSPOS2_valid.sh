@@ -1,5 +1,5 @@
 #!/bin/sh
-for i in 1,128 3,96 6,64 12,32
+for i in 12,5
 do
     IFS=",";
     set -- $i;
@@ -8,7 +8,7 @@ do
     python BertMLCWSPOSDataloaderTest.py \
         --task_name ontonotes_cws_pos2.0 \
         --model_type sequencelabeling \
-        --data_dir ../data/ontonotes5/4nerpos_update \
+        --data_dir ../data/ontonotes5/4nerpos_update/valid/ \
         --output_dir ./tmp/ontonotes/CWSPOS2/ \
         --fclassifier Softmax \
         --bert_model_dir ../models/multi_cased_L-12_H-768_A-12/ \
@@ -22,5 +22,5 @@ do
         --num_hidden_layers $1 \
         --train_batch_size $2 \
         --visible_device 3 \
-        --num_train_epochs 10
+        --num_train_epochs 20
 done

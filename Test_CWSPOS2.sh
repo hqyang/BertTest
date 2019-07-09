@@ -22,5 +22,5 @@ do
         --num_hidden_layers $1 \
         --train_batch_size $2 \
         --visible_device 3 \
-        --num_train_epochs 10
+        --num_train_epochs 20
 done
