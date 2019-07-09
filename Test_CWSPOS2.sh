@@ -1,7 +1,7 @@
 #!/bin/sh
 for nhl in 1 3 6 12
 do
-    python BertMICWSPOSDataloaderTest.py \
+    python BertMLCWSPOSDataloaderTest.py \
         --task_name ontonotes_cws_pos2.0 \
         --model_type sequencelabeling \
         --data_dir ../data/ontonotes5/4nerpos_update \
