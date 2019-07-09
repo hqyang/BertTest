@@ -41,7 +41,25 @@ def define_words_set(words, do_whole_word_mask=True):
     return cand_indexes
 
 
-def define_tokens_set(words, tokens, max_length, do_whole_word_mask=True):
+# prepare the length of words does not exceed max_length while considering the situation of do_whole as _mask
+def set_words_boundary(words, cand_indexes, max_length):
+    i = 0
+
+    for i, cand_index in enumerate(cand_indexes):
+        last_index = cand_index[-1]
+        if last_index > max_length - 2:
+            i = i - 1
+            break
+
+    if i > 0:
+        last_index = cand_indexes[i][-1]+1
+    else:  # i = 0, max_length - 2, consider two specific tokens, [CLS] and [SEP]
+        last_index = cand_indexes[i][max_length-2]+1
+
+    return words[:last_index]
+
+
+def define_tokens_set(words, tokens, do_whole_word_mask=True):
     # Whole Word Masking means that if we mask all of the wordpieces
     # corresponding to an original word. When a word has been split into
     # WordPieces, the first token does not have any marker and any subsequence
@@ -54,7 +72,7 @@ def define_tokens_set(words, tokens, max_length, do_whole_word_mask=True):
 
     cand_indexes = []
     token_ids = []
-    last_index = 0
+    #last_index = 0
 
     for (i, word) in enumerate(words):
         if word == "[CLS]" or word == "[SEP]":
@@ -69,14 +87,16 @@ def define_tokens_set(words, tokens, max_length, do_whole_word_mask=True):
             cand_indexes.append([i])
             token_ids.append([tokens[i]])
 
-        if len(token_ids) > max_length - 1: # keep one more token for ['SEP']
-            last_index = i
-            break
+        # len(token_ids) < max_length
+        # if len(token_ids) > max_length - 2: # keep one more token for ['SEP']
+        #    words = words[:last_index]
+        #    tokens = tokens[:last_index]
+        #    break
 
-    return cand_indexes, token_ids, last_index
+    return cand_indexes, token_ids, words, tokens
 
 
-def cand_indexes2nparray(max_length, cand_indexes, token_ids):
+def indexes2nparray(max_length, cand_indexes, token_ids):
     '''
      Inputs:
        max_length: e.g., 128 (<=512)
@@ -759,10 +779,18 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     words = tokenizer.tokenize(text)
     words = ['[CLS]'] + words
 
-    tokens = tokenizer.convert_tokens_to_ids(words)
-    cand_indexes, token_ids, last_index = define_tokens_set(words, tokens, max_length)
+    cand_indexes = define_words_set(words)
 
-    words = words[:last_index+1] + ['[SEP]']
+    # prepare the length of words does not exceed max_length while considering the situation of do_whole as _mask
+    words = set_words_boundary(words, cand_indexes, max_length)
+    words += ['[SEP]']
+
+    tokens = tokenizer.convert_tokens_to_ids(words)
+
+    # suppose the length of words and tokens is less than max_length
+    cand_indexes, token_ids, words, tokens = define_tokens_set(words, tokens)
+
+    #tokens = tokens[:last_index]
     #if len_cand_index > max_length - 1:
     #    words = words[:max_length - 1]
     #words += ['[SEP]']
@@ -770,10 +798,10 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     # models = tokenizer.models
     # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
     # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
-    sep_token = tokenizer.convert_tokens_to_ids(['[SEP]'])
-    tokens.extend(sep_token)
+    #sep_id = tokenizer.convert_tokens_to_ids(['[SEP]'])
+    #tokens.extend(sep_id)
     #tokens = tokenizer.convert_tokens_to_ids(words)
-    token_ids.append(sep_token)
+    #token_ids.append(sep_id)
 
     if len(tokens) < max_length:
         tokens.extend([0] * (max_length - len(tokens)))
@@ -781,7 +809,7 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
     segment = np.array([0] * max_length)
 
-    cand_indexes, token_ids = cand_indexes2nparray(max_length, cand_indexes, token_ids)
+    cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
     return [tokens, segment, mask], [cand_indexes, token_ids]
 
 

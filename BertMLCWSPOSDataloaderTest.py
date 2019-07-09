@@ -30,7 +30,7 @@ from src.BERT.modeling import BertConfig
 # `BertConfig`. To create a models from a Google pretrained models use
 # `models = BertVariant.from_pretrained(PRETRAINED_MODEL_NAME)`
 
-from src.customize_modeling import BertMIVariantCWSPOS
+from src.customize_modeling import BertMLVariantCWSPOS
 from tensorboardX import SummaryWriter
 
 import logging
@@ -98,8 +98,8 @@ def load_CWS_POS_model(CWS_label_list, POS_label_list, args):
 #    }
 #    models = models[args.fclassifier]()
 
-    model = BertMIVariantCWSPOS(bert_config, len(CWS_label_list), len(POS_label_list), method=args.method, \
-                        fclassifier=args.fclassifier, do_mask_as_whole=args.do_mask_as_whole)
+    model = BertMLVariantCWSPOS(bert_config, len(CWS_label_list), len(POS_label_list), method=args.method, \
+                                fclassifier=args.fclassifier, do_mask_as_whole=args.do_mask_as_whole)
 
     if args.bert_model_dir is None:
         raise RuntimeError('Evaluating a random initialized models is not supported...!')
@@ -619,9 +619,9 @@ def set_server_Ontonotes_param():
 
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
 isServer = True
-#isServer = False
+isServer = False
 
 def main(**kwargs):
     if TEST_FLAG:
