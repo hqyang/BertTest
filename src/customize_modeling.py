@@ -2021,11 +2021,11 @@ class BertCWSPOS(PreTrainedBertModel):
         return result_str_list
 
 
-class BertMIEmbeddings(nn.Module):
-    """Construct the embeddings from word, position and token_type embeddings.
+class BertMLEmbeddings(nn.Module):
+    """Construct the embeddings from word, position and token_type embeddings for multilinguisticss
     """
     def __init__(self, config, update_method='mean'):
-        super(BertMIEmbeddings, self).__init__()
+        super(BertMLEmbeddings, self).__init__()
         self.update_method = update_method
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
@@ -2134,9 +2134,9 @@ class BertMIEmbeddings(nn.Module):
 
 
 
-class BertMIModel(PreTrainedBertModel):
+class BertMLModel(PreTrainedBertModel):
     """Modified from BERT models ("Bidirectional Embedding Representations from a Transformer").
-        allowing the input of cand_indexes
+        for multilinguisticss
 
     Params:
         config: a BertConfig class instance with the configuration to build a new models
@@ -2181,9 +2181,9 @@ class BertMIModel(PreTrainedBertModel):
     ```
     """
     def __init__(self, config, update_method='mean'):
-        super(BertMIModel, self).__init__(config)
+        super(BertMLModel, self).__init__(config)
         #self.update_method = update_method
-        self.embeddings = BertMIEmbeddings(config, update_method)
+        self.embeddings = BertMLEmbeddings(config, update_method)
         self.encoder = BertEncoder(config)
         self.pooler = BertPooler(config)
         self.apply(self.init_bert_weights)
@@ -2235,15 +2235,15 @@ class BertMIModel(PreTrainedBertModel):
         return encoded_layers, pooled_output
 
 
-class BertMIVariantCWSPOS(PreTrainedBertModel):
-    """Apply BERT for Sequence Labeling on Chinese Word Segmentation and Part-of-Speech.
+class BertMLVariantCWSPOS(PreTrainedBertModel):
+    """Apply BERT for Sequence Labeling on Chinese Word Segmentation and Part-of-Speech with multilinguistics.
 
     models = BertMIVariantCWSPOS(config, num_tags)
     logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
     def __init__(self, config, num_CWStags=6, num_POStags=108, method='fine_tune', fclassifier='Softmax', do_mask_as_whole=False):
-        super(BertMIVariantCWSPOS, self).__init__(config)
+        super(BertMLVariantCWSPOS, self).__init__(config)
         self.num_CWStags = num_CWStags
         self.num_POStags = num_POStags
         self.method = method
@@ -2251,7 +2251,7 @@ class BertMIVariantCWSPOS(PreTrainedBertModel):
         self.do_mask_as_whole = do_mask_as_whole
 
         if self.do_mask_as_whole:
-            self.bert = BertMIModel(config)
+            self.bert = BertMLModel(config)
         else:
             self.bert = BertModel(config)
 

@@ -621,7 +621,7 @@ def set_server_Ontonotes_param():
 TEST_FLAG = False
 TEST_FLAG = True
 isServer = True
-isServer = False
+#isServer = False
 
 def main(**kwargs):
     if TEST_FLAG:
