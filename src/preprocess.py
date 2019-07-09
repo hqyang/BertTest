@@ -51,7 +51,7 @@ def set_words_boundary(words, cand_indexes, max_length):
             i = i - 1
             break
 
-    if i > 0:
+    if i > 0 or len(cand_indexes[i]) < max_length - 1:
         last_index = cand_indexes[i][-1]+1
     else:  # i = 0, max_length - 2, consider two specific tokens, [CLS] and [SEP]
         last_index = cand_indexes[i][max_length-2]+1

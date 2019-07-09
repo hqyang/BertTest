@@ -577,12 +577,12 @@ def train_CWS_POS(args):
 def set_local_Ontonotes_param():
     return {'task_name': 'ontonotes_cws_pos2.0',
             'model_type': 'sequencelabeling',
-            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_update/valid/',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_update/',
             'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS2/',
             'do_lower_case': False,
-            'train_batch_size': 4,
+            'train_batch_size': 32,
             'max_seq_length': 128,
             'num_hidden_layers': 1,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
@@ -619,7 +619,7 @@ def set_server_Ontonotes_param():
 
 
 TEST_FLAG = False
-TEST_FLAG = True
+#TEST_FLAG = True
 isServer = True
 #isServer = False
 
