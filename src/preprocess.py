@@ -53,10 +53,10 @@ def set_words_boundary(words, cand_indexes, max_length):
 
     if i > 0 or len(cand_indexes[i]) < max_length - 1:
         last_index = cand_indexes[i][-1]+1
-    else:  # i = 0, max_length - 2, consider two specific tokens, [CLS] and [SEP]
+    else:  # i = 0, max_length - 2, consider two specific tokens, 'CLS' and 'SEP'
         last_index = cand_indexes[i][max_length-2]+1
 
-    return words[:last_index]
+    return words[:last_index], i+3 # include 'CLS' and 'SEP' and the current index
 
 
 def define_tokens_set(words, tokens, do_whole_word_mask=True):
@@ -636,11 +636,19 @@ class OntoNotesDataset(Dataset):
 
         for i, data in enumerate(self.df.itertuples()):
             if self.do_mask_as_whole:
-                token, cand_index = tokenize_text_with_cand_indexes(data.text, self.max_length, self.tokenizer)
+                token, cand_index, cand_index_len = tokenize_text_with_cand_indexes(data.text, self.max_length, self.tokenizer)
+                labelid = tokenize_label_list_restriction(data.label, self.max_length, self.label_map, cand_index_len)
+
+                if self.pos_label_map:
+                    pos_label_id = tokenize_label_list_restriction(data.label_pos, self.max_length, self.pos_label_map, cand_index_len)
+                    pos_label_ids.append(pos_label_id)
             else: # no cand_index
                 token = tokenize_text(data.text, self.max_length, self.tokenizer)
+                labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
 
-            labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
+                if self.pos_label_map:
+                    pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
+                    pos_label_ids.append(pos_label_id)
 
             tokens.append(token)
             labelids.append(labelid)
@@ -648,10 +656,6 @@ class OntoNotesDataset(Dataset):
             if self.do_mask_as_whole:
                 cand_indexes.append(cand_index)
                 #cand_masks.append(np_cand_mask)
-
-            if self.pos_label_map:
-                pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
-                pos_label_ids.append(pos_label_id)
 
             if i % 100000 == 0:
                 logging.info("Writing example %d of %d" % (i, self.df.shape[0]))
@@ -782,7 +786,7 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     cand_indexes = define_words_set(words)
 
     # prepare the length of words does not exceed max_length while considering the situation of do_whole as _mask
-    words = set_words_boundary(words, cand_indexes, max_length)
+    words, can_index_len = set_words_boundary(words, cand_indexes, max_length)
     words += ['[SEP]']
 
     tokens = tokenizer.convert_tokens_to_ids(words)
@@ -806,11 +810,11 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     if len(tokens) < max_length:
         tokens.extend([0] * (max_length - len(tokens)))
     tokens = np.array(tokens)
-    mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
+    mask = np.array([1] * can_index_len + [0] * (max_length - can_index_len))
     segment = np.array([0] * max_length)
 
     cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
-    return [tokens, segment, mask], [cand_indexes, token_ids]
+    return [tokens, segment, mask], [cand_indexes, token_ids], can_index_len # include ['SEP']
 
 
 def tokenize_text(text, max_length, tokenizer):
@@ -910,6 +914,26 @@ def tokenize_label(label, label_map):
         else:
             #multiclass
             label_id = label_map[label]
+    return label_id
+
+
+def tokenize_label_list_restriction(label, max_length, label_map, cand_index_len):
+    # final_index is to restrict the size of the list
+    assert isinstance(label_map, (dict, list))
+
+    label_list = label.split()
+
+    if len(label_list) > max_length - 2:
+        label_list = label_list[:cand_index_len - 2]
+    label_list = ['[START]'] + label_list + ['[END]']
+
+    label_id = [label_map[_] for _ in label_list]
+    #label_id = np.array([1 if _ in label_id else 0 for _ in range(len(label_map))])
+    # add dump tokens to make them consistent with text tokens
+    if len(label_id) < max_length:
+        label_id.extend([0] * (max_length - len(label_id)))
+
+    label_id = np.array(label_id)
     return label_id
 
 
