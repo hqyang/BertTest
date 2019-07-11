@@ -361,11 +361,12 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
 
     st = time.time()
     if args.do_mask_as_whole:
-        for batch, cand_indexes in tqdm(eval_dataloader, desc="TestIter"):
+        for step, (batch, batch2) in enumerate(tqdm(eval_dataloader, desc="Iteration")):
             batch = tuple(t.to(device) for t in batch)
-            cand_indexes = cand_indexes[0].to(device) # for t in cand_indexes
-            input_ids, segment_ids, input_mask = batch[:3]
+            batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
 
+            input_ids, segment_ids, input_mask = batch[:3]
+            cand_indexes, token_ids = batch2[:2]
             label_ids, pos_label_ids = batch[3:]
 
             with torch.no_grad():
@@ -374,12 +375,12 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
                 if n_gpu > 1: # multiple gpus
                     # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes)
+                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
                     loss_cws = loss_cws.mean()
                     loss_pos = loss_pos.mean()
                 else:
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes)
+                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
 
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
@@ -619,9 +620,9 @@ def set_server_Ontonotes_param():
 
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
 isServer = True
-#isServer = False
+isServer = False
 
 def main(**kwargs):
     if TEST_FLAG:
