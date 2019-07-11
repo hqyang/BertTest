@@ -2052,8 +2052,12 @@ class BertMLEmbeddings(nn.Module):
         embeddings = self.dropout(embeddings)
         return embeddings
 
-    def extract_embedding(self, cand_indexes, token_ids):
-        words_embeddings = 0
+    def extract_embedding(self, cand_indexes=None, token_ids=None):
+        if cand_indexes is None and token_ids is None:
+            raise RuntimeError('Input: cand_indexes or token_ids should not be None!')
+
+        words_embeddings = torch.zeros_like(token_ids)
+
         if token_ids is not None:
             # word_embedding is defined by nn.Embedding and has shape [vocab_size, hidden_size]
             batch_size, max_seq_len, max_chunk_per_word = token_ids.size()
@@ -2304,11 +2308,12 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
 
         return loss
 
-    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None, cand_indexes=None):
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None,
+               cand_indexes=None, token_ids=None):
         loss = 1e10
 
         mask = attention_mask.byte()
-        feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask, cand_indexes)
+        feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask, cand_indexes, token_ids)
 
         cws_logits = self.hidden2CWStag(feat_used)
         pos_logits = self.hidden2POStag(feat_used)
@@ -2335,8 +2340,8 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
             output_all_encoded_layers = True
 
         if self.do_mask_as_whole:
-            if cand_indexes is None:
-                raise RuntimeError('Input: cand_indexes is missing!')
+            if cand_indexes is None and token_ids is None:
+                raise RuntimeError('Input: cand_indexes and token_ids are missing!')
 
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, \
                    output_all_encoded_layers=output_all_encoded_layers, \
