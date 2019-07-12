@@ -2069,6 +2069,7 @@ class BertMLEmbeddings(nn.Module):
             # word_embedding has shape [batch_size*max_seq_len*max_chunk_per_word, hidden_size]
             #cand_embedding_2d = word_embedding(cand_indexes_2d)
             words_embeddings = self.word_embeddings(token_ids_2d)
+            words_embeddings = torch.where(torch.isnan(words_embeddings), torch.zeros_like(words_embeddings), words_embeddings)
 
             # [batch_size, max_seq_len, max_chunk_per_word, hidden_size]
             words_embeddings = words_embeddings.view(batch_size, max_seq_len, max_chunk_per_word, -1)
