@@ -499,25 +499,28 @@ def set_local_Ontonotes_param():
     return {'task_name': 'ontonotes_cws_pos',
             'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data/valid/',
-            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
-            'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
+            'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
+            'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS',
             'do_lower_case': True,
-            'train_batch_size': 32,
+            'train_batch_size': 4,
             'max_seq_length': 128,
-            'num_hidden_layers': 12,
-            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
+            'num_hidden_layers': 1,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
+            'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'no_cuda': True,
             'num_train_epochs': 10,
             'method': 'fine_tune',
             'learning_rate': 2e-5,
             'override_output': True,
             }
+#            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
+#            'vocab_file': './src/BERT/models/bert-base-chinese/vocab.txt',
+#            'bert_config_file': './src/BERT/models/bert-base-chinese/bert_config.json',
 
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
 
 def main(**kwargs):
     if TEST_FLAG:
