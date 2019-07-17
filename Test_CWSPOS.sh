@@ -1,6 +1,10 @@
 #!/bin/sh
-for nhl in 1 3 6 12
+for i in 1,256 3,128 6,64 12,32
 do
+    IFS=",";
+    set -- $i;
+    echo $1, $2;
+
     python BertCWSPOSDataloaderTest.py \
         --task_name ontonotes_cws_pos \
         --model_type sequencelabeling \
@@ -15,8 +19,8 @@ do
         --override_output True \
         --learning_rate 2e-5 \
         --method fine_tune \
-        --num_hidden_layers $nhl \
-        --train_batch_size 32 \
+        --num_hidden_layers $1 \
+        --train_batch_size $2 \
         --visible_device 0 \
         --num_train_epochs 10
 done
