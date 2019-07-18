@@ -8,15 +8,12 @@ Feature:
 
 Scenario: 
 """
-import sys
-sys.path.append('./src')
+#import sys
+#sys.path.append('./src')
 
 import os
 
-from src.pkuseg.metrics import getFscoreFromBIOTagList
-from tqdm import tqdm, trange
-from src.utilis import get_Ontonotes, convertList2BIOwithComma, BMES2BIO, space2Comma, load_4CWS
-import pandas as pd
+ffrom tqdm import tqdm, trange
 from src.config import args
 from src.preprocess import CWS_POS # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
@@ -520,7 +517,7 @@ def set_local_Ontonotes_param():
 
 
 TEST_FLAG = False
-TEST_FLAG = True
+#TEST_FLAG = True
 
 def main(**kwargs):
     if TEST_FLAG:
