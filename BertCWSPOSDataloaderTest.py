@@ -13,7 +13,7 @@ Scenario:
 
 import os
 
-ffrom tqdm import tqdm, trange
+from tqdm import tqdm, trange
 from src.config import args
 from src.preprocess import CWS_POS # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
