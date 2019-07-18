@@ -5,9 +5,9 @@ import itertools
 import re
 import torch
 # import tokenization # ModuleNotFoundError: No module named 'tokenization'
-from tokenization import FullTokenizer
+#from tokenization import FullTokenizer
 #from src.tokenization import FullTokenizer
-
+from src.BERT.tokenization import BertTokenizer
 
 import time
 import numpy as np
@@ -399,7 +399,7 @@ class MeituTagDataset(Dataset):
 
 class OntoNotesDataset(Dataset):
     def __init__(self, processor, data_dir, vocab_file, max_length, training=True, type='train'):
-        self.tokenizer = FullTokenizer(
+        self.tokenizer = BertTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
         self.max_length = max_length
         self.processor = processor
