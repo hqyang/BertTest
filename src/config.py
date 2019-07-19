@@ -20,7 +20,7 @@ class Config:
     bert_model = None
 
     ##2.Preprocessing
-    do_lower_case = True
+    do_lower_case = False
     nopunc = False
     
     ##3.Training configs

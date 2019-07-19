@@ -160,16 +160,16 @@ def set_local_eval_param():
             'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data'
                         '4nerpos_data/valid',
-            'vocab_file': './src/BERT/models/bert-base-chinese/bert-base-chinese.txt',
-            'bert_config_file': './src/BERT/models/bert-base-chinese/bert_config.json',
-            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWS_POS/L6/',
+            'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
+            'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWS_POS/L3/',
             'do_lower_case': True,
             'train_batch_size': 64,
             'max_seq_length': 128,
-            'num_hidden_layers': 6,
-            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/'
-                          '/ontonotes/CWS_POS/l6_cws_F1_weights_epoch05.pt',
+            'num_hidden_layers': 3,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
+                          'ontonotes/CWS_POS/l3_cws_F1_weights_epoch11.pt',
             'override_output': True,
             }
 
@@ -177,15 +177,15 @@ def set_server_eval_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
             'data_dir': '../data/ontonotes5/4ner_data/',
-            'vocab_file': '../models/bert-base-chinese/models.txt',
-            'bert_config_file': '../models/bert-base-chinese/bert_config.json',
+            'vocab_file': './src/BERT/models//multi_cased_L-12_H-768_A-12/vocab.txt',
+            'bert_config_file': '../src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': './tmp_2019_3_22/out/',
             'do_lower_case': True,
             'train_batch_size': 128,
             'max_seq_length': 128,
             'num_hidden_layers': 3,
-            'init_checkpoint': '../models/bert-base-chinese/',
-            'bert_model': './tmp_2019_3_23/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
+            'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
+            'bert_model': './tmp/ontonotes/l3/cws_F1_weights_epoch11.pt',
             'no_cuda': True,
             'override_output': True,
             'tensorboardWriter': False
@@ -614,5 +614,5 @@ if __name__=='__main__':
         test_cases(model)
         test_case_meitu(model)
     else:
-        test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
+        test_from_file(model, './Test/except.txt', './Test/except_rs.txt')
 

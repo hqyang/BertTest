@@ -522,8 +522,8 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
     return strOut
 
 
-def findtextdirect(strIn, start_idx, len_original_str, text):
-    s_idx = strIn[start_idx:].find(text)
+def findtextdirect(strIn, start_idx, len_original_str, text, shift=0):
+    s_idx = strIn[start_idx:start_idx+shift+len(text)].find(text)
 
     if s_idx == -1: # different tokens after processing
         while len(strIn[start_idx]) == 0 and start_idx < len_original_str:
@@ -550,21 +550,22 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
     ori_used_idx = 0
 
     unk_status = False
-
+    shift = 0
     for i, text in enumerate(text_ls):
         if i == 67:
             print(text)
         pos = pos_ls[i]
 
-        if '[UNK]' not in text:
+        if 'UNK' not in text:
             if '[unused1]' in text:
+                shift += text.count('[unused1]')
                 tmp_text_list = text.split('[unused1]')
                 tmp_text_list = [v for v in tmp_text_list if v]
 
                 if len(tmp_text_list) > 0:
                     if unk_status:
                         unk_status = False
-                        s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, tmp_text_list[0])
+                        s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, tmp_text_list[0], shift)
 
                         # append unknown token
                         text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx])
@@ -572,7 +573,7 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
                         ori_used_idx += s_idx
 
                     for v in tmp_text_list:
-                        s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, v)
+                        s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, v, shift)
 
                         ori_used_idx += s_idx
                         e_idx = len(v)
@@ -584,7 +585,7 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
                 if unk_status: # previous is an unknown token
                     unk_status = False
 
-                    s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, text)
+                    s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, text, shift)
 
                     pos_list.append(unk_pos)
                     e_idx = len(text)
@@ -592,14 +593,15 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
                     ori_used_idx += s_idx
                     e_idx = ori_used_idx + e_idx
                 else: # previous is a normal token
-                    s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, text)
+                    s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, text, shift)
                     e_idx = ori_used_idx + s_idx + len(text)
 
                 text_list.append(original_str[ori_used_idx:e_idx])
                 ori_used_idx = e_idx
 
                 pos_list.append(pos)
-        else:
+        else: # unknown tokens exist, need to update shift
+            shift += len(text)
             tmp_text = text.replace('[UNK]', '')
             tmp_text = tmp_text.replace('[unused1]', '')
             if len(tmp_text) == 0: # only unknown token(s)

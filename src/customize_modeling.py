@@ -2001,7 +2001,7 @@ class BertCWSPOS(PreTrainedBertModel):
 
             result_pos_str = extract_pos(tmp_pos_list)
 
-            if '[UNK]' in result_str or '[unused' in result_str:
+            if 'UNK' in result_str or '[unused' in result_str:
                 seg_ls, pos_ls = restore_unknown_tokens_with_pos(original_str, result_str, result_pos)
             else:
                 seg_ls = result_str.strip().split()
