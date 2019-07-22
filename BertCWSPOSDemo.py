@@ -614,5 +614,11 @@ if __name__=='__main__':
         test_case_meitu(model)
     else:
         #test_from_file(model, './Test/except.txt', './Test/except_rs.txt')
-        test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
+        #test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
+        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual.txt'
+        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual_rs.txt'
+
+        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
+        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
+        test_from_file(model, infile, outfile)
 
