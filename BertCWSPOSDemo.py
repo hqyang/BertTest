@@ -174,7 +174,7 @@ def set_local_eval_param():
             }
 
 def set_server_eval_param():
-    return {'task_name': 'ontonotes_CWS',
+    return {'task_name': 'ontonotes_cws_pos',
             'model_type': 'sequencelabeling',
             'data_dir': '../data/ontonotes5/4ner_data/',
             'vocab_file': './src/BERT/models//multi_cased_L-12_H-768_A-12/vocab.txt',
