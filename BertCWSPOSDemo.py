@@ -187,7 +187,6 @@ def set_server_eval_param():
             'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
             'bert_model': './tmp/ontonotes/l3/cws_F1_weights_epoch16.pt',
             'override_output': True,
-            'tensorboardWriter': False
             }
 
 def extract_CWSPOS(model, t1):
