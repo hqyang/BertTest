@@ -186,7 +186,8 @@ def set_server_eval_param():
             'num_hidden_layers': 3,
             'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
             'bert_model': './tmp/ontonotes/l3/cws_F1_weights_epoch16.pt',
-            'override_output': True,
+            'no_cuda': True,
+            'override_output': True
             }
 
 def extract_CWSPOS(model, t1):
