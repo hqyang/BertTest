@@ -179,7 +179,7 @@ def set_server_eval_param():
             'data_dir': '../data/ontonotes5/4ner_data/',
             'vocab_file': './src/BERT/models//multi_cased_L-12_H-768_A-12/vocab.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
-            'output_dir': './tmp_2019_3_22/out/',
+            'output_dir': './tmp/ontonotes/out/',
             'do_lower_case': False,
             'train_batch_size': 128,
             'max_seq_length': 128,
