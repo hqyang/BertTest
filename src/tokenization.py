@@ -182,8 +182,8 @@ class BasicTokenizer(object):
         if text == '[unused1]':
             return [text]
 
-        if text == '[unk]':
-            return ['UNK']
+        if text == '[unk]' or text=='[UNK]':
+            return ['[UNK]']
 
         chars = list(text)
         i = 0

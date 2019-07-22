@@ -1661,12 +1661,13 @@ class BertCWSPOS(PreTrainedBertModel):
     logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, device, config, vocab_file, max_length, num_CWStags=6, num_POStags=110, batch_size=64, fclassifier='Softmax', method='fine_tune'):
+    def __init__(self, device, config, vocab_file, max_length, num_CWStags=6, num_POStags=110, batch_size=64,
+                 fclassifier='Softmax', method='fine_tune', do_low_case=True):
         super(BertCWSPOS, self).__init__(config)
         self.device = device
         self.batch_size = batch_size
         self.tokenizer = FullTokenizer(
-                vocab_file=vocab_file, do_lower_case=True)
+                vocab_file=vocab_file, do_lower_case=do_low_case)
         self.max_length = max_length
         self.num_CWStags = num_CWStags
         self.num_POStags = num_POStags
@@ -2001,7 +2002,7 @@ class BertCWSPOS(PreTrainedBertModel):
 
             result_pos_str = extract_pos(tmp_pos_list)
 
-            if 'UNK' in result_str or '[unused' in result_str:
+            if '[UNK]' in result_str or '[unused' in result_str:
                 seg_ls, pos_ls = restore_unknown_tokens_with_pos(original_str, result_str, result_pos)
             else:
                 seg_ls = result_str.strip().split()
