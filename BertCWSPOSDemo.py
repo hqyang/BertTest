@@ -592,7 +592,7 @@ def test_from_file(model, infile, outfile): # line 77
 
 
 LOCAL_FLAG = False
-#LOCAL_FLAG = True
+LOCAL_FLAG = True
 
 TEST_FLAG = False
 TEST_FLAG = True
@@ -620,5 +620,8 @@ if __name__=='__main__':
 
         infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
         outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
+
+        infile = './Test/except.txt'
+        outfile = './Test/except_rs.txt'
         test_from_file(model, infile, outfile)
 

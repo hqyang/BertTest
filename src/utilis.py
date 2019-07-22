@@ -651,6 +651,7 @@ def split_text_by_punc(text):
     text = text.strip('\r\n')
     text = text.strip()
     text = text.replace('\u3000', ' ')
+    text = "".join(text.split())
 
     text_chunk_list = re.split('(。|，|：|\n|#)', text)
 
