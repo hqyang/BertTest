@@ -9,7 +9,7 @@ import numpy as np
 from .utilis import check_english_words, restore_unknown_tokens, restore_unknown_tokens_with_pos, append_to_buff, split_text_by_punc, extract_pos
 import re
 import copy
-from .config import segType, posType
+from .config import segType, posType, UNK_TOKEN
 
 import pdb
 
@@ -612,7 +612,7 @@ class BertCRFCWS(PreTrainedBertModel):
                 else:
                     result_str += tt
 
-            if '[UNK]' in result_str or '[unused' in result_str:
+            if UNK_TOKEN in result_str or '[unused' in result_str:
                 result_str = restore_unknown_tokens(original_str, result_str)
 
             result_str_list.append(result_str.strip().split())
@@ -673,7 +673,7 @@ class BertCRFCWS(PreTrainedBertModel):
             #result_str += ' ' # separate bcz english issue
                 #pre_word_is_english = cur_word_is_english
 
-        if '[UNK]' in result_str:
+        if UNK_TOKEN in result_str:
             original_str = ''.join([text.strip('\r\n').strip() for text in ls])
             result_str = restore_unknown_tokens(original_str, result_str)
 
@@ -1042,7 +1042,7 @@ class BertClassifiersCWS(PreTrainedBertModel):
                 else:
                     result_str += tt
 
-            if '[UNK]' in result_str or '[unused' in result_str:
+            if UNK_TOKEN in result_str or '[unused' in result_str:
                 result_str = restore_unknown_tokens(original_str, result_str)
 
             result_str_list.append(result_str.strip().split())
@@ -1492,7 +1492,7 @@ class BertCWS(PreTrainedBertModel):
                 else:
                     result_str += tt
 
-            if '[UNK]' in result_str or '[unused' in result_str:
+            if UNK_TOKEN in result_str or '[unused' in result_str:
                 result_str = restore_unknown_tokens(original_str, result_str)
 
             result_str_list.append(result_str.strip().split())
@@ -2002,7 +2002,7 @@ class BertCWSPOS(PreTrainedBertModel):
 
             result_pos_str = extract_pos(tmp_pos_list)
 
-            if '[UNK]' in result_str or '[unused' in result_str:
+            if UNK_TOKEN in result_str or '[unused' in result_str:
                 seg_ls, pos_ls = restore_unknown_tokens_with_pos(original_str, result_str, result_pos)
             else:
                 seg_ls = result_str.strip().split()

@@ -21,7 +21,7 @@ from __future__ import print_function
 import collections
 import unicodedata
 import six
-
+from .config import UNK_TOKEN
 
 def convert_to_unicode(text):
     """Converts `text` to Unicode (if it's not already), assuming utf-8 input."""
@@ -88,7 +88,7 @@ def convert_by_vocab(vocab, items):
         try:
             output.append(vocab[item])
         except KeyError:
-            output.append(vocab['[UNK]'])
+            output.append(vocab[UNK_TOKEN])
     return output
 
 
@@ -182,8 +182,8 @@ class BasicTokenizer(object):
         if text == '[unused1]':
             return [text]
 
-        if text == '[unk]' or text=='[UNK]':
-            return ['[UNK]']
+        if text == UNK_TOKEN.lower() or text==UNK_TOKEN:
+            return [UNK_TOKEN]
 
         chars = list(text)
         i = 0

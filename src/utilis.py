@@ -14,11 +14,8 @@ import re
 import pandas as pd
 import torch
 import numpy as np
-
-import sys
-sys.path.append('../src')
-from src.preprocess import dataset_to_dataloader, OntoNotesDataset
-#from src.preprocess import dataset_to_dataloader, OntoNotesDataset
+from .config import UNK_TOKEN, PUNC_TOKENS
+from .preprocess import dataset_to_dataloader, OntoNotesDataset
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -379,7 +376,7 @@ def convertList2BIOwithComma(rs):
     # rs: a list
     outStr = ''
     for i, word in enumerate(rs.__iter__()):
-        word = word.replace('[UNK]', ' ') # tackle unknown tokens
+        word = word.replace(UNK_TOKEN, ' ') # tackle unknown tokens
         len_word = len(word)
         if len_word==1 or check_english_words(word):
             seg_gt = 'O,'
@@ -505,7 +502,7 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
     used_idx = 0
 
     for text in text_ls:
-        if '[UNK]' not in text:
+        if UNK_TOKEN not in text:
             if '[unused1]' in text:
                 if len(text)>len('[unused1]'):
                     idx_ts = re.search('unused1', text)
@@ -523,6 +520,7 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
 
 
 def findtextdirect(strIn, start_idx, len_original_str, text, shift=0):
+    text = text.lower()
     s_idx = strIn[start_idx:start_idx+shift+len(text)].find(text)
 
     if s_idx==-1:
@@ -559,7 +557,7 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
         #    print(text)
         pos = pos_ls[i]
 
-        if '[UNK]' not in text:
+        if UNK_TOKEN not in text:
             if '[unused1]' in text:
                 shift += text.count('[unused1]')
                 tmp_text_list = text.split('[unused1]')
@@ -606,29 +604,34 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
                 shift = 0
         else: # unknown tokens exist, need to update shift
             shift += len(text)
-            tmp_text = text.replace('[UNK]', '')
-            tmp_text = tmp_text.replace('[unused1]', '')
-            if len(tmp_text) == 0: # only unknown token(s)
+            tmp_text_list = text.split(UNK_TOKEN)
+            tmp_text_list = [v for v in tmp_text_list if v.replace('[unused1]', '')]
+
+            # process tmp_text_list
+            for v in tmp_text_list: # unknown tokens with word and
+                s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, v, shift)
+
+                if s_idx > 0: # append unknown token
+                    text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx])
+
+                    ori_used_idx += s_idx
+                    # keep previous unknown tokens
+                    if unk_status:
+                        pos_list.append(unk_pos)
+                        unk_status = False
+                    else:
+                        pos_list.append(pos)
+
+                    text_list.append(original_str[ori_used_idx:ori_used_idx+len(v)])
+                    pos_list.append(pos)
+
+                    ori_used_idx += len(v)
+
+            if text[-5:]==UNK_TOKEN: # [UNK] is in the end
                 unk_status = True
                 unk_pos = pos
-            else: # unknown tokens with word
-                #idx_obj = re.search('\[UNK\]', text)
-                #s_idx, e_idx = idx_obj.span()
-
-                len_tmp_text = len(tmp_text)
-
-                s_idx = text.find(tmp_text)
-
-                if s_idx+len_tmp_text == len(text): # word in the end
-                    s_idx = original_str[ori_used_idx:].find(tmp_text, 1)
-                    assert(s_idx != -1)
-
-                    text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx+len_tmp_text])
-                    ori_used_idx += s_idx+len_tmp_text
-                    pos_list.append(pos)
-                else: # [UNK] is in the end
-                    unk_status = True
-                    unk_pos = pos
+            else:
+                unk_status = False
 
     if unk_status:
         text_list.append(original_str[ori_used_idx:])
@@ -653,7 +656,8 @@ def split_text_by_punc(text):
     text = text.replace('\u3000', ' ')
     text = "".join(text.split())
 
-    text_chunk_list = re.split('(。|，|：|\n|#)', text)
+    #text_chunk_list = re.split('(。|，|：|\n|#)', text)
+    text_chunk_list = re.split(PUNC_TOKENS, text)
 
     return text_chunk_list
 
