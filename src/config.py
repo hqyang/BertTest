@@ -22,6 +22,7 @@ class Config:
     ##2.Preprocessing
     do_lower_case = False
     nopunc = False
+    do_mask_as_whole = True
     
     ##3.Training configs
     init_checkpoint = None
@@ -157,3 +158,5 @@ PUNC_TOKENS = """
         〃|〈|〉|《|》|「|」|『|』|【|】|〔|〕|〖|〗|〘|〙|〚|〛|〜|〝|〞|〟|〰|〾|〿|–|—|‘|’|‛|“|”|„|‟|…|‧|﹏|﹑|﹔|·|！
         |？|｡|。|')
     """
+
+MAX_SUBWORDS = 10
