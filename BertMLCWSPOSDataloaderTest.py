@@ -605,7 +605,7 @@ def set_server_Ontonotes_param():
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': './tmp/ontonotes/CWSPOS2/',
             'do_lower_case': False,
-            'train_batch_size': 128,
+            'train_batch_size': 4,
             'max_seq_length': 128,
             'num_hidden_layers': 1,
             'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
