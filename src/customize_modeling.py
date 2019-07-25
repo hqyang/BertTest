@@ -2024,10 +2024,11 @@ class BertCWSPOS(PreTrainedBertModel):
 class BertMLEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings for multilinguisticss
     """
-    def __init__(self, config, update_method='mean'):
+    def __init__(self, config, update_method='mean', speedup=True):
         super(BertMLEmbeddings, self).__init__()
         self.hidden_size = config.hidden_size
         self.update_method = update_method
+        self.speedup = speedup
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
@@ -2044,7 +2045,11 @@ class BertMLEmbeddings(nn.Module):
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
 
-        words_embeddings = self.extract_embedding(token_ids, attention_mask, cand_indexes)
+        if self.speedup:
+            words_embeddings = self.extract_embedding_speed(token_ids, attention_mask, cand_indexes)
+        else:
+            words_embeddings = self.extract_embedding(token_ids, attention_mask, cand_indexes)
+
         position_embeddings = self.position_embeddings(position_ids)
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
@@ -2063,6 +2068,27 @@ class BertMLEmbeddings(nn.Module):
 #        for j in range(max_seq_len):
 #            words_embeddings_i[j] = self.extract_embedding_ij(token_id_i[j], max_chunk_per_word)
 #        return words_embeddings
+
+    def extract_embedding_speed(self, token_ids, attention_mask=None, cand_indexes=None):
+        if token_ids is None: # cand_indexes is None and
+            raise RuntimeError('Input: cand_indexes or token_ids should not be None!')
+
+        batch_size, max_seq_len, max_chunk_per_word = token_ids.shape
+        cand_mask = token_ids.ge(1)
+        token_ids_2d = token_ids.view(batch_size*max_seq_len*max_chunk_per_word, 1)
+        words_embeddings = self.word_embeddings(token_ids_2d)
+        words_embeddings = torch.where(torch.isnan(words_embeddings), torch.zeros_like(words_embeddings), words_embeddings)
+
+        # [batch_size, max_seq_len, max_chunk_per_word, hidden_size]
+        words_embeddings = words_embeddings.view(batch_size, max_seq_len, max_chunk_per_word, -1)
+
+        # [batch_size, max_seq_len, hidden_size]
+        words_embeddings = torch.sum(
+            words_embeddings*cand_mask.unsqueeze(3).float(), dim=2) / torch.sum(cand_mask, dim=2).unsqueeze(2).float()
+
+        words_embeddings = torch.where(torch.isnan(words_embeddings), torch.zeros_like(words_embeddings), words_embeddings)
+
+        return words_embeddings
 
     def extract_embedding(self, token_ids, attention_mask=None, cand_indexes=None):
         if token_ids is None: # cand_indexes is None and
