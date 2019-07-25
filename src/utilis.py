@@ -29,7 +29,8 @@ WEIGHTS_NAME = 'pytorch_model.bin'
 
 def get_dataset_and_dataloader(processor, args, training=True, type='train'):
     dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
-                                 args.max_seq_length, training=training, type=type)
+                             args.max_seq_length, training=training, type=type,
+                               do_mask_as_whole = args.do_mask_as_whole)
     dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
                                        args.local_rank, training=training)
     return dataset, dataloader

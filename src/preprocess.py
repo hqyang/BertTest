@@ -783,19 +783,6 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     # suppose the length of words and tokens is less than max_length
     cand_indexes, token_ids, words, tokens = define_tokens_set(words, tokens)
 
-    #tokens = tokens[:last_index]
-    #if len_cand_index > max_length - 1:
-    #    words = words[:max_length - 1]
-    #words += ['[SEP]']
-
-    # models = tokenizer.models
-    # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
-    # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
-    #sep_id = tokenizer.convert_tokens_to_ids(['[SEP]'])
-    #tokens.extend(sep_id)
-    #tokens = tokenizer.convert_tokens_to_ids(words)
-    #token_ids.append(sep_id)
-
     if len(tokens) < max_length:
         tokens.extend([0] * (max_length - len(tokens)))
     tokens = np.array(tokens)
