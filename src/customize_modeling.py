@@ -2069,15 +2069,15 @@ class BertMLEmbeddings(nn.Module):
             raise RuntimeError('Input: cand_indexes or token_ids should not be None!')
 
         batch_size, max_seq_len, max_chunk_per_word = token_ids.size()
-        words_embeddings = torch.zeros(batch_size, max_seq_len, self.hidden_size)
+        words_embeddings = torch.zeros(batch_size, max_seq_len, self.hidden_size).to(token_ids.device)
 
         for i in range(batch_size):
             seq_len = torch.sum(attention_mask[i])
             for j in range(seq_len):
                 token_idx = token_ids[i][j]
                 cand_mask = token_idx.ge(1)
-                word_embedding_ij = self.word_embeddings(token_idx[cand_mask])
-                words_embeddings[i][j] = torch.sum(word_embedding_ij, dim=0)/torch.sum(cand_mask)
+                words_embedding_ij = self.word_embeddings(token_idx[cand_mask])
+                words_embeddings[i][j] = torch.sum(words_embedding_ij, dim=0)/torch.sum(cand_mask)
 
         # word_embedding has shape [batch_size*max_seq_len*max_chunk_per_word, hidden_size]
         return words_embeddings

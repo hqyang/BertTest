@@ -551,7 +551,7 @@ def train_CWS_POS(args):
     if args.fp16:
         param_optimizer = [(n, param.clone().detach().to('cpu').float().requires_grad_()) \
                             for n, param in model.named_parameters()]
-    elif args.optimize_on_cpu:
+        elif args.optimize_on_cpu:
         param_optimizer = [(n, param.clone().detach().to('cpu').requires_grad_()) \
                             for n, param in model.named_parameters()]
     else:
