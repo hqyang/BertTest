@@ -2037,14 +2037,14 @@ class BertMLEmbeddings(nn.Module):
         self.LayerNorm = BertLayerNorm(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-    def forward(self, input_ids, token_type_ids=None, cand_indexes=None, token_ids=None):
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, cand_indexes=None, token_ids=None):
         seq_length = input_ids.size(1)
         position_ids = torch.arange(seq_length, dtype=torch.long, device=input_ids.device)
         position_ids = position_ids.unsqueeze(0).expand_as(input_ids)
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
 
-        words_embeddings = self.extract_embedding(cand_indexes, token_ids)
+        words_embeddings = self.extract_embedding(token_ids, attention_mask, cand_indexes)
         position_embeddings = self.position_embeddings(position_ids)
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
@@ -2064,15 +2064,16 @@ class BertMLEmbeddings(nn.Module):
 #            words_embeddings_i[j] = self.extract_embedding_ij(token_id_i[j], max_chunk_per_word)
 #        return words_embeddings
 
-    def extract_embedding(self, cand_indexes=None, token_ids=None):
-        if cand_indexes is None and token_ids is None:
+    def extract_embedding(self, token_ids, attention_mask=None, cand_indexes=None):
+        if token_ids is None: # cand_indexes is None and
             raise RuntimeError('Input: cand_indexes or token_ids should not be None!')
 
         batch_size, max_seq_len, max_chunk_per_word = token_ids.size()
         words_embeddings = torch.zeros(batch_size, max_seq_len, self.hidden_size)
 
         for i in range(batch_size):
-            for j in range(max_seq_len):
+            seq_len = torch.sum(attention_mask[i])
+            for j in range(seq_len):
                 token_idx = token_ids[i][j]
                 cand_mask = token_idx.ge(1)
                 word_embedding_ij = self.word_embeddings(token_idx[cand_mask])
@@ -2233,7 +2234,7 @@ class BertMLModel(PreTrainedBertModel):
         extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
 
-        embedding_output = self.embeddings(input_ids, token_type_ids, cand_indexes, token_ids)
+        embedding_output = self.embeddings(input_ids, token_type_ids, attention_mask, cand_indexes, token_ids)
 
         '''
         # update embedding_output
