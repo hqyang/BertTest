@@ -1,7 +1,7 @@
 from pprint import pprint
 
-
 class Config:
+    
     ## Required parameters
     task_name = None  # MSR， PKU, AS, CITYU, ONTONOTES
     data_dir = None
@@ -20,8 +20,7 @@ class Config:
     bert_model = None
 
     ##2.Preprocessing
-    do_lower_case = True
-    do_mask_as_whole = True
+    do_lower_case = False
     nopunc = False
     
     ##3.Training configs
@@ -75,27 +74,12 @@ class Config:
 
 args = Config()
 
-
-class LangType:
-    CHINESE = 'C',
-    OTHERS = 'O'
-
-langtype = LangType()
-
-
 class SegType:
     BMES_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'M', 4: 'E', 5: 'S'}
     BIO_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'I', 4: 'O'}
     BMES_label_map = {'[START]': 0, '[END]': 1, 'B': 2, 'M': 3, 'E': 4, 'S': 5}
 
 segType = SegType()
-
-
-class BMES2BIO:
-    map = {'B': 'B', 'M': 'I', 'E': 'I', 'S': 'O'}
-
-bmes2bio = BMES2BIO()
-
 
 class POSType:
     BIO_idx_to_label_map = {
@@ -167,4 +151,9 @@ posType = POSType()
     # 34 VV    情态动词、  动词、possess/拥有 ，rich/富有,具有
     # 35 X     English x
 
-MAX_SUBWORDS = 10
+UNK_TOKEN = "[UNK]"
+PUNC_TOKENS = """
+        (＂|＃|＄|％|＆|＇|（|）|＊|＋|，|－|／|：|；|＜|＝|＞|＠|［|＼|］|＾|＿|｀|｛|｜|｝|～|｟|｠|｢|｣|､|\u3000|、|
+        〃|〈|〉|《|》|「|」|『|』|【|】|〔|〕|〖|〗|〘|〙|〚|〛|〜|〝|〞|〟|〰|〾|〿|–|—|‘|’|‛|“|”|„|‟|…|‧|﹏|﹑|﹔|·|！
+        |？|｡|。|')
+    """

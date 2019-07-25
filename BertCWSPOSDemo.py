@@ -8,9 +8,6 @@ Feature:
 
 Scenario: 
 """
-import sys
-sys.path.append('./src')
-
 import os
 
 from src.config import args
@@ -77,8 +74,8 @@ def load_CWS_POS_model(label_list, pos_label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCWSPOS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list), len(pos_label_list), \
-                       batch_size = args.train_batch_size)
+    model = BertCWSPOS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list),
+                       len(pos_label_list), batch_size = args.train_batch_size, do_low_case=args.do_lower_case)
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized models is not supported...!')
@@ -160,35 +157,34 @@ def set_local_eval_param():
             'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data'
                         '4nerpos_data/valid',
-            'vocab_file': './src/BERT/models/bert-base-chinese/vocab.txt',
-            'bert_config_file': './src/BERT/models/bert-base-chinese/bert_config.json',
-            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWS_POS/L6/',
-            'do_lower_case': True,
+            'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
+            'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWS_POS/L3/',
+            'do_lower_case': False,
             'train_batch_size': 64,
             'max_seq_length': 128,
-            'num_hidden_layers': 6,
-            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/'
-                          '/ontonotes/CWS_POS/l6_cws_F1_weights_epoch05.pt',
+            'num_hidden_layers': 3,
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
+                          'ontonotes/CWS_POS/l3_cws_F1_weights_epoch16.pt',
             'override_output': True,
             }
 
 def set_server_eval_param():
-    return {'task_name': 'ontonotes_CWS',
+    return {'task_name': 'ontonotes_cws_pos',
             'model_type': 'sequencelabeling',
             'data_dir': '../data/ontonotes5/4ner_data/',
-            'vocab_file': '../models/bert-base-chinese/models.txt',
-            'bert_config_file': '../models/bert-base-chinese/bert_config.json',
-            'output_dir': './tmp_2019_3_22/out/',
-            'do_lower_case': True,
+            'vocab_file': './src/BERT/models//multi_cased_L-12_H-768_A-12/vocab.txt',
+            'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
+            'output_dir': './tmp/ontonotes/out/',
+            'do_lower_case': False,
             'train_batch_size': 128,
             'max_seq_length': 128,
             'num_hidden_layers': 3,
-            'init_checkpoint': '../models/bert-base-chinese/',
-            'bert_model': './tmp_2019_3_23/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
+            'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
+            'bert_model': './tmp/ontonotes/l3/cws_F1_weights_epoch16.pt',
             'no_cuda': True,
-            'override_output': True,
-            'tensorboardWriter': False
+            'override_output': True
             }
 
 def extract_CWSPOS(model, t1):
@@ -614,5 +610,16 @@ if __name__=='__main__':
         test_cases(model)
         test_case_meitu(model)
     else:
-        test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
+        #test_from_file(model, './Test/except.txt', './Test/except_rs.txt')
+        #test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
+        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual.txt'
+        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual_rs.txt'
+
+        infile = './Test/except.txt'
+        outfile = './Test/except_rs.txt'
+
+        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
+        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
+
+        test_from_file(model, infile, outfile)
 
