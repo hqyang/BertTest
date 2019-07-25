@@ -2026,6 +2026,7 @@ class BertMLEmbeddings(nn.Module):
     """
     def __init__(self, config, update_method='mean'):
         super(BertMLEmbeddings, self).__init__()
+        self.hidden_size = config.hidden_size
         self.update_method = update_method
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
@@ -2052,41 +2053,58 @@ class BertMLEmbeddings(nn.Module):
         embeddings = self.dropout(embeddings)
         return embeddings
 
+#    def extract_embedding_ij(self, token_id_i, max_chunk_per_word):
+#        words_embeddings = torch.where(torch.isnan(words_embeddings), torch.zeros_like(words_embeddings), words_embeddings)
+#        cand_mask = token_id.ge(1)
+#        return word_embedding_ij
+
+#    def extract_embedding_i(self, token_id_i, max_seq_len, max_chunk_per_word):
+#        # max_seq_len * max_chunk_per_word
+#        for j in range(max_seq_len):
+#            words_embeddings_i[j] = self.extract_embedding_ij(token_id_i[j], max_chunk_per_word)
+#        return words_embeddings
+
     def extract_embedding(self, cand_indexes=None, token_ids=None):
         if cand_indexes is None and token_ids is None:
             raise RuntimeError('Input: cand_indexes or token_ids should not be None!')
 
-        words_embeddings = torch.zeros_like(token_ids)
+        batch_size, max_seq_len, max_chunk_per_word = token_ids.size()
+        words_embeddings = torch.zeros(batch_size, max_seq_len, self.hidden_size)
 
-        if token_ids is not None:
-            # word_embedding is defined by nn.Embedding and has shape [vocab_size, hidden_size]
-            batch_size, max_seq_len, max_chunk_per_word = token_ids.size()
+        for i in range(batch_size):
+            for j in range(max_seq_len):
+                token_idx = token_ids[i][j]
+                cand_mask = token_idx.ge(1)
+                word_embedding_ij = self.word_embeddings(token_idx[cand_mask])
+                words_embeddings[i][j] = torch.sum(word_embedding_ij, dim=0)/torch.sum(cand_mask)
 
-            token_ids_2d = token_ids.view(batch_size*max_seq_len*max_chunk_per_word, 1)
-
-            cand_mask = token_ids.ge(1)
-
-            # word_embedding has shape [batch_size*max_seq_len*max_chunk_per_word, hidden_size]
-            #cand_embedding_2d = word_embedding(cand_indexes_2d)
-            words_embeddings = self.word_embeddings(token_ids_2d)
-            words_embeddings = torch.where(torch.isnan(words_embeddings), torch.zeros_like(words_embeddings), words_embeddings)
-
-            # [batch_size, max_seq_len, max_chunk_per_word, hidden_size]
-            words_embeddings = words_embeddings.view(batch_size, max_seq_len, max_chunk_per_word, -1)
-
-            # [batch_size, max_seq_len, hidden_size]
-            # embedding_output = torch.mean(cand_embedding_3d, dim=2, keepdim=False)
-
-            words_embeddings = torch.sum(
-                words_embeddings*cand_mask.unsqueeze(3).float(), dim=2) / torch.sum(cand_mask, dim=2).unsqueeze(2).float()
-
-            words_embeddings = torch.where(torch.isnan(words_embeddings), torch.zeros_like(words_embeddings), words_embeddings)
-        elif cand_indexes is None:
-            raise RuntimeError('Input: cand_indexes or token_ids should not be None!')
-        #else:
-            #raise RuntimeError('The part related to cand_indexes is not implemented yet!')
-
+        # word_embedding has shape [batch_size*max_seq_len*max_chunk_per_word, hidden_size]
         return words_embeddings
+
+        '''
+        #words_embeddings = torch.zeros(batch_size, max_seq_len, max_chunk_per_word, self.hidden_size)
+
+        token_ids_2d = token_ids.view(batch_size*max_seq_len*max_chunk_per_word, 1)
+
+        cand_mask = token_ids.ge(1)
+
+        # word_embedding has shape [batch_size*max_seq_len*max_chunk_per_word, hidden_size]
+        #cand_embedding_2d = word_embedding(cand_indexes_2d)
+        words_embeddings = self.word_embeddings(token_ids_2d)
+        words_embeddings = torch.where(torch.isnan(words_embeddings), torch.zeros_like(words_embeddings), words_embeddings)
+
+        # [batch_size, max_seq_len, max_chunk_per_word, hidden_size]
+        words_embeddings = words_embeddings.view(batch_size, max_seq_len, max_chunk_per_word, -1)
+
+        # [batch_size, max_seq_len, hidden_size]
+        # embedding_output = torch.mean(cand_embedding_3d, dim=2, keepdim=False)
+
+        words_embeddings = torch.sum(
+            words_embeddings*cand_mask.unsqueeze(3).float(), dim=2) / torch.sum(cand_mask, dim=2).unsqueeze(2).float()
+
+        words_embeddings = torch.where(torch.isnan(words_embeddings), torch.zeros_like(words_embeddings), words_embeddings)
+        '''
+
 
     def update_embedding_speed(self, word_embedding, cand_indexes):
         # word_embedding is defined by nn.Embedding and has shape [vocab_size, hidden_size]
