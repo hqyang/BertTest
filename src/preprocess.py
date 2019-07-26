@@ -606,15 +606,15 @@ class OntoNotesDataset(Dataset):
 
     def train(self, training=True, type_name='train'):
         self.training = training
-        if ty=='train':
+        if type_name=='train':
             if self.train_df is None:
                 self.train_df = self.processor.get_train_examples(self.data_dir)
             self.df = self.train_df
-        elif ty=='dev':
+        elif type_name=='dev':
             if self.dev_df is None:
                 self.dev_df = self.processor.get_dev_examples(self.data_dir)
             self.df = self.dev_df
-        elif ty=='test':
+        elif type_name=='test':
             if self.test_df is None:
                 self.test_df = self.processor.get_test_examples(self.data_dir)
             self.df = self.test_df
