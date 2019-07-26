@@ -581,9 +581,10 @@ class MeituTagDataset(Dataset):
 
 
 class OntoNotesDataset(Dataset):
-    def __init__(self, processor, data_dir, vocab_file, max_length, training=True, type='train', do_mask_as_whole=False):
+    def __init__(self, processor, data_dir, vocab_file, max_length, training=True, type_name='train', do_lower_case=True, \
+                 do_mask_as_whole=False):
         self.tokenizer = BertTokenizer(
-                vocab_file=vocab_file, do_lower_case=True)
+                vocab_file=vocab_file, do_lower_case=do_lower_case)
         self.max_length = max_length
         self.processor = processor
         self.data_dir = data_dir
@@ -592,7 +593,7 @@ class OntoNotesDataset(Dataset):
         self.dev_df = None
         self.test_df = None
         self.df = None
-        self.train(training=training, ty=type)
+        self.train(training=training, type_name=type_name)
         self.label_list = processor.get_labels()
         self.label_map = processor.label_map
         self.do_mask_as_whole = do_mask_as_whole
@@ -603,7 +604,7 @@ class OntoNotesDataset(Dataset):
         else:
             self.pos_label_map = None
 
-    def train(self, training=True, ty='train'):
+    def train(self, training=True, type_name='train'):
         self.training = training
         if ty=='train':
             if self.train_df is None:

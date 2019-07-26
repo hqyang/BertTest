@@ -27,10 +27,11 @@ CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
 
-def get_dataset_and_dataloader(processor, args, training=True, type='train'):
+def get_dataset_and_dataloader(processor, args, training=True, type_name='train'):
     dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
-                             args.max_seq_length, training=training, type=type,
-                               do_mask_as_whole = args.do_mask_as_whole)
+                             args.max_seq_length, training=training, type_name=type_name,
+                               do_lower_case=args.do_lower_case,
+                               do_mask_as_whole=args.do_mask_as_whole)
     dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
                                        args.local_rank, training=training)
     return dataset, dataloader
@@ -44,7 +45,7 @@ def get_eval_dataloaders(processor, args):
 
     eval_dataloaders = {}
     for part in parts:
-        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type=part)
+        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type_name=part)
         eval_dataloaders[part] = eval_dataloader
 
     return eval_dataloaders
