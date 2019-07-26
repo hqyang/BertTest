@@ -166,7 +166,7 @@ def set_local_eval_param():
             'num_hidden_layers': 3,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
-                          'ontonotes/CWSPOS2/l6_cws_F1_weights_epoch16.pt',
+                          'ontonotes/CWS_POS/l3_cws_F1_weights_epoch16.pt',
             'override_output': True,
             }
 

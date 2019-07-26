@@ -536,7 +536,7 @@ def train_CWS_POS(args):
     os.system('mkdir %s' %args.output_dir)
     os.system('chmod 777 %s' %args.output_dir)
 
-    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
+    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type_name='train')
 
     eval_dataloaders = get_eval_dataloaders(processor, args)
 

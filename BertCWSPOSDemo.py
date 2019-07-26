@@ -159,14 +159,14 @@ def set_local_eval_param():
                         '4nerpos_data/valid',
             'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
-            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWS_POS/L3/',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS2/L6/',
             'do_lower_case': False,
             'train_batch_size': 64,
             'max_seq_length': 128,
             'num_hidden_layers': 3,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
-                          'ontonotes/CWS_POS/l3_cws_F1_weights_epoch16.pt',
+                          'ontonotes/CWSPOS2/l6_cws_F1_weights_epoch16.pt',
             'override_output': True,
             }
 
