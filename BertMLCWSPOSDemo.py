@@ -606,8 +606,8 @@ if __name__=='__main__':
         infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
         outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
 
-        infile = './cases/bad_cases.txt'
-        outfile = './cases/bad_cases_rs.txt'
+        infile = './Test_cases/bad_cases.txt'
+        outfile = './Test_cases/bad_cases_rs.txt'
 
         test_from_file(model, infile, outfile)
 
