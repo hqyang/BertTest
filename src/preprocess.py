@@ -636,7 +636,7 @@ class OntoNotesDataset(Dataset):
 
         for i, data in enumerate(self.df.itertuples()):
             if self.do_mask_as_whole:
-                token, cand_index, cand_index_len = tokenize_text_with_cand_indexes(data.text, self.max_length, self.tokenizer)
+                token, cand_index = tokenize_text_with_cand_indexes(data.text, self.max_length, self.tokenizer)
                 labelid = tokenize_label_list_restriction(data.label, self.max_length, self.label_map, cand_index_len)
 
                 if self.pos_label_map:
@@ -791,7 +791,34 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
     segment = np.array([0] * max_length)
 
     cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
-    return [tokens, segment, mask], [cand_indexes, token_ids], can_index_len # include ['SEP']
+    return [tokens, segment, mask], [cand_indexes, token_ids]#, can_index_len # include ['SEP']
+
+
+def tokenize_list_with_cand_indexes(words, max_length, tokenizer):
+    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
+    # words = list(filter(lambda x: x!=' ', words))
+    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
+    words = ['[CLS]'] + words
+
+    cand_indexes = define_words_set(words)
+
+    # prepare the length of words does not exceed max_length while considering the situation of do_whole as _mask
+    words, can_index_len = set_words_boundary(words, cand_indexes, max_length)
+    words += ['[SEP]']
+
+    tokens = tokenizer.convert_tokens_to_ids(words)
+
+    # suppose the length of words and tokens is less than max_length
+    cand_indexes, token_ids, words, tokens = define_tokens_set(words, tokens)
+
+    if len(tokens) < max_length:
+        tokens.extend([0] * (max_length - len(tokens)))
+    tokens = np.array(tokens)
+    mask = np.array([1] * can_index_len + [0] * (max_length - can_index_len))
+    segment = np.array([0] * max_length)
+
+    cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
+    return [tokens, segment, mask], [cand_indexes, token_ids]#, can_index_len # include ['SEP']
 
 
 def tokenize_text(text, max_length, tokenizer):

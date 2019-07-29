@@ -171,7 +171,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
                 label_ids, pos_label_ids = batch[3:]
 
-                loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
+                loss = model(input_ids, segment_ids, input_mask, cand_indexes, token_ids, label_ids, pos_label_ids)
 
                 n_gpu = torch.cuda.device_count()
                 if n_gpu > 1: # or loss.shape[0] > 1:

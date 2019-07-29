@@ -14,8 +14,10 @@ import re
 import pandas as pd
 import torch
 import numpy as np
-from .config import UNK_TOKEN, PUNC_TOKENS
+from .config import UNK_TOKEN, PUNC_TOKENS, UNUSED_SPACE_TOKEN
 from .preprocess import dataset_to_dataloader, OntoNotesDataset
+from functools import reduce
+import operator
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -652,11 +654,17 @@ def append_to_buff(processed_text_list, buff, append_text, len_max, merge_index)
     return buff, merge_index
 
 
+def unpackTuple(tup):
+    return (reduce(operator.add, tup))
+
+
 def split_text_by_punc(text):
     text = text.strip('\r\n')
     text = text.strip()
     text = text.replace('\u3000', ' ')
+    text = text.replace(' ', UNUSED_SPACE_TOKEN)
     text = "".join(text.split())
+    text = text.replace(UNUSED_SPACE_TOKEN, ' ')
 
     #text_chunk_list = re.split('(。|，|：|\n|#)', text)
     text_chunk_list = re.split(PUNC_TOKENS, text)

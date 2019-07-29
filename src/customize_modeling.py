@@ -3,10 +3,11 @@ import torch.nn as nn
 import math
 from .BERT.modeling import PreTrainedBertModel, BertModel, BertLayerNorm, BertEncoder, BertPooler
 from .TorchCRF import CRF
-from .preprocess import tokenize_text, tokenize_list, tokenize_list_no_seg
+from .preprocess import tokenize_list_with_cand_indexes, tokenize_list, define_words_set
 from .tokenization import FullTokenizer
+from .BERT.tokenization import BertTokenizer
 import numpy as np
-from .utilis import check_english_words, restore_unknown_tokens, restore_unknown_tokens_with_pos, append_to_buff, split_text_by_punc, extract_pos
+from .utilis import unpackTuple, restore_unknown_tokens, restore_unknown_tokens_with_pos, append_to_buff, split_text_by_punc, extract_pos
 import re
 import copy
 from .config import segType, posType
@@ -659,7 +660,8 @@ class BertVariantCWSPOS(PreTrainedBertModel):
         return loss
 
     def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None):
-        loss = 1e10
+        cws_loss = 1e10
+        pos_loss = 1e10
 
         mask = attention_mask.byte()
         feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
@@ -1390,8 +1392,8 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
 
         self.apply(self.init_bert_weights)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None,
-                cand_indexes=None, token_ids=None):
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, cand_indexes=None, token_ids=None,
+                labels_CWS=None, labels_POS=None):
         mask = attention_mask.byte()
         loss = 1e10
 
@@ -1514,18 +1516,25 @@ class BertMLCWSPOS(PreTrainedBertModel):
     logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, device, config, vocab_file, max_length, num_CWStags=6, num_POStags=110, batch_size=64, fclassifier='Softmax', method='fine_tune'):
+    def __init__(self, device, config, vocab_file, max_length, num_CWStags=6, num_POStags=110, batch_size=64,
+                 do_lower_case=False, do_mask_as_whole=False, fclassifier='Softmax', method='fine_tune'):
         super(BertMLCWSPOS, self).__init__(config)
         self.device = device
         self.batch_size = batch_size
-        self.tokenizer = FullTokenizer(
-                vocab_file=vocab_file, do_lower_case=True)
+        self.tokenizer = BertTokenizer(
+                vocab_file=vocab_file, do_lower_case=do_lower_case)
         self.max_length = max_length
         self.num_CWStags = num_CWStags
         self.num_POStags = num_POStags
+        self.do_mask_as_whole = do_mask_as_whole
+
+        if self.do_mask_as_whole:
+            self.bert = BertMLModel(config)
+        else:
+            self.bert = BertModel(config)
+
         self.method = method
         self.fclassifier = fclassifier
-        self.bert = BertModel(config)
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
         if method == 'fine_tune':
@@ -1555,14 +1564,15 @@ class BertMLCWSPOS(PreTrainedBertModel):
 
         self.apply(self.init_bert_weights)
 
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None):
+    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None,
+                cand_indexes=None, token_ids=None):
         mask = attention_mask.byte()
         loss = 1e10
 
         if labels_CWS is None and labels_POS is None:
             raise RuntimeError('Input: labels_CWS or labels_POS is missing!')
         else:
-            feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+            feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask, cand_indexes, token_ids)
             cws_logits = self.hidden2CWStag(feat_used)
 
             if labels_CWS is not None:
@@ -1574,12 +1584,13 @@ class BertMLCWSPOS(PreTrainedBertModel):
 
         return loss
 
-    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels_CWS=None, labels_POS=None):
+    def decode(self, input_ids, token_type_ids=None, attention_mask=None, cand_indexes=None, token_ids=None, \
+               labels_CWS=None, labels_POS=None):
         cws_loss = 1e10
         pos_loss = 1e10
 
         mask = attention_mask.byte()
-        feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
+        feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask, cand_indexes, token_ids)
 
         cws_logits = self.hidden2CWStag(feat_used)
         pos_logits = self.hidden2POStag(feat_used)
@@ -1599,13 +1610,19 @@ class BertMLCWSPOS(PreTrainedBertModel):
 
         return cws_loss, pos_loss, best_cws_tags_list, best_pos_tags_list
 
-    def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
+    def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None, cand_indexes=None, token_ids=None):
         if self.method in ['last_layer', 'fine_tune']:
             output_all_encoded_layers = False
         else: # sum_last4, sum_all, cat_last4, 'MHMLA'
             output_all_encoded_layers = True
 
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
+        if self.do_mask_as_whole:
+            if cand_indexes is None and token_ids is None:
+                raise RuntimeError('Input: cand_indexes and token_ids are missing!')
+
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, \
+                   output_all_encoded_layers=output_all_encoded_layers, \
+                   cand_indexes=cand_indexes, token_ids=token_ids)
 
         if self.method == 'sum_last4':
             feat_used = self.dropout(sequence_output[-1])
@@ -1627,8 +1644,6 @@ class BertMLCWSPOS(PreTrainedBertModel):
 
         if self.method in ['sum_last4', 'sum_all', 'cat_last4', 'last_layer']:
             feat_used, _ = self.biLSTM(feat_used)
-
-        #bert_feats = self.hidden2tag(feat_used)
 
         return feat_used
 
@@ -1670,15 +1685,27 @@ class BertMLCWSPOS(PreTrainedBertModel):
         # lword: list of words (list)
         # input_ids, segment_ids, input_mask = tokenize_list(
         #     words, self.max_length, self.tokenizer)
-        input_ids, segment_ids, input_masks = zip(
-            *[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
+        tuple1, tuple2 = zip(
+            *[tokenize_list_with_cand_indexes(w, self.max_length, self.tokenizer) for w in lword])
+            #*[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
             #*[tokenize_list_no_seg(w, self.max_length, self.tokenizer) for w in lword])
+        list1 = unpackTuple(tuple1)
+        input_ids = list1[0::3]
+        segment_ids = list1[1::3]
+        input_masks = list1[2::3]
+
+        list2 = unpackTuple(tuple2)
+        cand_indexes = list2[0::2]
+        token_ids = list2[1::2]
 
         input_id_torch = torch.from_numpy(np.array(input_ids)).to(self.device)
         segment_ids_torch = torch.from_numpy(np.array(segment_ids)).to(self.device)
         input_masks_torch = torch.from_numpy(np.array(input_masks)).to(self.device)
+        cand_indexes_troch = torch.from_numpy(np.array(cand_indexes)).to(self.device)
+        token_ids_torch = torch.from_numpy(np.array(token_ids)).to(self.device)
 
-        _, _, best_cws_tags_list, best_pos_tags_list = self.decode(input_id_torch, segment_ids_torch, input_masks_torch)
+        _, _, best_cws_tags_list, best_pos_tags_list = self.decode(input_id_torch, segment_ids_torch, \
+                                           input_masks_torch, cand_indexes_troch, token_ids_torch)
 
         cws_output_list = []
         for rs in best_cws_tags_list:
@@ -1757,7 +1784,6 @@ class BertMLCWSPOS(PreTrainedBertModel):
                         buff, text_chunk, len_max, merge_index)
             if buff:
                 processed_text_list.append(buff)
-                #original_text_list.append(buff)
                 merge_index += 1
             merge_index_tuple.append(merge_index)
             merge_index_list.append(merge_index_tuple)
@@ -1790,7 +1816,13 @@ class BertMLCWSPOS(PreTrainedBertModel):
 
             text = []
             for a in processed_text_list[merge_start:merge_end]:
-                text.extend(a)
+                cand_indexes = define_words_set(a)
+
+                for idx_ls in cand_indexes:
+                    pa = ''
+                    for idx in idx_ls:
+                        pa += a[idx].replace('##', '')
+                    text.append(pa)
 
             for a in original_text_list[merge_start:merge_end]:
                 str_used = ''

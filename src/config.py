@@ -160,3 +160,5 @@ PUNC_TOKENS = """
     """
 
 MAX_SUBWORDS = 10
+
+UNUSED_SPACE_TOKEN = '[UnUsed_!@#]'
