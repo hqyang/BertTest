@@ -8,9 +8,6 @@ Feature:
 
 Scenario: 
 """
-import sys
-sys.path.append('./src')
-
 import os
 
 from src.config import args
