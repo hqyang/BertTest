@@ -610,13 +610,14 @@ if __name__=='__main__':
         if not LOCAL_FLAG:
             infile = '../data/xiuxiu/fenci_all.txt'
 
-            types = {'cased': '/l6/cws_F1_weights_epoch17.pt', 'uncased': '/l6/cws_F1_weights_epoch16.pt'}
+            types = {'cased': 'cws_F1_weights_epoch17.pt', 'uncased': 'cws_F1_weights_epoch16.pt'}
 
+            nhl = 6
             for x in types.keys():
-                args.bert_model = './tmp/ontonotes/CWSPOS2/'+x+types[x]
-                args.num_hidden_layers = 6
-                
-                outfile = './tmp/ontonotes/CWSPOS2/rs/fenci_all_'+x+types[x]
+                args.bert_model = './tmp/ontonotes/CWSPOS2/'+x+'/l'+str(nhl)+'/'+types[x]
+                args.num_hidden_layers = nhl
+
+                outfile = './tmp/ontonotes/CWSPOS2/rs/fenci_all_'+x+'_'+str(nhl)+'_'+types[x]
 
                 model = preload(args)
                 test_from_file(model, infile, outfile)
