@@ -7,7 +7,8 @@ from .preprocess import tokenize_list_with_cand_indexes, tokenize_list, define_w
 from .tokenization import FullTokenizer
 from .BERT.tokenization import BertTokenizer
 import numpy as np
-from .utilis import unpackTuple, restore_unknown_tokens, restore_unknown_tokens_with_pos, append_to_buff, split_text_by_punc, extract_pos
+from .utilis import unpackTuple, restore_unknown_tokens, restore_unknown_tokens_with_pos, append_to_buff, \
+    split_text_by_punc, extract_pos, restore_unknown_tokens_without_unused_with_pos
 import re
 import copy
 from .config import segType, posType
@@ -1798,9 +1799,9 @@ class BertMLCWSPOS(PreTrainedBertModel):
 
         batch_size = self.batch_size
         for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
-            print(p_t_l)
-            if '翡翠' in ''.join(p_t_l[0]):
-                print('test')
+            #print(p_t_l)
+            #if '翡翠' in ''.join(p_t_l[0]):
+            #    print('test')
 
             cws_output, pos_output = self._seg_wordslist(p_t_l)
             cws_output_list.extend(cws_output)
@@ -1891,7 +1892,7 @@ class BertMLCWSPOS(PreTrainedBertModel):
             result_pos_str = extract_pos(tmp_pos_list)
 
             if '[UNK]' in result_str or '[unused' in result_str:
-                seg_ls, pos_ls = restore_unknown_tokens_with_pos(original_str, result_str, result_pos)
+                seg_ls, pos_ls = restore_unknown_tokens_without_unused_with_pos(original_str, result_str, result_pos)
             else:
                 seg_ls = result_str.strip().split()
                 pos_ls = result_pos.strip().split()
