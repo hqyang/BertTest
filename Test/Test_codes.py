@@ -13,7 +13,7 @@ import sys
 sys.path.append('../src')
 from src.utilis import save_model
 from src.config import args, segType
-from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
+from src.utilis import get_dataset_and_dataloader, restore_unknown_tokens_without_unused_with_pos
 from src.preprocess import CWS_BMEO
 from tqdm import tqdm
 import time
@@ -531,6 +531,16 @@ def check_time():
     print(time.time()-st)
 
 
+def test_restore_unknown():
+    original_str = '不只爱翡翠  一切珠宝 文玩都是我的最爱   一个女生戴着大金刚啥的确实很霸气#用珠宝讲故事# 了😂😂  改天拿出来晒晒太阳  😝#我要上墙# #精品翡翠#'
+    result_str = '不 只 爱  翡翠  一切  珠宝 文玩 都 是 我 的 最 爱 一 个  女生 戴 着  大金刚 [UNK] 的  确实 很  霸气 # 用  珠宝 讲  故事 # 了 [UNK]  改天 拿  出来  晒晒  太阳 [UNK] # 我 要 上 墙 # #  精品  翡翠 # '
+    result_pos = 'AD AD VV NR DT NN NN AD VC PN DEG AD NN CD M NN VV AS NN PU X X AD VA PU P NN VV NN PU AS PU VV VV VV VV NN PU PU PN VV VV NN PU PU NN NN PU '
+
+    seg_ls, pos_ls = restore_unknown_tokens_without_unused_with_pos(original_str, result_str, result_pos)
+    print(seg_ls)
+    print(pos_ls)
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -558,6 +568,8 @@ if __name__ == '__main__':
     #test_construct_pos_tags()
 
     #test_outputPOSFscoreUsedBIO()
-    check_time()
+    #check_time()
+
+    test_restore_unknown()
 
 
