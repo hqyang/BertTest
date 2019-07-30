@@ -595,8 +595,6 @@ LOCAL_FLAG = False
 TEST_FLAG = False
 #TEST_FLAG = True
 
-isServer = False
-isServer = True
 
 if __name__=='__main__':
     if LOCAL_FLAG:
