@@ -595,6 +595,9 @@ LOCAL_FLAG = True
 TEST_FLAG = False
 #TEST_FLAG = True
 
+isServer = False
+isServer = True
+
 if __name__=='__main__':
     if LOCAL_FLAG:
         kwargs = set_local_eval_param()
@@ -602,24 +605,39 @@ if __name__=='__main__':
         kwargs = set_server_eval_param()
 
     args._parse(kwargs)
-    model = preload(args)
 
     if TEST_FLAG:
         test_cases(model)
     else:
-        #test_from_file(model, './Test/except.txt', './Test/except_rs.txt')
-        #test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
-        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual.txt'
-        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual_rs.txt'
+        if isServer:
+            infile = '../data/xiuxiu/fenci_all.txt'
 
-        infile = './Test_cases/bad_cases.txt'
-        outfile = './Test_cases/bad_cases_rs.txt'
+            types = {'cased': '/l6/cws_F1_weights_epoch17.pt', 'uncased': '/l6/cws_F1_weights_epoch16.pt'}
 
-        infile = './Test_cases/test_cases'
-        outfile = './Test_cases/test_cases_rs'
+            for x in types.keys():
+                args.bert_model = './tmp/ontonotes/CWSPOS2/'+x+types[x]
 
-        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
-        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
+                outfile = './tmp/ontonotes/CWSPOS2/rs/fenci_all_'+x+types[x]
+                
+                model = preload(args)
+                test_from_file(model, infile, outfile)
 
-        test_from_file(model, infile, outfile)
+        else:
+            #test_from_file(model, './Test/except.txt', './Test/except_rs.txt')
+            #test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
+            infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual.txt'
+            outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual_rs.txt'
+
+            infile = './Test_cases/bad_cases.txt'
+            outfile = './Test_cases/bad_cases_rs.txt'
+
+            infile = './Test_cases/test_cases'
+            outfile = './Test_cases/test_cases_rs'
+
+            infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
+            outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
+
+            model = preload(args)
+            test_from_file(model, infile, outfile)
+
 
