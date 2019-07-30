@@ -590,7 +590,7 @@ def test_from_file(model, infile, outfile): # line 77
 
 
 LOCAL_FLAG = False
-LOCAL_FLAG = True
+#LOCAL_FLAG = True
 
 TEST_FLAG = False
 #TEST_FLAG = True
@@ -609,7 +609,7 @@ if __name__=='__main__':
     if TEST_FLAG:
         test_cases(model)
     else:
-        if isServer:
+        if not LOCAL_FLAG:
             infile = '../data/xiuxiu/fenci_all.txt'
 
             types = {'cased': '/l6/cws_F1_weights_epoch17.pt', 'uncased': '/l6/cws_F1_weights_epoch16.pt'}
@@ -618,7 +618,7 @@ if __name__=='__main__':
                 args.bert_model = './tmp/ontonotes/CWSPOS2/'+x+types[x]
 
                 outfile = './tmp/ontonotes/CWSPOS2/rs/fenci_all_'+x+types[x]
-                
+
                 model = preload(args)
                 test_from_file(model, infile, outfile)
 
