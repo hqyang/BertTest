@@ -1686,7 +1686,7 @@ class BertMLCWSPOS(PreTrainedBertModel):
         # lword: list of words (list)
         # input_ids, segment_ids, input_mask = tokenize_list(
         #     words, self.max_length, self.tokenizer)
-        print(lword)
+        #print(lword)
         tuple1, tuple2 = zip(
             *[tokenize_list_with_cand_indexes(w, self.max_length, self.tokenizer) for w in lword if w]) # w is not empty
             #*[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
