@@ -614,7 +614,8 @@ if __name__=='__main__':
 
             for x in types.keys():
                 args.bert_model = './tmp/ontonotes/CWSPOS2/'+x+types[x]
-
+                args.num_hidden_layers = 6
+                
                 outfile = './tmp/ontonotes/CWSPOS2/rs/fenci_all_'+x+types[x]
 
                 model = preload(args)
