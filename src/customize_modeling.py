@@ -1803,6 +1803,10 @@ class BertMLCWSPOS(PreTrainedBertModel):
             #print(p_t_l)
             #if '翡翠' in ''.join(p_t_l[0]):
             #    print('test')
+            if len(p_t_l)==0:
+                cws_output = segType.BMES_label_map['S']
+                pos_output = posType.POS2idx_map['PU']
+                continue # avoid input empty tokens
 
             cws_output, pos_output = self._seg_wordslist(p_t_l)
             cws_output_list.extend(cws_output)
