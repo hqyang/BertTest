@@ -1801,8 +1801,8 @@ class BertMLCWSPOS(PreTrainedBertModel):
         batch_size = self.batch_size
         for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
             #print(p_t_l)
-            if '翡翠' in ''.join(p_t_l[0]):
-                print('test')
+            #if '翡翠' in ''.join(p_t_l[0]):
+            #    print('test')
 
             cws_output, pos_output = self._seg_wordslist(p_t_l)
             cws_output_list.extend(cws_output)
