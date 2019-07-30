@@ -803,7 +803,8 @@ def tokenize_list_with_cand_indexes(words, max_length, tokenizer):
     cand_indexes = define_words_set(words)
 
     # prepare the length of words does not exceed max_length while considering the situation of do_whole as _mask
-    words, can_index_len = set_words_boundary(words, cand_indexes, max_length)
+    if len(cand_indexes)!=0:
+        words, can_index_len = set_words_boundary(words, cand_indexes, max_length)
     words += ['[SEP]']
 
     tokens = tokenizer.convert_tokens_to_ids(words)

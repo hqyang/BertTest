@@ -567,10 +567,9 @@ def test_from_file(model, infile, outfile): # line 77
     #for x in output0: o0 += x + '\t'
     #print(o0+'\n')
 
-    tx = [x for x in raw_data]
+    tx = [x for x in raw_data if x.strip()]
 
     outputT0 = model.cutlist_noUNK(tx)
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
 
     with open(outfile, 'w+') as fo:
         for x in tqdm(raw_data):
@@ -582,6 +581,7 @@ def test_from_file(model, infile, outfile): # line 77
             print(output0[0])
             fo.write(output0[0]+'\n')
 
+    output0 = ['    '.join(lst)+' ' for lst in outputT0]
     with open(outfile+'2', 'wt') as fo:
         for sent in output0:
             print(sent)
@@ -613,14 +613,14 @@ if __name__=='__main__':
         infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual.txt'
         outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual_rs.txt'
 
+        infile = './Test_cases/bad_cases.txt'
+        outfile = './Test_cases/bad_cases_rs.txt'
+
         infile = './Test_cases/test_cases'
         outfile = './Test_cases/test_cases_rs'
 
         infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
         outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
-
-        infile = './Test_cases/bad_cases.txt'
-        outfile = './Test_cases/bad_cases_rs.txt'
 
         test_from_file(model, infile, outfile)
 

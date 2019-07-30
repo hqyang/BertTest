@@ -528,7 +528,7 @@ def findtextdirect(strIn, start_idx, len_original_str, text, shift=0):
 
     num_space = 0
     # clean space
-    while len(strIn[start_idx+num_space].strip()) == 0 and start_idx+num_space < len_original_str:
+    while start_idx+num_space < len_original_str and len(strIn[start_idx+num_space].strip()) == 0:
         num_space += 1
 
     start_idx += num_space

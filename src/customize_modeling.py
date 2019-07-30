@@ -1686,8 +1686,9 @@ class BertMLCWSPOS(PreTrainedBertModel):
         # lword: list of words (list)
         # input_ids, segment_ids, input_mask = tokenize_list(
         #     words, self.max_length, self.tokenizer)
+        print(lword)
         tuple1, tuple2 = zip(
-            *[tokenize_list_with_cand_indexes(w, self.max_length, self.tokenizer) for w in lword])
+            *[tokenize_list_with_cand_indexes(w, self.max_length, self.tokenizer) for w in lword if w]) # w is not empty
             #*[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
             #*[tokenize_list_no_seg(w, self.max_length, self.tokenizer) for w in lword])
         list1 = unpackTuple(tuple1)
@@ -1800,8 +1801,8 @@ class BertMLCWSPOS(PreTrainedBertModel):
         batch_size = self.batch_size
         for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
             #print(p_t_l)
-            #if '翡翠' in ''.join(p_t_l[0]):
-            #    print('test')
+            if '翡翠' in ''.join(p_t_l[0]):
+                print('test')
 
             cws_output, pos_output = self._seg_wordslist(p_t_l)
             cws_output_list.extend(cws_output)
@@ -1892,6 +1893,7 @@ class BertMLCWSPOS(PreTrainedBertModel):
             result_pos_str = extract_pos(tmp_pos_list)
 
             if '[UNK]' in result_str or '[unused' in result_str:
+                print(original_str)
                 seg_ls, pos_ls = restore_unknown_tokens_without_unused_with_pos(original_str, result_str, result_pos)
             else:
                 seg_ls = result_str.strip().split()
