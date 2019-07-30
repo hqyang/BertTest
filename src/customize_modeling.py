@@ -1791,8 +1791,8 @@ class BertMLCWSPOS(PreTrainedBertModel):
             merge_index_list.append(merge_index_tuple)
 
         original_text_list = processed_text_list
-        processed_text_list = [self.tokenizer.tokenize(
-            t) for t in processed_text_list]
+        processed_text_list = [self.tokenizer.tokenize(t) if len(self.tokenizer.tokenize(t))>0 \
+                               else ['[UNK]'] for t in processed_text_list]
 
         cws_output_list = []
         pos_output_list = []
@@ -1803,10 +1803,10 @@ class BertMLCWSPOS(PreTrainedBertModel):
             #print(p_t_l)
             #if '翡翠' in ''.join(p_t_l[0]):
             #    print('test')
-            if len(p_t_l)==0:
-                cws_output = segType.BMES_label_map['S']
-                pos_output = posType.POS2idx_map['PU']
-                continue # avoid input empty tokens
+            #if len(p_t_l)==0:
+            #    cws_output = segType.BMES_label_map['S']
+            #    pos_output = posType.POS2idx_map['PU']
+            #    continue # avoid input empty tokens
 
             cws_output, pos_output = self._seg_wordslist(p_t_l)
             cws_output_list.extend(cws_output)
