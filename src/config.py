@@ -159,6 +159,6 @@ PUNC_TOKENS = """
         |？|｡|。|')
     """
 
-MAX_SUBWORDS = 10
+MAX_SUBWORDS = 64 # train: 10; test: 64
 
 UNUSED_SPACE_TOKEN = '[UnUsed_!@#]'

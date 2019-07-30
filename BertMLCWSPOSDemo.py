@@ -172,6 +172,8 @@ def set_local_eval_param():
                           'ontonotes/CWSPOS2/cased_cws_F1_weights_epoch17.pt',
             'override_output': True,
             }
+#            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
+#                          'ontonotes/CWSPOS2/uncased_l6_cws_F1_weights_epoch16.pt',
 
 
 def set_server_eval_param():
@@ -577,14 +579,15 @@ def test_from_file(model, infile, outfile): # line 77
             print(output0[0])
             fo.write(output0[0]+'\n')
 
-    tx = [x for x in raw_data if x.strip()]
+    if 0:
+        tx = [x for x in raw_data if x.strip()]
 
-    outputT0 = model.cutlist_noUNK(tx)
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
-    with open(outfile+'2', 'wt') as fo:
-        for sent in output0:
-            print(sent)
-            fo.write(sent+'\n')
+        outputT0 = model.cutlist_noUNK(tx)
+        output0 = ['    '.join(lst)+' ' for lst in outputT0]
+        with open(outfile+'2', 'wt') as fo:
+            for sent in output0:
+                print(sent)
+                fo.write(sent+'\n')
 
     print('Processing time: ' + str(time.time()-t0))
 
@@ -628,15 +631,14 @@ if __name__=='__main__':
             infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual.txt'
             outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual_rs.txt'
 
-            infile = './Test_cases/bad_cases.txt'
-            outfile = './Test_cases/bad_cases_rs.txt'
+            infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
+            outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
 
             infile = './Test_cases/test_cases'
             outfile = './Test_cases/test_cases_rs'
 
-            infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
-            outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
-
+            infile = './Test_cases/bad_cases.txt'
+            outfile = './Test_cases/bad_cases_rs.txt'
             model = preload(args)
             test_from_file(model, infile, outfile)
 
