@@ -148,6 +148,64 @@ def indexes2nparray(max_length, cand_indexes, token_ids):
     return o_cand_indexes, o_token_ids
 
 
+def indexes2nparray_b(max_length, cand_indexes, token_ids):
+    '''
+     Inputs:
+       max_length: e.g., 128 (<=512)
+       cand_indexes: e.g., [[1], [2, 3], [4], ...]
+       token_ids: e.g., [[101], [1738, 4501], [5110], ...]
+    # Output:
+       o_cand_indexes: array([[1, 0, 0, 0, 0], [2, 3, 0, 0, 0], [4, 0, 0, 0, 0], ...])
+       token_ids: array([[101, 0, 0, 0, 0], [1738, 4501, 0, 0, 0], [5110, 0, 0, 0, 0], ...]
+       since the index is at least 1, we set -1 to indicate unused indexes if MAX_SUBWORDS=5
+    '''
+
+    # 1. get max length
+    max_subwords = 0
+    for cand_index in cand_indexes:
+        len_cand = len(cand_index)
+        if max_subwords < len_cand:
+            max_subwords = len_cand
+
+    if max_subwords > MAX_SUBWORDS/2:
+        print('The length of maximum sub-words is '+str(max_subwords))
+
+    # 2. convert into np array with the same size
+    o_cand_indexes = []
+    o_token_ids = []
+
+    for cand_index in cand_indexes:
+        if len(cand_index)>MAX_SUBWORDS:
+            o_cand_indexes.append(cand_index[:MAX_SUBWORDS])
+        else:
+            o_cand_indexes.append(cand_index.extend([0]*(MAX_SUBWORDS-len(cand_index))))
+
+    for token_id in token_ids:
+        if len(token_id)>MAX_SUBWORDS:
+            o_token_ids.append(token_id[:MAX_SUBWORDS])
+        else:
+            o_token_ids.append(token_id.extend([0]*(MAX_SUBWORDS-len(o_token_id))))
+
+    len_cand_indexes = len(o_cand_indexes)
+    if len_cand_indexes < max_length:
+        o_cand_indexes.extend([[0]*MAX_SUBWORDS]*(max_length-len_cand_indexes))
+
+    len_token_ids = len(o_token_ids)
+    if len_token_ids < max_length:
+        o_token_ids.extend([[0]*MAX_SUBWORDS]*(max_length-len_token_ids))
+
+    o_cand_indexes = np.array(o_cand_indexes)
+    o_token_ids = np.array(o_token_ids)
+
+    #print(o_cand_indexes.shape)
+    #print(o_token_ids.shape)
+    #if o_cand_indexes.shape!=o_token_ids.shape:
+    #    pdb.set_trace()
+    #assert(o_cand_indexes.shape==o_token_ids.shape)
+
+    return o_cand_indexes, o_token_ids
+
+
 def cand2nparray(cand_indexes):
     # 1. get max length
     max_subwords = 0

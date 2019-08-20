@@ -166,14 +166,16 @@ def set_local_eval_param():
             'do_mask_as_whole': True,
             'train_batch_size': 64,
             'max_seq_length': 128,
-            'num_hidden_layers': 3,
-            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
+            'num_hidden_layers': 6,
             'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
-                          'ontonotes/CWSPOS2/cased_cws_F1_weights_epoch17.pt',
+                          'ontonotes/CWSPOS2/uncased_l6_cws_F1_weights_epoch16.pt',
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'override_output': True,
             }
 #            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
 #                          'ontonotes/CWSPOS2/uncased_l6_cws_F1_weights_epoch16.pt',
+#            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
+#                          'ontonotes/CWSPOS2/cased_cws_F1_weights_epoch17.pt',
 
 
 def set_server_eval_param():
@@ -593,7 +595,7 @@ def test_from_file(model, infile, outfile): # line 77
 
 
 LOCAL_FLAG = False
-#LOCAL_FLAG = True
+LOCAL_FLAG = True
 
 TEST_FLAG = False
 #TEST_FLAG = True
@@ -639,6 +641,7 @@ if __name__=='__main__':
 
             infile = './Test_cases/bad_cases.txt'
             outfile = './Test_cases/bad_cases_rs.txt'
+
             model = preload(args)
             test_from_file(model, infile, outfile)
 
