@@ -149,17 +149,18 @@ def preload(args):
 
     return model
 
+
 def set_local_eval_param():
     return {'task_name': 'ontonotes_CWS',
             'model_type': 'sequencelabeling',
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4ner_data/',
-            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/models.txt',
-            'bert_config_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/bert_config.json',
+            'vocab_file': './src/BERT/models/bert-base-chinese/vocab.txt',
+            'bert_config_file': './src/BERT/models/bert-base-chinese/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/rs/nhl3/',
             'do_lower_case': True,
-            'train_batch_size': 128,
+            'train_batch_size': 32,
             'max_seq_length': 128,
-            'num_hidden_layers': 3,
+            'num_hidden_layers': 12,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
             'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3_weights_epoch03.pt',
             'override_output': True
