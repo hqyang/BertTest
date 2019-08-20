@@ -162,8 +162,7 @@ def set_local_eval_param():
             'num_hidden_layers': 3,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
             'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3_weights_epoch03.pt',
-            'override_output': True,
-            'tensorboardWriter': False
+            'override_output': True
             }
 
 def set_server_eval_param():
@@ -185,12 +184,25 @@ def set_server_eval_param():
             }
 
 
+def test_exp(model):
+    tt00 = '''本报发表了记者在山 东茌平县采写的调查报告'''
+    print(tt00)
+    t0 = time.time()
+    outputT0 = model.cutlist_noUNK([tt00])
+    output0 = [' '.join(lst)+' ' for lst in outputT0]
+    o0 = '\t'
+    for x in output0: o0 += x + '\t'
+    print(o0+'\n')
+    print('Processing time: ' + str(time.time()-t0))
+
+
 def test_cases(model):
     tt00 = '''
         ✨今日份牛仔外套穿搭打卡|初春一定要有一件万能牛仔外套鸭💯。-我今天又双叒叕没化妆出门逛街了、懒癌晚期间歇性发作哈哈哈哈、。
         -落肩袖、不会显肩宽/后背有涂鸦和蕾丝拼接、见图六/。-Look1:搭配了衬衫和黑灰色牛仔裤/。-Look2：搭配了白色短T和牛仔裤/。
         牛仔裤我尝试了两种颜色、浅色系蓝色牛仔裤整体就偏复古风一点、配深色系就更日常活力一些、。#春天花会开##每日穿搭##日常穿搭#
     '''
+
     print(tt00)
     t0 = time.time()
     outputT0 = model.cutlist_noUNK([tt00])
@@ -372,7 +384,8 @@ if __name__=='__main__':
     args._parse(kwargs)
     model = preload(args)
 
-    #test_cases(models)
+    test_exp(models)
+    test_cases(models)
     test_case_meitu(model)
 
 
