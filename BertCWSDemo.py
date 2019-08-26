@@ -78,12 +78,12 @@ def load_model(label_list, args):
 
     model = BertCRFCWS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list))
 
-    if args.bert_model_dir is None:
+    if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized models is not supported...!')
     #elif os.path.isdir(args.init_checkpoint):
     #    raise ValueError("init_checkpoint is not a file")
     else:
-        weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
+        weights_path = os.path.join(args.init_checkpoint, WEIGHTS_NAME)
 
         # main code copy from modeling.py line after 506
         state_dict = torch.load(weights_path)
@@ -162,7 +162,7 @@ def set_local_eval_param():
             'max_seq_length': 128,
             'num_hidden_layers': 12,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/',
-            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/2019_3_23/models/nhl3_weights_epoch03.pt',
+            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/cws/eval/msr_model/CRF_nhl12_F1_weights_epoch29.pt',
             'override_output': True
             }
 
@@ -176,17 +176,16 @@ def set_server_eval_param():
             'do_lower_case': True,
             'train_batch_size': 128,
             'max_seq_length': 128,
-            'num_hidden_layers': 3,
+            'num_hidden_layers': 12,
             'init_checkpoint': '../models/bert-base-chinese/',
-            'bert_model': './tmp_2019_3_23/ontonotes/nhl3_nte15_nbs64/weights_epoch03.pt',
+            'bert_model': './tmp/4CWS/ModelSize/MSR/CRF/fine_tune/l12/F1_weights_epoch22.pt',
             'no_cuda': True,
             'override_output': True,
-            'tensorboardWriter': False
             }
 
 
 def test_exp(model):
-    tt00 = '''本报发表了记者在山 东茌平县采写的调查报告'''
+    tt00 = '''本报发表了记者在山东茌平县采写的调查报告'''
     print(tt00)
     t0 = time.time()
     outputT0 = model.cutlist_noUNK([tt00])
@@ -385,8 +384,8 @@ if __name__=='__main__':
     args._parse(kwargs)
     model = preload(args)
 
-    test_exp(models)
-    test_cases(models)
+    test_exp(model)
+    test_cases(model)
     test_case_meitu(model)
 
 
