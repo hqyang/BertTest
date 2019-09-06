@@ -30,7 +30,7 @@ from src.BERT.modeling import BertConfig
 # `BertConfig`. To create a models from a Google pretrained models use
 # `models = BertVariant.from_pretrained(PRETRAINED_MODEL_NAME)`
 
-from src.customize_modeling import BertVariantCWSPOS
+from src.customize_modeling import BertMLVariantCWSPOS
 from tensorboardX import SummaryWriter
 
 import logging
@@ -43,6 +43,7 @@ CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
 TS_WRITER = SummaryWriter()
+
 
 def load_CWS_POS_model(CWS_label_list, POS_label_list, args):
     if args.visible_device is not None:
@@ -98,7 +99,8 @@ def load_CWS_POS_model(CWS_label_list, POS_label_list, args):
 #    }
 #    models = models[args.fclassifier]()
 
-    model = BertVariantCWSPOS(bert_config, len(CWS_label_list), len(POS_label_list), method=args.method, fclassifier=args.fclassifier)
+    model = BertMLVariantCWSPOS(bert_config, len(CWS_label_list), len(POS_label_list), method=args.method, \
+                                fclassifier=args.fclassifier, do_mask_as_whole=args.do_mask_as_whole)
 
     if args.bert_model_dir is None:
         raise RuntimeError('Evaluating a random initialized models is not supported...!')
@@ -158,56 +160,102 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         st = time.time()
         tr_loss = 0
         nb_tr_examples, nb_tr_steps = 0, 0
-        for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
-            batch = tuple(t.to(device) for t in batch)
-            input_ids, segment_ids, input_mask = batch[:3]
-            if args.pretraining:
-                input_ids, label_ids = randomly_mask_input(input_ids, train_dataloader.dataset.tokenizer)
-                input_ids = input_ids.to(device)
-                label_ids = label_ids.to(device)
-            else:
-                label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
-                #pos_label_ids = batch[4:] if len(batch[4:])>1 else batch[4]
 
-            loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+        step = 1
+        if args.do_mask_as_whole:
+            for step, (batch, batch2) in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                batch = tuple(t.to(device) for t in batch)
+                batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
 
-            n_gpu = torch.cuda.device_count()
-            if n_gpu > 1: # or loss.shape[0] > 1:
-                loss = loss.mean() # mean() to average on multi-gpu or multitask.
-            if args.fp16 and args.loss_scale != 1.0:
-                # rescale loss for fp16 training
-                # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
-                loss = loss * args.loss_scale
-            if args.gradient_accumulation_steps > 1:
-                loss = loss / args.gradient_accumulation_steps
+                input_ids, segment_ids, input_mask = batch[:3]
+                cand_indexes, token_ids = batch2[:2]
 
-            if args.fclassifier == 'Softmax':
-                logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
-            else:
-                logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+                label_ids, pos_label_ids = batch[3:]
 
-            loss.backward()
-            tr_loss += loss.item()
-            nb_tr_examples += input_ids.size(0)
-            nb_tr_steps += 1
-            if (step + 1) % args.gradient_accumulation_steps == 0:
-                if args.fp16 or args.optimize_on_cpu:
-                    if args.fp16 and args.loss_scale != 1.0:
-                        # scale down gradients for fp16 training
-                        for param in model.parameters():
-                            param.grad.data = param.grad.data / args.loss_scale
-                    is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
-                    if is_nan:
-                        logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
-                        args.loss_scale = args.loss_scale / 2
-                        model.zero_grad()
-                        continue
-                    optimizer.step()
-                    copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                loss = model(input_ids, segment_ids, input_mask, cand_indexes, token_ids, label_ids, pos_label_ids)
+
+                n_gpu = torch.cuda.device_count()
+                if n_gpu > 1: # or loss.shape[0] > 1:
+                    loss = loss.mean() # mean() to average on multi-gpu or multitask.
+                if args.fp16 and args.loss_scale != 1.0:
+                    # rescale loss for fp16 training
+                    # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
+                    loss = loss * args.loss_scale
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
+
+                if args.fclassifier == 'Softmax':
+                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
                 else:
-                    optimizer.step()
-                model.zero_grad()
-                global_step += 1
+                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+
+                loss.backward()
+                tr_loss += loss.item()
+                nb_tr_examples += input_ids.size(0)
+                nb_tr_steps += 1
+                if (step + 1) % args.gradient_accumulation_steps == 0:
+                    if args.fp16 or args.optimize_on_cpu:
+                        if args.fp16 and args.loss_scale != 1.0:
+                            # scale down gradients for fp16 training
+                            for param in model.parameters():
+                                param.grad.data = param.grad.data / args.loss_scale
+                        is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
+                        if is_nan:
+                            logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
+                            args.loss_scale = args.loss_scale / 2
+                            model.zero_grad()
+                            continue
+                        optimizer.step()
+                        copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                    else:
+                        optimizer.step()
+                    model.zero_grad()
+                    global_step += 1
+        else: # no cand_info
+            for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                batch = tuple(t.to(device) for t in batch)
+                input_ids, segment_ids, input_mask = batch[:3]
+
+                label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
+                loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+
+                n_gpu = torch.cuda.device_count()
+                if n_gpu > 1: # or loss.shape[0] > 1:
+                    loss = loss.mean() # mean() to average on multi-gpu or multitask.
+                if args.fp16 and args.loss_scale != 1.0:
+                    # rescale loss for fp16 training
+                    # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
+                    loss = loss * args.loss_scale
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
+
+                if args.fclassifier == 'Softmax':
+                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
+                else:
+                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+
+                loss.backward()
+                tr_loss += loss.item()
+                nb_tr_examples += input_ids.size(0)
+                nb_tr_steps += 1
+                if (step + 1) % args.gradient_accumulation_steps == 0:
+                    if args.fp16 or args.optimize_on_cpu:
+                        if args.fp16 and args.loss_scale != 1.0:
+                            # scale down gradients for fp16 training
+                            for param in model.parameters():
+                                param.grad.data = param.grad.data / args.loss_scale
+                        is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
+                        if is_nan:
+                            logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
+                            args.loss_scale = args.loss_scale / 2
+                            model.zero_grad()
+                            continue
+                        optimizer.step()
+                        copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                    else:
+                        optimizer.step()
+                    model.zero_grad()
+                    global_step += 1
 
         tr_time = time.time()-st
         tr_times.append(tr_time)
@@ -313,24 +361,27 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
     results = []
 
     st = time.time()
-    for batch in tqdm(eval_dataloader, desc="TestIter"):
-        batch = tuple(t.to(device) for t in batch)
-        input_ids, segment_ids, input_mask = batch[:3]
-        label_ids, pos_label_ids = batch[3:]
-        #label_ids = batch[3:] if len(batch[3:])>1 else batch[3]
-        #pos_label_ids = batch[4:] if len(batch[4:])>1 else batch[4]
-        with torch.no_grad():
-            n_gpu = torch.cuda.device_count()
+    if args.do_mask_as_whole:
+        for step, (batch, batch2) in enumerate(tqdm(eval_dataloader, desc="Iteration")):
+            batch = tuple(t.to(device) for t in batch)
+            batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
 
-            if n_gpu > 1: # multiple gpus
-            	# models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
-                loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                    = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
-                loss_cws = loss_cws.mean()
-                loss_pos = loss_pos.mean()
-            else:
-                loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                    = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+            input_ids, segment_ids, input_mask = batch[:3]
+            cand_indexes, token_ids = batch2[:2]
+            label_ids, pos_label_ids = batch[3:]
+
+            with torch.no_grad():
+                n_gpu = torch.cuda.device_count()
+
+                if n_gpu > 1: # multiple gpus
+                    # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
+                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
+                    loss_cws = loss_cws.mean()
+                    loss_pos = loss_pos.mean()
+                else:
+                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
 
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
@@ -345,13 +396,53 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
                 tmp_el_cws = loss_cws.cpu()
                 tmp_el_pos = loss_pos.cpu()
 
-        all_label_ids.extend(label_array.tolist())
-        pos_all_label_ids.extend(pos_label_array.tolist())
-        all_mask_tokens.extend(mask_array.tolist())
-        cws_all_labels.extend(best_cws_tags_list)
-        pos_all_labels.extend(best_pos_tags_list)
-        cws_all_losses.append(tmp_el_cws.tolist())
-        pos_all_losses.append(tmp_el_pos.tolist())
+            all_label_ids.extend(label_array.tolist())
+            pos_all_label_ids.extend(pos_label_array.tolist())
+            all_mask_tokens.extend(mask_array.tolist())
+            cws_all_labels.extend(best_cws_tags_list)
+            pos_all_labels.extend(best_pos_tags_list)
+            cws_all_losses.append(tmp_el_cws.tolist())
+            pos_all_losses.append(tmp_el_pos.tolist())
+    else:
+        for batch in tqdm(eval_dataloader, desc="TestIter"):
+            batch = tuple(t.to(device) for t in batch)
+            input_ids, segment_ids, input_mask = batch[:3]
+
+            label_ids, pos_label_ids, cand_indexes = batch[3:]
+
+            with torch.no_grad():
+                n_gpu = torch.cuda.device_count()
+
+                if n_gpu > 1: # multiple gpus
+                    # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
+                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+                    loss_cws = loss_cws.mean()
+                    loss_pos = loss_pos.mean()
+                else:
+                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+
+            if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
+                label_array = label_ids.data
+                pos_label_array = pos_label_ids.data
+                mask_array = input_mask.data
+                tmp_el_cws = loss_cws
+                tmp_el_pos = loss_pos
+            else:
+                label_array = label_ids.data.cpu()
+                pos_label_array = pos_label_ids.cpu()
+                mask_array = input_mask.data.cpu()
+                tmp_el_cws = loss_cws.cpu()
+                tmp_el_pos = loss_pos.cpu()
+
+            all_label_ids.extend(label_array.tolist())
+            pos_all_label_ids.extend(pos_label_array.tolist())
+            all_mask_tokens.extend(mask_array.tolist())
+            cws_all_labels.extend(best_cws_tags_list)
+            pos_all_labels.extend(best_pos_tags_list)
+            cws_all_losses.append(tmp_el_cws.tolist())
+            pos_all_losses.append(tmp_el_pos.tolist())
 
     cws_score, cws_sInfo = outputFscoreUsedBIO(all_label_ids, cws_all_labels, all_mask_tokens)
 
@@ -418,14 +509,13 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
 
 def train_CWS_POS(args):
     processors = {
-        'ontonotes_cws_pos': lambda: CWS_POS(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg'], \
-                                     pos_tags_file='./resource/pos_tags.txt'),
-        #'4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
-        #'msr': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
-        #'pku': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
-        #'as': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
-        #'cityu': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg'])
+        **dict.fromkeys(['ontonotes_cws_pos', 'ontonotes_cws_pos2.0'], lambda: \
+            CWS_POS(nopunc=args.nopunc, drop_columns=['full_pos', 'bert_ner', 'src_ner', 'src_seg', 'text_seg'],
+                    pos_tags_file='./resource/pos_tags.txt')),
+        **dict.fromkeys(['msr', 'pku', 'as', 'cityu'], lambda: \
+            CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']))
     }
+        #'4cws_cws': lambda: CWS_BMEO(nopunc=args.nopunc, drop_columns=['src_seg', 'text_seg']),
 
     task_name = args.task_name.lower()
     if task_name not in processors:
@@ -436,22 +526,18 @@ def train_CWS_POS(args):
     CWS_label_list = processor.get_labels() # get_CWS_labels
     POS_label_list = processor.get_POS_labels() # get_POS_labels
 
-    #args.data_dir += args.task_name
-    #print('data_dir: ' + args.data_dir)
+    if task_name in ['msr', 'pku', 'as', 'cityu']:
+        args.data_dir += args.task_name.upper()
 
-    #if args.method == 'last_layer':
-    #    args.output_dir = args.output_dir + args.task_name + '/' + args.fclassifier \
-    #                      + '/l' + str(args.num_hidden_layers)
-    #else:
-    #    args.output_dir = args.output_dir + args.task_name + '/' + args.fclassifier \
-    #                      + '/' + args.method + '/l' + str(args.num_hidden_layers)
+    print('data_dir: ' + args.data_dir)
+
     args.output_dir = args.output_dir + '/l' + str(args.num_hidden_layers)
 
     print('output_dir: ' + args.output_dir)
     os.system('mkdir %s' %args.output_dir)
     os.system('chmod 777 %s' %args.output_dir)
 
-    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type = 'train')
+    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type_name='train')
 
     eval_dataloaders = get_eval_dataloaders(processor, args)
 
@@ -491,35 +577,60 @@ def train_CWS_POS(args):
 
 
 def set_local_Ontonotes_param():
-    return {'task_name': 'ontonotes_cws_pos',
+    return {'task_name': 'ontonotes_cws_pos2.0',
             'model_type': 'sequencelabeling',
-            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_data/valid/',
+            'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_update/valid',
             'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
-            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS2/',
             'do_lower_case': False,
-            'train_batch_size': 4,
+            'train_batch_size': 5,
             'max_seq_length': 128,
             'num_hidden_layers': 1,
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'bert_model_dir': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'no_cuda': True,
-            'num_train_epochs': 10,
+            'num_train_epochs': 20,
             'method': 'fine_tune',
-            'learning_rate': 2e-5,
+            'do_mask_as_whole': True,
+            'learning_rate': 1e-5,
             'override_output': True,
             }
-#            'vocab_file': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/bert-base-chinese/vocab.txt',
-#            'vocab_file': './src/BERT/models/bert-base-chinese/vocab.txt',
-#            'bert_config_file': './src/BERT/models/bert-base-chinese/bert_config.json',
+
+
+def set_server_Ontonotes_param():
+    return {'task_name': 'ontonotes_cws_pos2.0',
+            'model_type': 'sequencelabeling',
+            'data_dir': '../data/ontonotes5/4nerpos_update/valid/',
+            'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
+            'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
+            'output_dir': './tmp/ontonotes/CWSPOS2/',
+            'do_lower_case': False,
+            'train_batch_size': 4,
+            'max_seq_length': 128,
+            'num_hidden_layers': 1,
+            'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
+            'bert_model_dir': '../models/multi_cased_L-12_H-768_A-12/',
+            'visible_device': 3,
+            'num_train_epochs': 20,
+            'method': 'fine_tune',
+            'do_mask_as_whole': True,
+            'learning_rate': 1e-5,
+            'override_output': True,
+            }
 
 
 TEST_FLAG = False
 #TEST_FLAG = True
+isServer = True
+#isServer = False
 
 def main(**kwargs):
     if TEST_FLAG:
-        kwargs = set_local_Ontonotes_param()
+        if isServer:
+            kwargs = set_server_Ontonotes_param()
+        else:
+            kwargs = set_local_Ontonotes_param()
     else:
         print('load parameters from .sh')
 

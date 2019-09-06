@@ -105,11 +105,13 @@ def parse_one2BERTformat(s, full_tokenizer, pos_set): # store into lists
     innermost = True
     full_pos = []
     src_seg = []  # src_seg for storing the segmentation of resource words
-    bert_seg = [] # bert_seg for storing the segmentation of bert format, additional processing for words and English
     src_pos = []
-    bert_pos = []
     src_ner = []  # src_ner for storing the ner segmentation of resource words
+
+    bert_seg = [] # bert_seg for storing the segmentation of bert format, additional processing for words and English
+    bert_pos = []
     bert_ner = [] # bert_seg for storing the ner segmentation of bert format, additional processing for words and English
+
     ner_types = []
     text = []  # store the resource words, English words and numbers are separated by space
     lang_status_list = [] # store the language type: 'C' (Chinese); 'NE' (Number and English)
@@ -216,7 +218,7 @@ def gen_data(in_file, out_dir, mode):
 
 def genDataWithBERTSeg(in_file, out_dir, mode, pos_set):
     print('Running genDataWithBERTSeg...')
-    vocab_file = '../src/BERT/models/bert-base-chinese/bert-base-chinese.txt'
+    vocab_file = '../src/BERT/models/bert-base-chinese/vocab.txt'
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
     basic_tokenizer = BasicTokenizer(do_lower_case=True)
 
@@ -302,7 +304,7 @@ if __name__ == '__main__':
     print(text_str)
     print(text_seg)
     '''
-    vocab_file = '../src/BERT/models/bert-base-chinese/bert-base-chinese.txt'
+    vocab_file = '../src/BERT/models/bert-base-chinese/vocab.txt'
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
     basic_tokenizer = BasicTokenizer(do_lower_case=True)
 

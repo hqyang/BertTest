@@ -22,6 +22,7 @@ class Config:
     ##2.Preprocessing
     do_lower_case = False
     nopunc = False
+    do_mask_as_whole = True
     
     ##3.Training configs
     init_checkpoint = None
@@ -111,6 +112,14 @@ class POSType:
         29: 'SP', 30: 'URL', 31: 'VA', 32: 'VC', 33: 'VE', 34: 'VV', 35: 'X'
     }
 
+    POS2idx_map = {
+        'AD': 0, 'AS': 1, 'BA': 2, 'CC': 3, 'CD': 4, 'CS': 5, 'DEC': 6, 'DEG': 7,
+        'DER': 8, 'DEV': 9, 'DT': 10, 'ETC': 11, 'FW': 12, 'IJ': 13, 'INF': 14,
+        'JJ': 15, 'LB': 16, 'LC': 17, 'M': 18, 'MSP': 19, 'NN': 20, 'NR': 21,
+        'NT': 22, 'OD': 23, 'ON': 24, 'P': 25, 'PN': 26, 'PU': 27, 'SB': 28,
+        'SP': 29, 'URL': 30, 'VA': 31, 'VC': 32, 'VE': 33, 'VV': 34, 'X': 35
+    }
+
 posType = POSType()
 
     # explain from https://blog.csdn.net/Eliza1130/article/details/40678999
@@ -152,8 +161,8 @@ posType = POSType()
     # 35 X     English x
 
 UNK_TOKEN = "[UNK]"
-PUNC_TOKENS = """
-        (＂|＃|＄|％|＆|＇|（|）|＊|＋|，|－|／|：|；|＜|＝|＞|＠|［|＼|］|＾|＿|｀|｛|｜|｝|～|｟|｠|｢|｣|､|\u3000|、|
-        〃|〈|〉|《|》|「|」|『|』|【|】|〔|〕|〖|〗|〘|〙|〚|〛|〜|〝|〞|〟|〰|〾|〿|–|—|‘|’|‛|“|”|„|‟|…|‧|﹏|﹑|﹔|·|！
-        |？|｡|。|')
-    """
+PUNC_TOKENS = "(＂|＃|＄|％|＆|＇|（|）|＊|＋|，|－|／|：|；|＜|＝|＞|＠|［|＼|］|＾|＿|｀|｛|｜|｝|～|｟|｠|｢|｣|､|\u3000|、|〃|〈|〉|《|》|「|」|『|』|【|】|〔|〕|〖|〗|〘|〙|〚|〛|〜|〝|〞|〟|〰|〾|〿|–|—|‘|’|‛|“|”|„|‟|…|‧|﹏|﹑|﹔|·|！|？|｡|。|')"
+
+MAX_SUBWORDS = 64 # train: 10; test: 64
+
+UNUSED_SPACE_TOKEN = '[UnUsed_!@#]'

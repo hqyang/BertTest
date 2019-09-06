@@ -413,7 +413,7 @@ def gen_data(in_file, out_dir, mode):
 
 def genDataWithBERTSeg(in_file, out_dir, mode):
     print('Running genDataWithBERTSeg...')
-    vocab_file = '../models/bert-base-chinese.txt'
+    vocab_file = '../models/vocab.txt'
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
     basic_tokenizer = BasicTokenizer(do_lower_case=True)
 
@@ -545,7 +545,7 @@ if __name__ == '__main__':
     print(text_str)
     print(text_seg)
     '''
-    vocab_file = '../models/bert-base-chinese.txt'
+    vocab_file = '../models/vocab.txt'
     full_tokenizer = FullTokenizer(vocab_file, do_lower_case=True)
     basic_tokenizer = BasicTokenizer(do_lower_case=True)
 

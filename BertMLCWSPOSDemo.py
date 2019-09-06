@@ -16,7 +16,7 @@ import torch
 import time
 
 from src.BERT.modeling import BertConfig
-from src.customize_modeling import BertCWSPOS
+from src.customize_modeling import BertMLCWSPOS
 from src.utilis import save_model
 from tqdm import tqdm
 
@@ -74,8 +74,9 @@ def load_CWS_POS_model(label_list, pos_label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertCWSPOS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list),
-                       len(pos_label_list), batch_size = args.train_batch_size, do_low_case=args.do_lower_case)
+    model = BertMLCWSPOS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list),
+                       len(pos_label_list), batch_size=args.train_batch_size,
+                         do_lower_case=args.do_lower_case, do_mask_as_whole=args.do_mask_as_whole)
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized models is not supported...!')
@@ -152,6 +153,7 @@ def preload(args):
 
     return model
 
+
 def set_local_eval_param():
     return {'task_name': 'ontonotes_cws_pos',
             'model_type': 'sequencelabeling',
@@ -161,14 +163,20 @@ def set_local_eval_param():
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS2/L6/',
             'do_lower_case': False,
+            'do_mask_as_whole': True,
             'train_batch_size': 64,
             'max_seq_length': 128,
-            'num_hidden_layers': 3,
-            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
+            'num_hidden_layers': 6,
             'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
-                          'ontonotes/CWSPOS2/l6_cws_F1_weights_epoch16.pt',
+                          'ontonotes/CWSPOS2/uncased_l6_cws_F1_weights_epoch16.pt',
+            'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'override_output': True,
             }
+#            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
+#                          'ontonotes/CWSPOS2/uncased_l6_cws_F1_weights_epoch16.pt',
+#            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
+#                          'ontonotes/CWSPOS2/cased_cws_F1_weights_epoch17.pt',
+
 
 def set_server_eval_param():
     return {'task_name': 'ontonotes_cws_pos',
@@ -187,7 +195,6 @@ def set_server_eval_param():
             'override_output': True
             }
 
-
 def extract_CWSPOS(model, t1):
     outputT0 = model.cutlist_noUNK([t1])
     output0 = ['    '.join(lst)+' ' for lst in outputT0]
@@ -197,10 +204,19 @@ def extract_CWSPOS(model, t1):
     print(o0+'\n')
 
 
-def test_badcase(model):
+def test_cases(model):
+    tt00 = '''Eye of Evil。把守护带回这座城\n
+    •精品荟萃•。 以民族传统工艺制作的“掐丝珐琅”。\n
+    fall in love\n
+    旺铺转让 因本人工作调动，现将黄金地段琪琪馍店予以转让，本店设备齐全，清一色全新机器和蒸笼，接手即可营业，有意者请面见详谈 非诚勿扰联系电话15886939311
+    \n反正也是烂命一条，我就烂着活。。It's a rotten job anyway. I'm gonna suck.'''
+    extract_CWSPOS(model, tt00)
+
     tt00 = '''
     【上新】💰145     。斯图西牛油果绿🥑人像印花短袖T恤，胸前logo刺绣，男女同款，采用纯棉面料，柔软舒适。设计简单大方，配上今年夏季最流行的牛油果绿🥑，衬托肤色，清新一夏！休闲百搭、潮流有范。。颜色：牛油果绿   。尺码：M-XXL。尺码表图9⃣️
     '''
+    extract_CWSPOS(model, tt00)
+
     '''
 	【 / PU    上新 / VV    】 / PU    💰145      / PU    。 / PU    斯图西 / NR    牛油果绿 / NN    🥑 / PU    人 / NN    
 	像 / NN    印花 / NN    短袖 / NN    T恤 / NN    ， / PU    胸 / NN    前 / LC    logo / NN    刺绣 / NN    ， / PU    
@@ -212,23 +228,71 @@ def test_badcase(model):
 	XXL / X    。 / X    尺码 / NN    表图 / NN 	
     '''
 
+    # 2019-7-29 v1
+    '''
+    【 / PU    上新 / VV    】 / PU    💰145 / NN    。 / PU    斯图西牛 / NR    油果 / NN    绿 / NN    🥑 / NN    人 / NN    
+    像 / P    印花 / NN    短袖 / NN    T恤 / NN    ， / PU    胸前 / NN    logo / NN    刺绣 / NN    ， / PU    男女 / NN    
+    同款 / NN    ， / PU    采用 / VV    纯 / NN    棉 / NN    面料 / NN    ， / PU    柔软 / JJ    舒适 / VA    。 / PU    
+    设计 / NN    简单 / VA    大方 / NN    ， / PU    配上 / VV    今年 / NT    夏季 / NT    最 / AD    流行 / VV    的 / DEC    
+    牛 / NN    油果 / NN    绿 / NN    🥑 / NN    ， / PU    衬托 / VV    肤色 / NN    ， / PU    清新 / VA    一夏 / NT    
+    ！ / PU    休闲 / VV    百搭 / NN    、 / PU    潮流 / NN    有范 / VA    。 / PU    。 / PU    颜色 / NN    ： / PU    
+    牛 / NN    油果 / NN    绿 / NN    。 / PU    尺码 / NN    ： / PU    M-XX / NN    L / PU    。尺 / NN    码表 / NN    
+    图 / PU 	
+    '''
+    # 2019-7-29 v2
+    '''
+    【 / PU    上新 / VV    】 / PU    💰145 / NN    。 / PU    斯图西牛 / NR    油果 / NN    绿 / NN    🥑 / NN    人 / NN
+    像 / P    印花 / NN    短袖 / NN    T恤 / NN    ， / PU    胸前 / NN    logo / NN    刺绣 / NN    ， / PU    男女 / NN    
+    同款 / NN    ， / PU    采用 / VV    纯 / NN    棉 / NN    面料 / NN    ， / PU    柔软 / JJ    舒适 / VA    。 / PU    
+    设计 / NN    简单 / VA    大方 / NN    ， / PU    配上 / VV    今年 / NT    夏季 / NT    最 / AD    流行 / VV    的 / DEC    
+    牛 / NN    油果 / NN    绿 / NN    🥑 / NN    ， / PU    衬托 / VV    肤色 / NN    ， / PU    清新 / VA    一夏 / NT    
+    ！ / PU    休闲 / VV    百搭 / NN    、 / PU    潮流 / NN    有范 / VA    。 / PU    。 / PU    颜色 / NN    ： / PU    
+    牛 / NN    油果 / NN    绿 / NN    。 / PU    尺码 / NN    ： / PU    M-XXL / NN    。 / PU    尺码 / NN    表图 / NN 9⃣️ / PU 	
+    '''
+
     tt00 = '''
     #仙女屋♡# #樱雪头像库-# #eve女孩星痕# #eve女孩茜茜# #eve女孩樱雪#。处关系啦吼吼吼。大爱@.近我者软♡ @.近我者仙♡ 。闺闺@-笑里有盈盈秋波. 。妹妹@두눈을감다_沈熙妍 。哥哥@顾沐辰心动氿氿💨 。好像就没了八🌝
     '''
     extract_CWSPOS(model, tt00)
 
+    # 2019-7-29 v1
+    '''
+    # / PU    仙女屋 / NN    ♡ / PU    # / PU    # / PU    樱雪头 / NR    像 / NN    库 / NN    - / PU    # / PU    # / PU    
+    ev / NR    e女 / NN    孩星 / NN    痕 / PU    # / PU    # / NR    eve / NN    女孩 / NR    茜 / PU    茜 / PU    # / NR    
+    #ev / NN    e女 / NR    孩 / PU    樱 / PU    雪 / NN    #。 / NN    处 / SP    关系啦 / VV    吼 / PU    吼吼 / NN    
+    。大爱 / PU    @. / PN    近 / NR    我 / NR    者软♡ / PU    @. / PN    近我 / NR    者 / PU    仙♡ / NN    。闺 / PU    
+    闺 / NN    @ / LC    -笑里 / VE    有盈 / NR    盈 / PU    秋 / PU    波. / NN    。 / PU    妹妹 / NR    @두눈 / NR    
+    을 / PU    감다 / NN    _ / PU    沈熙妍。哥 / NR    哥 / PU    @顾 / VV    沐 / PU    辰心 / X    动 / AD    氿氿💨 / AS    
+    。 / CD 	
+    '''
+    # 2019-7-29 v2
+    '''
+    # / PU    仙女屋 / NN    ♡ / PU    # / PU    # / PU    樱雪头 / NR    像 / NN    库 / NN    - / PU    # / PU    # / PU    
+    eve / NR    女孩 / NN    星痕 / NN    # / PU    # / PU    eve / NR    女孩 / NN    茜茜 / NR    # / PU    # / PU    
+    eve / NR    女孩 / NN    樱雪 / NR    # / PU    。 / PU    处 / NN    关系 / NN    啦 / SP    吼吼吼 / VV    。 / PU    
+    大爱 / NN    @.近 / PU    我者 / PN    软 / NR    ♡ / NR    @.近 / PU    我者 / PN    仙♡ / NR    。 / PU    闺闺 / NN    
+    @- / PU    笑 / NN    里 / LC    有盈盈 / VE    秋波 / NR    . / PU    。 / PU    妹妹 / NN    @ / PU    두눈을감다_ / NR    
+    沈熙妍 / NR    。 / PU    哥哥 / NN    @ / PU    顾沐辰心动 / NR    氿氿💨 / VV    。 / PU    好像 / X    就 / AD   
+     没 / VE    了 / AS    八🌝 / CD 	
+    '''
 
-def test_cases0(model):
     tt00 = '''
      大家加油(ง •̀_•́)ง
     '''
+    extract_CWSPOS(model, tt00)
     '''
     大家 / PN    加油 / VV    ( / PU    ง / IJ     •̀ / PU    _•́) / PU    ง / X 
     '''
-
+    # 2019-7-29 v2
     '''
+    大家 / PN    加油 / VV    ( / PU    ง• / X    ̀_•́ / NR    ) / PU    ง / PU 
+    '''
+
+    tt00 = '''
     女人保养：不仅要外养，还要内调，内外双管齐下，才能调养出好气色，主内调，副外养！。藏红花——斑的克星，妇科病的救星！。每天早晨泡3---6根，坚持服用三个月，会有你意想不到的效果！
     '''
+    extract_CWSPOS(model, tt00)
+
     '''
     女人 / NN    保养 / VV    ： / PU    不仅 / X    要 / VV    外养 / VV    ， / PU    还 / AD    要 / VV    内调 / VV    
     ， / PU    内外 / NN    双管齐下 / VV    ， / PU    才 / AD    能 / VV    调养 / VV    出 / VV    好 / JJ    气色 / NN  
@@ -237,10 +301,21 @@ def test_cases0(model):
     早晨 / NT    泡 / VV    3--- / CD    6 / CD    根 / M    ， / PU    坚持 / X    服用 / VV    三 / CD    个 / M    
     月 / NN    ， / PU    会 / VV    有 / VE    你 / PN    意想不到 / VV    的 / DEC    效果 / NN    ！ / PU 	
     '''
-
+    # 2019-7-29 v2
     '''
+    女人 / NN    保养 / VV    ： / PU    不仅 / X    要 / VV    外养 / VV    ， / PU    还 / AD    要 / VV    内调 / NN    
+    ， / PU    内外 / NN    双 / CD    管齐 / VV    下 / VV    ， / PU    才 / AD    能 / VV    调养 / VV    出 / VV    
+    好 / NN    气色 / NN    ， / PU    主 / NN    内调 / NN    ， / PU    副 / NN    外养 / NN    ！ / PU    。 / PU    
+    藏红花 / VV    —— / PU    斑 / PU    的 / DEC    克星 / NN    ， / PU    妇科病 / NN    的 / DEG    救星 / NN    
+    ！ / PU    。 / PU    每 / DT    天 / M    早晨 / NT    泡 / VV    3 / CD    - / PU    -- / PU    6 / CD    根 / M    
+    ， / PU    坚持 / VV    服用 / VV    三 / CD    个 / M    月 / NN    ， / PU    会 / VV    有 / VE    你 / PN    
+    意想 / VV    不 / AD    到 / VV    的 / DEC    效果 / NN    ！ / PU 	
+    '''
+
+    tt00 = '''
     ““        希望以后喜欢的人，。         不要让我哭，让我受委屈，。         不要不理我，更不要放弃我。。         要陪我长大，给我回应，。         更懂得要保护我，也要喜欢我。 ​​​ ​​​​  ​​​​<200b>
     '''
+    extract_CWSPOS(model, tt00)
 
     '''
     	““         / PU    希 / PU    望 / PU    以后 / AD    喜 / VV    欢 / VV    的 / VV    人 / NN    ， / PU    
@@ -252,18 +327,20 @@ def test_cases0(model):
        我 / PN    ， / PU    也 / PU    要 / VV    喜 / PU    欢 / X    我 / PN    。 / X    ​​​ ​​​​  ​​​​ / PU    < / PU    
        200 / PU    b / PU    > / X 	
    '''
-
+    # 2019-7-29 v2
+    '''
+    ““ / PU    希望 / VV    以后 / X    喜欢 / VV    的 / DEC    人 / NN    ， / PU    。 / PU    不 / AD    要 / VV    
+    让 / VV    我 / PN    哭 / VV    ， / PU    让 / VV    我 / PN    受 / VV    委屈 / NN    ， / PU    。 / PU    
+    不 / AD    要 / VV    不 / AD    理 / VV    我 / PN    ， / PU    更 / AD    不 / AD    要 / VV    放弃 / VV    
+    我 / PN    。 / PU    。 / PU    要 / VV    陪 / VV    我 / PN    长大 / VV    ， / PU    给 / P    我 / PN    
+    回应 / VV    ， / PU    。 / PU    更 / AD    懂得 / VV    要 / VV    保护 / VV    我 / PN    ， / PU    也 / AD    
+    要 / VV    喜欢 / VV    我 / PN    。 / PU    ​ / PU    ​​​​ / NR    ​ / PU 	
+    '''
     tt00 = '''
     夏日冰淇淋调色盘🎨你值得拥有。能打的花西子-金陵栖霞 01。了解我的应该都知道我喜欢橘调吧 嘻嘻🤭。古风包装 这大地➕橘 一股东方美韵。没有欧美盘那么显色 但也不至于不上色（我在说啥？）。总之 我觉得值👍。#这不是化妆是魔##试色##眼妆##眼妆教程##眼妆分享#
     '''
-    print(tt00)
-    t0 = time.time()
-    outputT0 = model.cutlist_noUNK([tt00])
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
-    o0 = '\t'
-    for x in output0: o0 += x + '\t'
-    print(o0+'\n')
-    print('Processing time: ' + str(time.time()-t0))
+    extract_CWSPOS(model, tt00)
+
     '''
         夏日 / NT    冰淇淋 / NN    调色盘 / NN    🎨 / PU    你 / PN    值得 / VV    拥有 / VV    。 / PU    能 / VV    
         打 / VV    的 / DEC    花西子 / NN    - / PU    金陵 / NR    栖霞 / NR     01 / PU    。 / PU    了解 / VV    
@@ -277,20 +354,26 @@ def test_cases0(model):
         程 / NN    # / NN    # / PU    眼妆 / NN    分享 / NN    # / PU 	
     '''
 
+    # 2019-7-29 v2
+    '''
+    夏日 / NT    冰淇淋 / NN    调色盘 / NN    🎨 / PU    你 / PN    值得 / VV    拥有 / VV    。 / PU    能 / VV    
+    打 / VV    的 / DEC    花西子 / NN    - / PU    金陵 / NR    栖霞01 / NR    。 / PU    了解 / VV    我 / PN    
+    的 / DEG    应该 / NN    都 / AD    知道 / VV    我 / PN    喜欢 / VV    橘调 / NN    吧 / SP    嘻嘻🤭 / VV    
+    。 / PU    古风 / NN    包装 / VV    这 / DT    大地 / NN    ➕ / PU    橘 / NN    一 / CD    股 / M    东方 / NN    
+    美韵 / NN    。 / PU    没有 / VE    欧 / NR    美盘 / NN    那么 / X    显色 / VA    但 / AD    也 / AD    
+    不至于 / X    不 / AD    上色 / VV    （ / PU    我 / PN    在 / AD    说 / VV    啥 / PU    ？ / PU    ） / PU   
+     。 / PU    总之 / X    我 / PN    觉得 / VV    值👍 / VV    。 / PU    # / PU    这 / PN    不 / AD    是 / VC    
+     化妆 / NN    是 / VC    魔 / NN    # / PU    # / PU    试色 / NN    # / PU    # / PU    眼妆 / NN    # / PU    
+     # / PU    眼妆 / NN    教程 / NN    # / PU    # / PU    眼妆 / NN    分享 / VV    # / PU 	
+    '''
+
     tt00 = '''
     酱酱，仙女们～。今天是睡睡推少女的第一天，元气满满！。不过，今天的主题是:招特价【8.8软妹币】呆梨！。
     有网购经历的女孩们应该大多数都听说过我们的品牌，质量有保障，作用效果好……哎呀，反正有点很多嘛。做我呆梨的好处:。①不用自己囤货，
     一件代发。②活动结束后会有我亲自叫你们写文案，引流什么的。③最基础的当然是自用巨无敌划算！比售价会便宜很多哟～。➕我q1349178766  
     做pong友叭！。爱你们！mua～#逆袭小仙女# #逆袭小仙女#
     '''
-    print(tt00)
-    t0 = time.time()
-    outputT0 = model.cutlist_noUNK([tt00])
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
-    o0 = '\t'
-    for x in output0: o0 += x + '\t'
-    print(o0+'\n')
-    print('Processing time: ' + str(time.time()-t0))
+    extract_CWSPOS(model, tt00)
 
     '''
     	酱酱 / IJ    ， / PU    仙女们 / NN    ～ / PU    。 / PU    今天 / NT    是 / VC    睡睡 / VV    推 / VV    
@@ -311,6 +394,10 @@ def test_cases0(model):
     	 仙女 / NN    # / PU     # / PU    逆袭 / VV    小 / NN    仙女 / NN    # / PU 	
     '''
 
+    '''
+    酱酱 / NN    ， / PU    仙女们 / NN    ～ / PU    。 / PU    今天 / NT    是 / VC    睡 / VV    睡 / VV    推 / VV    少女 / NN    的 / DEC    第一 / OD    天 / M    ， / PU    元气 / NN    满满 / VA    ！ / PU    。 / PU    不过 / X    ， / PU    今天 / NT    的 / DEG    主题 / NN    是 / VC    : / PU    招 / NN    特价 / NN    【 / PU    8.8 / CD    软妹币 / JJ    】 / PU    呆梨 / VV    ！ / PU    。 / PU    有 / VE    网购 / NN    经历 / NN    的 / DEC    女孩们 / NN    应该 / VV    大多数 / CD    都 / AD    听说 / VV    过 / AS    我们 / PN    的 / DEG    品牌 / NN    ， / PU    质量 / NN    有 / VE    保障 / NN    ， / PU    作用 / NN    效果 / NN    好 / VA    ……哎 / PU    呀 / PU    ， / PU    反正 / X    有点 / X    很多 / AD    嘛 / SP    。 / PU    做 / VV    我 / PN    呆梨 / VV    的 / DEC    好处 / NN    : / PU    。 / PU    ① / PU    不用 / AD    自己 / PN    囤货 / VV    ， / PU    一 / CD    件 / M    代发 / NN    。 / PU    ② / PU    活动 / NN    结 / NN    束后 / X    会 / VV    有 / VE    我 / PN    亲自 / X    叫 / VV    你们 / PN    写 / VV    文案 / NN    ， / PU    引流 / VV    什么 / PN    的 / DEG    。 / PU    ③ / PU    最 / AD    基础 / JJ    的 / DEC    当然 / X    是 / VC    自用 / VV    巨无敌 / JJ    划算 / VV    ！ / PU    比 / P    售价 / NN    会 / VV    便宜 / VA    很多 / CD    哟 / PU    ～ / PU    。 / PU    ➕ / PU    我 / PN    q1349178766 / CD    做 / VV    pong / NR    友叭 / NN    ！ / PU    。 / PU    爱 / VV    你们 / PN    ！ / PU    mua～ / PU    # / PU    逆袭 / NN    小 / JJ    仙女 / NN    # / PU    # / PU    逆袭 / NN    小 / JJ    仙女 / NN    # / PU 	
+    '''
+
     tt00 = '''
         花生是个美姑娘
         此条下的愿望都会实现
@@ -320,14 +407,8 @@ def test_cases0(model):
         在田园风光的小店里约上2.3姐们
         图一二三都是P图后
     '''
-    print(tt00)
-    t0 = time.time()
-    outputT0 = model.cutlist_noUNK([tt00])
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
-    o0 = '\t'
-    for x in output0: o0 += x + '\t'
-    print(o0+'\n')
-    print('Processing time: ' + str(time.time()-t0))
+    extract_CWSPOS(model, tt00)
+
     '''
     花生 / NN    是 / VC    个 / M    美 / JJ    姑娘 / NN    此 / DT    条 / M    下 / LC    的 / DEG    愿望 / NN    都 / AD    会 / VV    实现 / VV    连 / AD    云 / NR    都 / AD    那么 / X    可爱 / VA    入住 / VV    广州 / NR    丽思卡尔顿 / NR    雨 / NN    中 / LC    最 / AD    美 / VA    的 / DEC    崂山 / NR    在 / P    田园 / NN    风光 / NN    的 / DEC    小 / JJ    店 / NN    里约 / LC    上 / VV    2.3 / CD    姐们 / NN    图 / NN    一二三 / CD    都 / AD    是 / VC    p图 / NN    后 / LC 	
     '''
@@ -335,14 +416,8 @@ def test_cases0(model):
     tt00 = '''
         ６６位协院士（Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ｆｅｌｌｏｗ）及２位通信协院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ Ａｓｓｏｃｉａｔｅ Ｆｅｌｌｏｗ）组成（不包括一九九四年当选者），
     '''
-    print(tt00)
-    t0 = time.time()
-    outputT0 = model.cutlist_noUNK([tt00])
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
-    o0 = '\t'
-    for x in output0: o0 += x + '\t'
-    print(o0+'\n')
-    print('Processing time: ' + str(time.time()-t0))
+    extract_CWSPOS(model, tt00)
+
 
     # ６６ / CD    位 / M    协 / NN    院士 / NN    （ / PU    Ａｓｓｏｃｉａｔｅ / NR    Ｆｅｌｌｏ / NN    ｗ） / NN
     # ２４位 / NN    通 / CD    信院 / M    士 / NN    （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ / NN
@@ -356,48 +431,16 @@ def test_cases0(model):
         -落肩袖、不会显肩宽/后背有涂鸦和蕾丝拼接、见图六/。-Look1:搭配了衬衫和黑灰色牛仔裤/。-Look2：搭配了白色短T和牛仔裤/。
         牛仔裤我尝试了两种颜色、浅色系蓝色牛仔裤整体就偏复古风一点、配深色系就更日常活力一些、。#春天花会开##每日穿搭##日常穿搭#
     '''
-    print(tt00)
-    t0 = time.time()
-    outputT0 = model.cutlist_noUNK([tt00])
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
-    o0 = '\t'
-    for x in output0: o0 += x + '\t'
-    print(o0+'\n')
-    print('Processing time: ' + str(time.time()-t0))
+    extract_CWSPOS(model, tt00)
 
-    '''
-    ✨ / PU    今日份 / NT    牛仔 / NN    外套 / NN    穿搭 / NN    打卡 / VV    | / PU    初春 / NT    一定 / X
-    要 / VV    有 / VE    一 / CD    件 / M    万能 / JJ    牛仔 / NN    外套 / NN    鸭 / NN    💯 / PU    。 / PU
-    - / PU    我 / PN    今天 / NT    又 / AD    双 / CD    叒叕 / PU    没 / AD    化妆 / VV    出门 / VV
-    逛街 / VV    了 / SP    、 / PU    懒癌 / NN    晚期 / NN    间 / LC    歇性 / X    发作 / VV    哈哈哈哈 / IJ
-    、 / PU    。 / PU    - / PU    落 / VV    肩袖 / NN    、 / PU    不 / AD    会 / VV    显 / VV    肩宽 / NN
-    / / PU    后背 / NN    有 / VE    涂鸦 / NN    和 / CC    蕾丝 / NN    拼接 / NN    、 / PU    见 / VV
-    图六 / NN    / / PU    。 / PU    - / PU    Look / NN    1: / OD    搭配 / VV    了 / AS    衬衫 / NN
-    和 / CC    黑 / JJ    灰色 / NN    牛仔裤 / NN    / / PU    。 / PU    - / PU    Look / NN    2 / OD
-    ： / PU    搭配 / VV    了 / AS    白色 / NN    短T / NN    和 / CC    牛仔裤 / NN    / / PU    。 / PU
-    牛仔裤 / NN    我 / PN    尝试 / VV    了 / AS    两 / CD    种 / M    颜色 / NN    、 / PU    浅 / JJ
-    色系 / NN    蓝色 / NN    牛仔裤 / NN    整体 / X    就 / AD    偏 / VV    复古风 / NN    一点 / X    、 / PU
-    配 / VV    深 / JJ    色系 / NN    就 / AD    更 / AD    日常 / X    活力 / VA    一些 / X    、 / PU    。 / PU
-    # / PU    春天 / NT    花会 / VV    开 / VV    # / PU    # / PU    每日 / JJ    穿搭 / NN    # / PU    # / PU
-    日常 / JJ    穿搭 / NN    # / PU
-    '''
 
-def test_cases(model):
-    # Proce
     tt00 = '''
         #大鱼海棠# #大鱼海棠壁纸# 很感人的一部电影《大鱼海棠》，椿为了救鲲，不惜牺牲自己的一半寿命，湫喜欢椿，
         却把自己的一半寿命给了椿……人一但死后都会化成一条大鱼，椿听我的，数到3，2，1，我们一起跳下去，3.2.1跳，
         我会化成******陪着你。。椿，我喜欢你！！。“北冥有鱼，其名为鲲。”。“鲲之大。”。“一锅炖不下。。“化而为鸟。”。
         “其名为鹏。”。“鹏之大。”。“需要两个烧烤架。”。“一个秘制。”。“一个麻辣。”。“来瓶雪花！！！”。“带你勇闯天涯
     '''
-    print(tt00)
-    t0 = time.time()
-    outputT0 = model.cutlist_noUNK([tt00])
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
-    o0 = '\t'
-    for x in output0: o0 += x + '\t'
-    print(o0+'\n')
-    print('Processing time: ' + str(time.time()-t0))
+    extract_CWSPOS(model, tt00)
 
     '''
     # / PU    大鱼 / NN    海棠 / NN    # / PU    # / PU    大鱼 / NN    海棠 / NN    壁纸 / NN    # / PU    
@@ -426,15 +469,7 @@ def test_cases(model):
           兰心餐厅\n
           咳咳￣ ￣)σ第一次穿汉服出门🎀💞开心ing
     '''
-    print(tt0)
-
-    t0 = time.time()
-    outputT0 = model.cutlist_noUNK([tt0]) #
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
-    o0 = '\t'
-    for x in output0: o0 += x + '\t'
-    print(o0+'\n')
-    print('Processing time: ' + str(time.time()-t0))
+    extract_CWSPOS(model, tt00)
 
     '''
 	兰心 / NR    餐厅 / NN    咳咳 / IJ    ￣ / IJ    ￣ / PU    ) / PU    σ / PU    第 / X    一次 / OD    穿 / VV    
@@ -449,8 +484,9 @@ def test_cases(model):
         表扬 / NN    # / PU     # / PU    今日 / NT    份 / CD    滤镜 / NN    推荐 / NN    # / PU     # / PU    
         仗着 / P    好看 / VV    为所欲为 / VV    # / PU 	
     '''
+    extract_CWSPOS(model, tt00)
 
-    tt02 = '''
+    tt00 = '''
     #显瘦搭配##小个子显高穿搭##每日穿搭[话题]##晒腿battle##仙女裙##度假这样穿##仙女必备##春的气息#👧🏻。
     春装穿搭 做一个又酷又仙的少女啊👧🏻。今天小脸去踏春啦🌿这个裙子直接给我暴击！。小个子对于裙子长度是要求非常严格的，
     这件简直满足了所有要求好吗！！！长度刚好可以遮住大腿的肉肉，又温柔又仙？！简直就是仙女本仙了❗️❗️。
@@ -458,8 +494,9 @@ def test_cases(model):
     但不是那种死白的！！！！！！！度假❗️踏春❗️逛街❗️简直你就是温柔小姐姐啊🎀上面我搭配的是微毛绒设计感的透明带拖鞋  
     必须要综合一下 这样才能又酷又仙哈哈哈。鞋子也是百搭。@MT小美酱 @MT情报局
     '''
+    extract_CWSPOS(model, tt00)
 
-    text0 = '''
+    tt00 = '''
         单枪匹马逛英国——伦敦篇。伦敦就是这个样子初次来到这个“老牌资本主义”的“雾都“，就像回
         到了上海，一幢幢不高的小楼，显得异常陈旧，很多楼房被数百年烟尘熏的就像被刷了一层黑色的油漆，
         油光锃亮，如果不是旁边的楼房正在清洗，很难让人相信如今的伦敦是饱经污染沧桑后及时刹车的高手，
@@ -472,17 +509,9 @@ def test_cases(model):
         伦敦是一座改过自新的城市，人家痛定思痛，紧急刹车，及时的治理了污染，我们在泰吾士河里可以看到鱼儿在自由的翻滚，
         天空湛蓝，翠绿的草地与兰天辉映着，一片“污染大战”后的和平景象    
         '''
-    print(tt0)
+    extract_CWSPOS(model, tt00)
 
-    t0 = time.time()
-    outputT0 = model.cutlist_noUNK([tt0]) #
-    output0 = ['    '.join(lst)+' ' for lst in outputT0]
-    o0 = '\t'
-    for x in output0: o0 += x + '\t'
-    print(o0+'\n')
-    print('Processing time: ' + str(time.time()-t0))
-
-    text1 = '''
+    tt00 = '''
         兰心餐厅\n作为一个无辣不欢的妹子，对上海菜的偏清淡偏甜真的是各种吃不惯。
         每次出门和闺蜜越饭局都是避开本帮菜。后来听很多朋友说上海有几家特别正宗味道做
         的很好的餐厅于是这周末和闺蜜们准备一起去尝一尝正宗的本帮菜。\n进贤路是我在上
@@ -491,15 +520,8 @@ def test_cases(model):
         上海的名气却非常大。烧的就是家常菜，普通到和家里烧的一样，生意非常好，外面排
         队的比里面吃的人还要多。
     '''
-    print(text1)
-    t0 = time.time()
-    outputT1 = model.cutlist_noUNK([text1])
-    output1 = ['    '.join(lst) for lst in outputT1]
-    o1 = ''
-    for x in output1: o1 += x + '\t'
-    print(text1)
-    print(o1+'\n')
-    print('Processing time: ' + str(time.time()-t0))
+    extract_CWSPOS(model, tt00)
+
     '''
         兰心 餐厅 作为 一 个 无辣不欢 的 妹子 ， 对 上海 菜 的 偏 清淡 偏甜 真的 是 各 种 吃 不惯 。 
         每次 出门 和 闺蜜 越 饭局 都 是 避开 本帮 菜 。 后来 听 很多 朋友 说 上海 有 几 家 特别 
@@ -510,41 +532,21 @@ def test_cases(model):
         普通 到 和 家里 烧 的 一样 ， 生意 非常 好 ， 外面 排队 的 比 里面 吃 的 人 还 要 多 。	
     '''
 
-    text2 = '''
+    tt00 = '''
         款款好看的美甲，简直能搞疯“选择综合症”诶！。这是一组超级温柔又带点设计感的美甲💅。
         春天来了🌺。美甲也从深色系转变为淡淡的浅色系了💐。今天给大家推荐最适合春天的美甲💅。
         希望你们会喜欢~😍@MT小美酱 @MT情报局 @美图秀秀 #春季美甲##显白美甲##清新美甲##ins美甲#
         '''
-    t0 = time.time()
-    outputT2 = model.cutlist_noUNK([text2])
-    output2 = ['    '.join(lst) for lst in outputT2]
-    o2 = ''
-    for x in output2: o2 += x + '\t'
-    print(text2)
-    print(o2+'\n')
-    print('Processing time: ' + str(time.time()-t0))
-    '''
-        款款 好看 的 美甲 ， 简直 能 搞疯 “ 选择 综合症 ” 诶 ！ 。 这 是 一 组 超级 温柔 又 带 点 
-        设计感 的 美甲 💅 。 春天 来 了 🌺 。 美甲 也 从 深 色系 转变 为 淡淡 的 浅 色系 了 💐 。 
-        今天 给 大家 推荐 最 适合 春天 的 美甲 💅 。 希望 你们 会 喜欢 ~ 😍 @ MT 小美酱 @ MT 情报局 
-        @ 美图 秀秀 # 春季 美甲 # # 显白 美甲 # # 清新 美甲 # # ins 美甲 #	
-    '''
+    extract_CWSPOS(model, tt00)
 
-
-def test_case_meitu(model):
-    text = '''
+    tt00 = '''
         #我超甜的##口红安利##最热口红色号#今天给大家安利一款平价口红，卡拉泡泡唇膏笔，我比较喜欢的色号是Who   run   this。
         这个色号是一款非常正的土橘色，不论是你是白皮、黄皮、黄黑皮和黑皮都可以很安心的闭眼入。
         白皮涂简直就像仙女下凡了一样，黄皮和黄黑皮涂上特别提气色，而且还超级显白，超级安利这一款，这款唇膏笔我已经入了好几只了。
         这款土橘色已经快被我用完了，超级好看。就酱紫啦！拜拜！#口红安利#
     '''
-    text = '#我超甜的##口红安利##最热口红色号#今天给大家安利一款平价口红，卡拉泡泡唇膏笔，我比较喜欢的色号是Who   run   this。这个色号是一款非常正的土橘色，不论是你是白皮、黄皮、黄黑皮和黑皮都可以很安心的闭眼入。白皮涂简直就像仙女下凡了一样，黄皮和黄黑皮涂上特别提气色，而且还超级显白，超级安利这一款，这款唇膏笔我已经入了好几只了。这款土橘色已经快被我用完了，超级好看。就酱紫啦！拜拜！#口红安利#'
-    outputT = model.cutlist_noUNK([text])
-    output = ['    '.join(lst) for lst in outputT]
-    o2 = ''
-    for x in output: o2 += x + '\t'
-    print(text)
-    print(o2+'\n')
+    extract_CWSPOS(model, tt00)
+
     # # / PU    我 / PN    超 / AD    甜 / VA    的 / SP    # / PU    # / PU    口红 / NN    安利 / NR    # / PU
     # # / PU    最 / AD    热 / VA    口红 / NN    色号 / NN    # / PU    今天 / NT    给 / P    大家 / PN
     # 安利 / VV    一 / CD    款 / M    平价 / JJ    口红 / NN    ， / PU    卡拉泡泡 / NN    唇膏笔 / NN    ， / PU
@@ -586,6 +588,16 @@ def test_from_file(model, infile, outfile): # line 77
             print(output0[0])
             fo.write(output0[0]+'\n')
 
+    if 0:
+        tx = [x for x in raw_data if x.strip()]
+
+        outputT0 = model.cutlist_noUNK(tx)
+        output0 = ['    '.join(lst)+' ' for lst in outputT0]
+        with open(outfile+'2', 'wt') as fo:
+            for sent in output0:
+                print(sent)
+                fo.write(sent+'\n')
+
     print('Processing time: ' + str(time.time()-t0))
 
 
@@ -593,7 +605,8 @@ LOCAL_FLAG = False
 LOCAL_FLAG = True
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
+
 
 if __name__=='__main__':
     if LOCAL_FLAG:
@@ -602,25 +615,44 @@ if __name__=='__main__':
         kwargs = set_server_eval_param()
 
     args._parse(kwargs)
-    model = preload(args)
 
     if TEST_FLAG:
-        test_badcase(model)
+        if LOCAL_FLAG:
+            model = preload(args)
 
-        test_cases0(model)
         test_cases(model)
-        test_case_meitu(model)
     else:
-        #test_from_file(model, './Test/except.txt', './Test/except_rs.txt')
-        #test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
-        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual.txt'
-        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual_rs.txt'
+        if not LOCAL_FLAG:
+            infile = '../data/xiuxiu/fenci_all.txt'
 
-        infile = './Test/except.txt'
-        outfile = './Test/except_rs.txt'
+            types = {'cased': 'cws_F1_weights_epoch17.pt', 'uncased': 'cws_F1_weights_epoch16.pt'}
 
-        infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
-        outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
+            nhl = 6
+            for x in types.keys():
+                args.bert_model = './tmp/ontonotes/CWSPOS2/'+x+'/l'+str(nhl)+'/'+types[x]
+                args.num_hidden_layers = nhl
 
-        test_from_file(model, infile, outfile)
+                outfile = './tmp/ontonotes/CWSPOS2/rs/fenci_all_'+x+'_'+str(nhl)+'_'+types[x]
+
+                model = preload(args)
+                test_from_file(model, infile, outfile)
+
+        else:
+            #test_from_file(model, './Test/except.txt', './Test/except_rs.txt')
+            #test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')
+            infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual.txt'
+            outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_multilingual_rs.txt'
+
+            infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all.txt'
+            outfile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/test_data/fenci_all_rs.txt'
+
+            infile = './Test_cases/test_cases'
+            outfile = './Test_cases/test_cases_rs'
+
+            infile = './Test_cases/bad_cases.txt'
+            outfile = './Test_cases/bad_cases_rs.txt'
+
+            model = preload(args)
+            test_from_file(model, infile, outfile)
+
 

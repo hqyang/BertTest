@@ -14,7 +14,7 @@ import re
 import pandas as pd
 import torch
 import numpy as np
-from .config import UNK_TOKEN, PUNC_TOKENS
+from .config import UNK_TOKEN, PUNC_TOKENS, UNUSED_SPACE_TOKEN
 from .preprocess import dataset_to_dataloader, OntoNotesDataset
 
 import logging
@@ -27,9 +27,11 @@ CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
 
-def get_dataset_and_dataloader(processor, args, training=True, type='train'):
+def get_dataset_and_dataloader(processor, args, training=True, type_name='train'):
     dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
-                                 args.max_seq_length, training=training, type=type)
+                             args.max_seq_length, training=training, type_name=type_name,
+                               do_lower_case=args.do_lower_case,
+                               do_mask_as_whole=args.do_mask_as_whole)
     dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
                                        args.local_rank, training=training)
     return dataset, dataloader
@@ -43,7 +45,7 @@ def get_eval_dataloaders(processor, args):
 
     eval_dataloaders = {}
     for part in parts:
-        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type=part)
+        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type_name=part)
         eval_dataloaders[part] = eval_dataloader
 
     return eval_dataloaders
@@ -65,68 +67,6 @@ def strQ2B(ustring):
     rstring += chr(inside_code)
 
     return rstring
-
-
-def is_chinese_char(cp):
-    """Checks whether CP is the codepoint of a CJK character."""
-    # This defines a "chinese character" as anything in the CJK Unicode block:
-    #   https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
-    #
-    # Note that the CJK Unicode block is NOT all Japanese and Korean characters,
-    # despite its name. The modern Korean Hangul alphabet is a different block,
-    # as is Japanese Hiragana and Katakana. Those alphabets are used to write
-    # space-separated words, so they are not treated specially and handled
-    # like the all of the other languages.
-    if ((cp >= 0x4E00 and cp <= 0x9FFF) or  #
-        (cp >= 0x3400 and cp <= 0x4DBF) or  #
-        (cp >= 0x20000 and cp <= 0x2A6DF) or  #
-        (cp >= 0x2A700 and cp <= 0x2B73F) or  #
-        (cp >= 0x2B740 and cp <= 0x2B81F) or  #
-        (cp >= 0x2B820 and cp <= 0x2CEAF) or
-        (cp >= 0xF900 and cp <= 0xFAFF) or  #
-        (cp >= 0x2F800 and cp <= 0x2FA1F)):  #
-        return True
-    return False
-
-
-def is_english_char(cp):
-    """Checks whether CP is an English character."""
-    # https://zh.wikipedia.org/wiki/%E5%85%A8%E5%BD%A2%E5%92%8C%E5%8D%8A%E5%BD%A2
-    if ((cp >= 0x0041 and cp <= 0x005A) or
-        (cp >= 0x0061 and cp <= 0x007A) or
-        (cp >= 0xFF21 and cp <= 0xFF3A) or
-        (cp >= 0xFF41 and cp <= 0xFF5A)):
-        return True
-
-    return False
-
-
-def check_english_words(word):
-    word = word.lower()
-    if '[unk]' in word or '[unused' in word: # detecting unknown token
-        return True
-
-    for idx in range(len(word)):
-        if not is_english_char(ord(word[idx])):
-            return False # one char is not English, it is not an English word
-    return True
-
-
-def is_numeric(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        pass
-
-    try:
-        import unicodedata
-        unicodedata.numeric(s)
-        return True
-    except (TypeError, ValueError):
-        pass
-
-    return False
 
 
 def count_words_in_part(words, part, data_stat, data_count, store_dicts, store_chi_chars):
@@ -521,17 +461,25 @@ def restore_unknown_tokens(original_str, str_with_unknown_tokens):
 
 def findtextdirect(strIn, start_idx, len_original_str, text, shift=0):
     text = text.lower()
+
+    num_space = 0
+    # clean space
+    while start_idx+num_space < len_original_str and len(strIn[start_idx+num_space].strip()) == 0:
+        num_space += 1
+
+    start_idx += num_space
     s_idx = strIn[start_idx:start_idx+shift+len(text)].find(text)
 
     if s_idx==-1:
+        # cannot find in the corresponding part
+        # search more: considering the problem of unknown tokens, maybe useless
         s_idx = strIn[start_idx:start_idx+2*shift+len(text)].find(text)
 
-    if s_idx==-1: # different tokens after processing
-        while len(strIn[start_idx]) == 0 and start_idx < len_original_str:
-            start_idx += 1
-        s_idx = 0
+        if s_idx==-1: # different tokens after processing
+            s_idx = start_idx
 
-    return s_idx
+    return s_idx+num_space
+
 
 def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str):
     s_str = original_str.lower()
@@ -640,6 +588,93 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
     return text_list, pos_list
 
 
+def restore_unknown_tokens_without_unused_with_pos(original_str, str_with_unknown_tokens, pos_str):
+    s_str = original_str.lower()
+    len_original_str = len(original_str)
+
+    text_ls = str_with_unknown_tokens.split()
+    pos_ls = pos_str.split()
+    assert(len(text_ls) == len(pos_ls))
+
+    pos_outstr = ''
+
+    strOut = original_str
+    used_idx = 0
+
+    text_list = []
+    pos_list = []
+    ori_used_idx = 0
+
+    unk_status = False
+    shift = 0
+    for i, text in enumerate(text_ls):
+        #if i == 67:
+        #    print(text)
+        pos = pos_ls[i]
+
+        if UNK_TOKEN not in text:
+            #normal text
+            if unk_status: # previous is an unknown token
+                unk_status = False
+
+                s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, text, shift)
+
+                pos_list.append(unk_pos)
+                e_idx = len(text)
+                text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx].strip())
+                ori_used_idx += s_idx
+
+                s_idx = ori_used_idx
+                e_idx = ori_used_idx + e_idx
+            else: # previous is a normal token
+                s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, text, shift)
+                e_idx = ori_used_idx + s_idx + len(text)
+                s_idx = ori_used_idx + s_idx # remove space
+
+            text_list.append(original_str[s_idx:e_idx].strip())
+            ori_used_idx = e_idx
+
+            pos_list.append(pos)
+            shift = 0
+        else: # unknown tokens exist, need to update shift
+            shift += len(text)
+            tmp_text_list = text.split(UNK_TOKEN)
+            tmp_text_list = [v for v in tmp_text_list if v.replace('[unused1]', '')]
+
+            # process tmp_text_list
+            for v in tmp_text_list: # unknown tokens with word and
+                s_idx = findtextdirect(s_str, ori_used_idx, len_original_str, v, shift)
+
+                if s_idx > 0: # append unknown token
+                    text_list.append(original_str[ori_used_idx:ori_used_idx+s_idx])
+
+                    ori_used_idx += s_idx
+                    # keep previous unknown tokens
+                    if unk_status:
+                        pos_list.append(unk_pos)
+                        unk_status = False
+                    else:
+                        pos_list.append(pos)
+
+>>>>>>> cwspos2.0
+                    text_list.append(original_str[ori_used_idx:ori_used_idx+len(v)])
+                    pos_list.append(pos)
+
+                    ori_used_idx += len(v)
+
+            if text[-5:]==UNK_TOKEN: # [UNK] is in the end
+                unk_status = True
+                unk_pos = pos
+            else:
+                unk_status = False
+
+    if unk_status:
+        text_list.append(original_str[ori_used_idx:])
+        pos_list.append(pos)
+
+    return text_list, pos_list
+
+
 def append_to_buff(processed_text_list, buff, append_text, len_max, merge_index):
     if len(buff) + len(append_text) > len_max:
         processed_text_list.append(buff)
@@ -650,11 +685,17 @@ def append_to_buff(processed_text_list, buff, append_text, len_max, merge_index)
     return buff, merge_index
 
 
+def unpackTuple(tup):
+    return (reduce(operator.add, tup))
+
+
 def split_text_by_punc(text):
     text = text.strip('\r\n')
     text = text.strip()
     text = text.replace('\u3000', ' ')
+    text = text.replace(' ', UNUSED_SPACE_TOKEN)
     text = "".join(text.split())
+    text = text.replace(UNUSED_SPACE_TOKEN, ' ')
 
     #text_chunk_list = re.split('(。|，|：|\n|#)', text)
     text_chunk_list = re.split(PUNC_TOKENS, text)
