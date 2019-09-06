@@ -14,7 +14,7 @@ do
         --pclassifier CRF \
         --bert_model_dir ../models/multi_cased_L-12_H-768_A-12/ \
         --vocab_file ./src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt \
-        --do_lower_case False \
+        --do_lower_case True \
         --max_seq_length 128 \
         --init_checkpoint ../models/multi_cased_L-12_H-768_A-12/ \
         --override_output True \
