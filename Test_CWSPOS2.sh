@@ -11,6 +11,7 @@ do
         --data_dir ../data/ontonotes5/4nerpos_update \
         --output_dir ./tmp/ontonotes/CWSPOS2/case2/ \
         --fclassifier Softmax \
+        --pclassifier CRF \
         --bert_model_dir ../models/multi_cased_L-12_H-768_A-12/ \
         --vocab_file ./src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt \
         --do_lower_case False \
