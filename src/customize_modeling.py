@@ -1351,12 +1351,14 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
     logits = models(input_ids, token_type_ids, input_mask)
     ```
     """
-    def __init__(self, config, num_CWStags=6, num_POStags=108, method='fine_tune', fclassifier='Softmax', do_mask_as_whole=False):
+    def __init__(self, config, num_CWStags=6, num_POStags=108, method='fine_tune', fclassifier='Softmax', \
+                 pclassifier='CRF', do_mask_as_whole=False):
         super(BertMLVariantCWSPOS, self).__init__(config)
         self.num_CWStags = num_CWStags
         self.num_POStags = num_POStags
         self.method = method
-        self.fclassifier = fclassifier
+        self.fclassifier = fclassifier  # cws classifier
+        self.pclassifier = pclassifier  # pos classifier
         self.do_mask_as_whole = do_mask_as_whole
 
         if self.do_mask_as_whole:
@@ -1389,6 +1391,8 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
 
         if self.fclassifier == 'CRF':
             self.CWSclassifier = CRF(num_CWStags, batch_first=True)
+
+        if self.pclassifier == 'CRF':
             self.POSclassifier = CRF(num_POStags, batch_first=True)
 
         self.apply(self.init_bert_weights)
@@ -1431,9 +1435,12 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
 
         if self.fclassifier == 'CRF':
             best_cws_tags_list = self.classifier.decode(cws_logits, mask)
-            best_pos_tags_list = self.classifier.decode(pos_logits, mask)
         elif self.fclassifier == 'Softmax':
             best_cws_tags_list = self._decode_Softmax(cws_logits, mask)
+
+        if self.pclassifier == 'CRF':
+            best_pos_tags_list = self.classifier.decode(pos_logits, mask)
+        elif self.pclassifier == 'Softmax':
             best_pos_tags_list = self._decode_Softmax(pos_logits, mask)
 
         return cws_loss, pos_loss, best_cws_tags_list, best_pos_tags_list
@@ -1478,19 +1485,21 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
     def _compute_loss(self, logits, mask, labels, task):
         # mask is a ByteTensor
 
-        if self.fclassifier == 'Softmax':
-            loss_fct = nn.CrossEntropyLoss()
+        if task == 'CWS':
+            if self.fclassifier == 'Softmax':
+                loss_fct = nn.CrossEntropyLoss()
 
-            if task == 'CWS':
                 num_tags = self.num_CWStags
-            elif task == 'POS':
+                loss = loss_fct(logits.view(-1, num_tags), labels.view(-1))
+            elif self.fclassifier == 'CRF':
+                loss = -self.CWSclassifier(logits, labels, mask)
+        elif task == 'POS':
+            if self.pclassifier == 'Softmax':
+                loss_fct = nn.CrossEntropyLoss()
                 num_tags = self.num_POStags
 
-            loss = loss_fct(logits.view(-1, num_tags), labels.view(-1))
-        elif self.fclassifier == 'CRF':
-            if task == 'CWS':
-                loss = -self.CWSclassifier(logits, labels, mask)
-            elif task == 'POS':
+                loss = loss_fct(logits.view(-1, num_tags), labels.view(-1))
+            elif self.pclassifier == 'CRF':
                 loss = -self.POSclassifier(logits, labels, mask)
 
         return loss
@@ -1518,7 +1527,8 @@ class BertMLCWSPOS(PreTrainedBertModel):
     ```
     """
     def __init__(self, device, config, vocab_file, max_length, num_CWStags=6, num_POStags=110, batch_size=64,
-                 do_lower_case=False, do_mask_as_whole=False, fclassifier='Softmax', method='fine_tune'):
+                 do_lower_case=False, do_mask_as_whole=False, fclassifier='Softmax', pclassifier='CRF', \
+                 method='fine_tune'):
         super(BertMLCWSPOS, self).__init__(config)
         self.device = device
         self.batch_size = batch_size
@@ -1535,7 +1545,8 @@ class BertMLCWSPOS(PreTrainedBertModel):
             self.bert = BertModel(config)
 
         self.method = method
-        self.fclassifier = fclassifier
+        self.fclassifier = fclassifier  # cws classifier
+        self.pclassifier = pclassifier  # pos classifier
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
         if method == 'fine_tune':
@@ -1561,6 +1572,8 @@ class BertMLCWSPOS(PreTrainedBertModel):
 
         if self.fclassifier == 'CRF':
             self.CWSclassifier = CRF(num_CWStags, batch_first=True)
+
+        if self.pclassifier == 'CRF':
             self.POSclassifier = CRF(num_POStags, batch_first=True)
 
         self.apply(self.init_bert_weights)
@@ -1604,9 +1617,12 @@ class BertMLCWSPOS(PreTrainedBertModel):
 
         if self.fclassifier == 'CRF':
             best_cws_tags_list = self.classifier.decode(cws_logits, mask)
-            best_pos_tags_list = self.classifier.decode(pos_logits, mask)
         elif self.fclassifier == 'Softmax':
             best_cws_tags_list = self._decode_Softmax(cws_logits, mask)
+
+        if self.pclassifier == 'CRF':
+            best_pos_tags_list = self.classifier.decode(pos_logits, mask)
+        elif self.pclassifier == 'Softmax':
             best_pos_tags_list = self._decode_Softmax(pos_logits, mask)
 
         return cws_loss, pos_loss, best_cws_tags_list, best_pos_tags_list
@@ -1651,19 +1667,21 @@ class BertMLCWSPOS(PreTrainedBertModel):
     def _compute_loss(self, logits, mask, labels, task):
         # mask is a ByteTensor
 
-        if self.fclassifier == 'Softmax':
-            loss_fct = nn.CrossEntropyLoss()
+        if task == 'CWS':
+            if self.fclassifier == 'Softmax':
+                loss_fct = nn.CrossEntropyLoss()
 
-            if task == 'CWS':
                 num_tags = self.num_CWStags
-            elif task == 'POS':
+                loss = loss_fct(logits.view(-1, num_tags), labels.view(-1))
+            elif self.fclassifier == 'CRF':
+                loss = -self.CWSclassifier(logits, labels, mask)
+        elif task == 'POS':
+            if self.pclassifier == 'Softmax':
+                loss_fct = nn.CrossEntropyLoss()
                 num_tags = self.num_POStags
 
-            loss = loss_fct(logits.view(-1, num_tags), labels.view(-1))
-        elif self.fclassifier == 'CRF':
-            if task == 'CWS':
-                loss = -self.CWSclassifier(logits, labels, mask)
-            elif task == 'POS':
+                loss = loss_fct(logits.view(-1, num_tags), labels.view(-1))
+            elif self.pclassifier == 'CRF':
                 loss = -self.POSclassifier(logits, labels, mask)
 
         return loss
