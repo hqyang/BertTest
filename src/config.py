@@ -37,6 +37,7 @@ class Config:
     projected_size = 6
     method = 'fine_tune' # 'last_layer', 'cat_last4', 'sum_last4', 'sum_all'
     fclassifier = 'Softmax' # 'CRF'
+    fclassifier = 'CRF'
 
     ##4.Devices
     no_cuda = False

@@ -99,7 +99,7 @@ def load_CWS_POS_model(CWS_label_list, POS_label_list, args):
 #    models = models[args.fclassifier]()
 
     model = BertMLVariantCWSPOS(bert_config, len(CWS_label_list), len(POS_label_list), method=args.method, \
-                                fclassifier=args.fclassifier, do_mask_as_whole=args.do_mask_as_whole)
+                fclassifier=args.fclassifier, pclassifier=args.pclassifier, do_mask_as_whole=args.do_mask_as_whole)
 
     if args.bert_model_dir is None:
         raise RuntimeError('Evaluating a random initialized models is not supported...!')
