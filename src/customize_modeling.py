@@ -3,7 +3,7 @@ import torch.nn as nn
 import math
 from .BERT.modeling import PreTrainedBertModel, BertModel, BertLayerNorm, BertEncoder, BertPooler
 from .TorchCRF import CRF
-from .preprocess import tokenize_list_with_cand_indexes, tokenize_list, define_words_set
+from .preprocess import define_tokens_set_lang_status, tokenize_list, define_words_set, tokenize_list_with_cand_indexes_lang_status
 from .tokenization import FullTokenizer
 from .BERT.tokenization import BertTokenizer
 import numpy as np
@@ -1687,8 +1687,8 @@ class BertMLCWSPOS(PreTrainedBertModel):
         # input_ids, segment_ids, input_mask = tokenize_list(
         #     words, self.max_length, self.tokenizer)
         #print(lword)
-        tuple1, tuple2 = zip(
-            *[tokenize_list_with_cand_indexes(w, self.max_length, self.tokenizer) for w in lword if w]) # w is not empty
+        tuple1, tuple2, tuple3 = zip(
+            *[tokenize_list_with_cand_indexes_lang_status(w, self.max_length, self.tokenizer) for w in lword if w]) # w is not empty
             #*[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
             #*[tokenize_list_no_seg(w, self.max_length, self.tokenizer) for w in lword])
         list1 = unpackTuple(tuple1)
@@ -1700,17 +1700,21 @@ class BertMLCWSPOS(PreTrainedBertModel):
         cand_indexes = list2[0::2]
         token_ids = list2[1::2]
 
+        lang_status = unpackTuple(tuple3)
+        #lang_status = list3[0::]
+
         input_id_torch = torch.from_numpy(np.array(input_ids)).to(self.device)
         segment_ids_torch = torch.from_numpy(np.array(segment_ids)).to(self.device)
         input_masks_torch = torch.from_numpy(np.array(input_masks)).to(self.device)
         cand_indexes_troch = torch.from_numpy(np.array(cand_indexes)).to(self.device)
         token_ids_torch = torch.from_numpy(np.array(token_ids)).to(self.device)
+        lang_status_torch = torch.from_numpy(np.array(lang_status)).to(self.device)
 
         _, _, best_cws_tags_list, best_pos_tags_list = self.decode(input_id_torch, segment_ids_torch, \
                                            input_masks_torch, cand_indexes_troch, token_ids_torch)
 
         cws_output_list = []
-        for rs in best_cws_tags_list:
+        for idx, rs in enumerate(best_cws_tags_list):
             cws_decode_output = ''.join(str(v) for v in rs[1:-1]) #
 
             # tmp_rs[1:-1]: remove the tokens, [START] and [END]
@@ -1726,6 +1730,12 @@ class BertMLCWSPOS(PreTrainedBertModel):
             cws_decode_output = cws_decode_output.replace(str(segType.BMES_label_map['[START]']), str(segType.BMES_label_map['S']))
             cws_decode_output = cws_decode_output.replace(str(segType.BMES_label_map['[END]']), str(segType.BMES_label_map['S']))
 
+            lang_status_i = lang_status_torch[idx]
+            cws_decode_output_l = list(cws_decode_output)
+            for ii, ls_ii in enumerate(lang_status_i):
+                if ls_ii==1: cws_decode_output_l[ii] = str(segType.BMES_label_map['S'])
+
+            cws_decode_output = ''.join(cws_decode_output_l)
             cws_output_list.append(cws_decode_output)
 
         pos_output_list = []

@@ -205,6 +205,13 @@ def extract_CWSPOS(model, t1):
 
 
 def test_cases(model):
+    tt00 = '''Eye of Evil。把守护带回这座城\n
+    •精品荟萃•。 以民族传统工艺制作的“掐丝珐琅”。\n
+    fall in love\n
+    旺铺转让 因本人工作调动，现将黄金地段琪琪馍店予以转让，本店设备齐全，清一色全新机器和蒸笼，接手即可营业，有意者请面见详谈 非诚勿扰联系电话15886939311
+    \n反正也是烂命一条，我就烂着活。。It's a rotten job anyway. I'm gonna suck.'''
+    extract_CWSPOS(model, tt00)
+
     tt00 = '''
     【上新】💰145     。斯图西牛油果绿🥑人像印花短袖T恤，胸前logo刺绣，男女同款，采用纯棉面料，柔软舒适。设计简单大方，配上今年夏季最流行的牛油果绿🥑，衬托肤色，清新一夏！休闲百搭、潮流有范。。颜色：牛油果绿   。尺码：M-XXL。尺码表图9⃣️
     '''
@@ -598,7 +605,7 @@ LOCAL_FLAG = False
 LOCAL_FLAG = True
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
 
 
 if __name__=='__main__':
@@ -610,6 +617,9 @@ if __name__=='__main__':
     args._parse(kwargs)
 
     if TEST_FLAG:
+        if LOCAL_FLAG:
+            model = preload(args)
+
         test_cases(model)
     else:
         if not LOCAL_FLAG:

@@ -71,68 +71,6 @@ def strQ2B(ustring):
     return rstring
 
 
-def is_chinese_char(cp):
-    """Checks whether CP is the codepoint of a CJK character."""
-    # This defines a "chinese character" as anything in the CJK Unicode block:
-    #   https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
-    #
-    # Note that the CJK Unicode block is NOT all Japanese and Korean characters,
-    # despite its name. The modern Korean Hangul alphabet is a different block,
-    # as is Japanese Hiragana and Katakana. Those alphabets are used to write
-    # space-separated words, so they are not treated specially and handled
-    # like the all of the other languages.
-    if ((cp >= 0x4E00 and cp <= 0x9FFF) or  #
-        (cp >= 0x3400 and cp <= 0x4DBF) or  #
-        (cp >= 0x20000 and cp <= 0x2A6DF) or  #
-        (cp >= 0x2A700 and cp <= 0x2B73F) or  #
-        (cp >= 0x2B740 and cp <= 0x2B81F) or  #
-        (cp >= 0x2B820 and cp <= 0x2CEAF) or
-        (cp >= 0xF900 and cp <= 0xFAFF) or  #
-        (cp >= 0x2F800 and cp <= 0x2FA1F)):  #
-        return True
-    return False
-
-
-def is_english_char(cp):
-    """Checks whether CP is an English character."""
-    # https://zh.wikipedia.org/wiki/%E5%85%A8%E5%BD%A2%E5%92%8C%E5%8D%8A%E5%BD%A2
-    if ((cp >= 0x0041 and cp <= 0x005A) or
-        (cp >= 0x0061 and cp <= 0x007A) or
-        (cp >= 0xFF21 and cp <= 0xFF3A) or
-        (cp >= 0xFF41 and cp <= 0xFF5A)):
-        return True
-
-    return False
-
-
-def check_english_words(word):
-    word = word.lower()
-    if '[unk]' in word or '[unused' in word: # detecting unknown token
-        return True
-
-    for idx in range(len(word)):
-        if not is_english_char(ord(word[idx])):
-            return False # one char is not English, it is not an English word
-    return True
-
-
-def is_numeric(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        pass
-
-    try:
-        import unicodedata
-        unicodedata.numeric(s)
-        return True
-    except (TypeError, ValueError):
-        pass
-
-    return False
-
-
 def count_words_in_part(words, part, data_stat, data_count, store_dicts, store_chi_chars):
     len_words = len(words)
     data_count[part, 'num_words_in_sent'].append(len_words)

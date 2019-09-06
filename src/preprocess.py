@@ -15,6 +15,68 @@ from torch.utils.data.distributed import DistributedSampler
 from .config import MAX_SUBWORDS
 
 
+def is_chinese_char(cp):
+    """Checks whether CP is the codepoint of a CJK character."""
+    # This defines a "chinese character" as anything in the CJK Unicode block:
+    #   https://en.wikipedia.org/wiki/CJK_Unified_Ideographs_(Unicode_block)
+    #
+    # Note that the CJK Unicode block is NOT all Japanese and Korean characters,
+    # despite its name. The modern Korean Hangul alphabet is a different block,
+    # as is Japanese Hiragana and Katakana. Those alphabets are used to write
+    # space-separated words, so they are not treated specially and handled
+    # like the all of the other languages.
+    if ((cp >= 0x4E00 and cp <= 0x9FFF) or  #
+        (cp >= 0x3400 and cp <= 0x4DBF) or  #
+        (cp >= 0x20000 and cp <= 0x2A6DF) or  #
+        (cp >= 0x2A700 and cp <= 0x2B73F) or  #
+        (cp >= 0x2B740 and cp <= 0x2B81F) or  #
+        (cp >= 0x2B820 and cp <= 0x2CEAF) or
+        (cp >= 0xF900 and cp <= 0xFAFF) or  #
+        (cp >= 0x2F800 and cp <= 0x2FA1F)):  #
+        return True
+    return False
+
+
+def is_english_char(cp):
+    """Checks whether CP is an English character."""
+    # https://zh.wikipedia.org/wiki/%E5%85%A8%E5%BD%A2%E5%92%8C%E5%8D%8A%E5%BD%A2
+    if ((cp >= 0x0041 and cp <= 0x005A) or
+        (cp >= 0x0061 and cp <= 0x007A) or
+        (cp >= 0xFF21 and cp <= 0xFF3A) or
+        (cp >= 0xFF41 and cp <= 0xFF5A)):
+        return True
+
+    return False
+
+
+def check_english_words(word):
+    word = word.lower()
+    if '[unk]' in word or '[unused' in word: # detecting unknown token
+        return True
+
+    for idx in range(len(word)):
+        if not is_english_char(ord(word[idx])):
+            return False # one char is not English, it is not an English word
+    return True
+
+
+def is_numeric(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        pass
+
+    try:
+        import unicodedata
+        unicodedata.numeric(s)
+        return True
+    except (TypeError, ValueError):
+        pass
+
+    return False
+
+
 def define_words_set(words, do_whole_word_mask=True):
     # Whole Word Masking means that if we mask all of the wordpieces
     # corresponding to an original word. When a word has been split into
@@ -94,6 +156,47 @@ def define_tokens_set(words, tokens, do_whole_word_mask=True):
         #    break
 
     return cand_indexes, token_ids, words, tokens
+
+
+def define_tokens_set_lang_status(words, tokens, do_whole_word_mask=True):
+    # Whole Word Masking means that if we mask all of the wordpieces
+    # corresponding to an original word. When a word has been split into
+    # WordPieces, the first token does not have any marker and any subsequence
+    # tokens are prefixed with ##. So whenever we see the ## token, we
+    # append it to the previous set of word indexes.
+    #
+    # Note that Whole Word Masking does *not* change the training code
+    # at all -- we still predict each WordPiece independently, softmaxed
+    # over the entire vocabulary.
+
+    cand_indexes = []
+    token_ids = []
+    lang_status = []
+
+    for (i, word) in enumerate(words):
+        if word == "[CLS]" or word == "[SEP]":
+            token_ids.append([tokens[i]])
+            continue
+
+        if (do_whole_word_mask and len(cand_indexes) >= 1 and
+            word.startswith("##")):
+            cand_indexes[-1].append(i)
+            token_ids[-1].append(tokens[i])
+        else:
+            cand_indexes.append([i])
+            token_ids.append([tokens[i]])
+
+            lsd = 1 if check_english_words(word) else 0
+
+            lang_status.append(lsd)
+
+        # len(token_ids) < max_length
+        # if len(token_ids) > max_length - 2: # keep one more token for ['SEP']
+        #    words = words[:last_index]
+        #    tokens = tokens[:last_index]
+        #    break
+
+    return cand_indexes, token_ids, words, tokens, lang_status
 
 
 def indexes2nparray(max_length, cand_indexes, token_ids):
@@ -878,6 +981,38 @@ def tokenize_list_with_cand_indexes(words, max_length, tokenizer):
 
     cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
     return [tokens, segment, mask], [cand_indexes, token_ids]#, can_index_len # include ['SEP']
+
+
+def tokenize_list_with_cand_indexes_lang_status(words, max_length, tokenizer):
+    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
+    # words = list(filter(lambda x: x!=' ', words))
+    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
+    words = ['[CLS]'] + words
+
+    cand_indexes = define_words_set(words)
+
+    # prepare the length of words does not exceed max_length while considering the situation of do_whole as _mask
+    if len(cand_indexes)!=0:
+        words, can_index_len = set_words_boundary(words, cand_indexes, max_length)
+    words += ['[SEP]']
+
+    tokens = tokenizer.convert_tokens_to_ids(words)
+
+    # suppose the length of words and tokens is less than max_length
+    cand_indexes, token_ids, words, tokens, lang_status = define_tokens_set_lang_status(words, tokens)
+
+    len_tokens = len(tokens)
+    if len_tokens < max_length:
+        tokens.extend([0] * (max_length - len_tokens))
+        lang_status.extend([0] * (max_length - len(token_ids)))  # no two tokens: [CLS] and [SEP]
+
+    tokens = np.array(tokens)
+    lang_status = np.array(lang_status)
+    mask = np.array([1] * can_index_len + [0] * (max_length - can_index_len))
+    segment = np.array([0] * max_length)
+
+    cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
+    return [tokens, segment, mask], [cand_indexes, token_ids], [lang_status]#, can_index_len # include ['SEP']
 
 
 def tokenize_text(text, max_length, tokenizer):
