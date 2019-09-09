@@ -1406,9 +1406,9 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
             raise RuntimeError('Input: labels_CWS or labels_POS is missing!')
         else:
             feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask, cand_indexes, token_ids)
-            cws_logits = self.hidden2CWStag(feat_used)
 
             if labels_CWS is not None:
+                cws_logits = self.hidden2CWStag(feat_used)
                 loss = self._compute_loss(cws_logits, mask, labels_CWS, 'CWS')
 
             if labels_POS is not None:
@@ -1587,9 +1587,9 @@ class BertMLCWSPOS(PreTrainedBertModel):
             raise RuntimeError('Input: labels_CWS or labels_POS is missing!')
         else:
             feat_used = self._compute_bert_feats(input_ids, token_type_ids, attention_mask, cand_indexes, token_ids)
-            cws_logits = self.hidden2CWStag(feat_used)
 
             if labels_CWS is not None:
+                cws_logits = self.hidden2CWStag(feat_used)
                 loss = self._compute_loss(cws_logits, mask, labels_CWS, 'CWS')
 
             if labels_POS is not None:
@@ -1616,12 +1616,12 @@ class BertMLCWSPOS(PreTrainedBertModel):
             pos_loss = self._compute_loss(pos_logits, mask, labels_POS, 'POS')
 
         if self.fclassifier == 'CRF':
-            best_cws_tags_list = self.classifier.decode(cws_logits, mask)
+            best_cws_tags_list = self.CWSclassifier.decode(cws_logits, mask)
         elif self.fclassifier == 'Softmax':
             best_cws_tags_list = self._decode_Softmax(cws_logits, mask)
 
         if self.pclassifier == 'CRF':
-            best_pos_tags_list = self.classifier.decode(pos_logits, mask)
+            best_pos_tags_list = self.POSclassifier.decode(pos_logits, mask)
         elif self.pclassifier == 'Softmax':
             best_pos_tags_list = self._decode_Softmax(pos_logits, mask)
 
