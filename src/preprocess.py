@@ -798,10 +798,13 @@ class OntoNotesDataset(Dataset):
         for i, data in enumerate(self.df.itertuples()):
             if self.do_mask_as_whole:
                 token, cand_index = tokenize_text_with_cand_indexes(data.text, self.max_length, self.tokenizer)
-                labelid = tokenize_label_list_restriction(data.label, self.max_length, self.label_map, cand_index_len)
+                # cand_index_len = list(cand_index.size())[0]
+                # labelid = tokenize_label_list_restriction(data.label, self.max_length, self.label_map, cand_index_len)
+                labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
 
                 if self.pos_label_map:
-                    pos_label_id = tokenize_label_list_restriction(data.label_pos, self.max_length, self.pos_label_map, cand_index_len)
+                    # pos_label_id = tokenize_label_list_restriction(data.label_pos, self.max_length, self.pos_label_map, cand_index_len)
+                    pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
                     pos_label_ids.append(pos_label_id)
             else: # no cand_index
                 token = tokenize_text(data.text, self.max_length, self.tokenizer)

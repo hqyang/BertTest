@@ -1434,12 +1434,12 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
             pos_loss = self._compute_loss(pos_logits, mask, labels_POS, 'POS')
 
         if self.fclassifier == 'CRF':
-            best_cws_tags_list = self.classifier.decode(cws_logits, mask)
+            best_cws_tags_list = self.CWSclassifier.decode(cws_logits, mask)
         elif self.fclassifier == 'Softmax':
             best_cws_tags_list = self._decode_Softmax(cws_logits, mask)
 
         if self.pclassifier == 'CRF':
-            best_pos_tags_list = self.classifier.decode(pos_logits, mask)
+            best_pos_tags_list = self.POSclassifier.decode(pos_logits, mask)
         elif self.pclassifier == 'Softmax':
             best_pos_tags_list = self._decode_Softmax(pos_logits, mask)
 
