@@ -9,9 +9,9 @@ do
         --task_name ontonotes_cws_pos2.0 \
         --model_type sequencelabeling \
         --data_dir ../data/ontonotes5/4nerpos_update \
-        --output_dir ./tmp/ontonotes/CWSPOS2/cased2/ \
+        --output_dir ./tmp/ontonotes/CWSPOS2/cased2/Softmax/ \
         --fclassifier Softmax \
-        --pclassifier CRF \
+        --pclassifier Softmax \
         --bert_model_dir ../models/multi_cased_L-12_H-768_A-12/ \
         --vocab_file ./src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt \
         --do_lower_case True \
