@@ -1187,3 +1187,27 @@ def randomly_mask_input(input_ids, tokenizer, mask_token_rate=0.15,
                             len(vocab)) * is_replace_random.long()
     label_ids = input_ids * is_mask.long() + (-1) * (1 - is_mask.long())
     return masked_input_ids, label_ids
+
+
+def make_dict_feature_vec(sentence: str, word_dict: list, max_gram: int):
+    if max_gram <= 1:
+        raise ValueError('max gram should be greater than 1')
+
+    if not sentence:
+        return []
+
+    res = []
+
+    # for each char,
+    for char_ind, char in enumerate(sentence):
+        char_res = [0]*(2*(max_gram - 1))
+        for rel_ind in range(1, max_gram):
+
+            if char_ind - rel_ind >= 0:
+                if sentence[char_ind - rel_ind:char_ind + 1] in word_dict:
+                    char_res[2*(rel_ind - 1)] = 1
+            if char_ind + rel_ind < len(sentence):
+                if sentence[char_ind:char_ind + rel_ind + 1] in word_dict:
+                    char_res[2*(rel_ind) - 1] = 1
+        res.append(char_res)
+    return res

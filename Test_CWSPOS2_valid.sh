@@ -9,7 +9,7 @@ do
         --task_name ontonotes_cws_pos2.0 \
         --model_type sequencelabeling \
         --data_dir ../data/ontonotes5/4nerpos_update/valid/ \
-        --output_dir ./tmp/ontonotes/CWSPOS2/valid/cased/ \
+        --output_dir ./tmp/ontonotes/CWSPOS2/valid/cased2/valid/ \
         --fclassifier Softmax \
         --bert_model_dir ../models/multi_cased_L-12_H-768_A-12/ \
         --vocab_file ./src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt \
