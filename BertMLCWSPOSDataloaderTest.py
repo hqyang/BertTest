@@ -582,7 +582,7 @@ def set_local_Ontonotes_param():
             'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS2/',
-            'do_lower_case': False,
+            'do_lower_case': True,
             'train_batch_size': 5,
             'max_seq_length': 128,
             'num_hidden_layers': 1,
@@ -622,7 +622,7 @@ def set_server_Ontonotes_param():
 TEST_FLAG = False
 #TEST_FLAG = True
 isServer = True
-#isServer = False
+isServer = False
 
 def main(**kwargs):
     if TEST_FLAG:
