@@ -22,6 +22,6 @@ do
         --method fine_tune \
         --num_hidden_layers $1 \
         --train_batch_size $2 \
-        --visible_device 0 \
+        --visible_device 1 \
         --num_train_epochs 20
 done
