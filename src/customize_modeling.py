@@ -1352,7 +1352,7 @@ class BertMLVariantCWSPOS(PreTrainedBertModel):
     ```
     """
     def __init__(self, config, num_CWStags=6, num_POStags=108, method='fine_tune', fclassifier='Softmax', \
-                 pclassifier='CRF', do_mask_as_whole=False):
+                 pclassifier='Softmax', do_mask_as_whole=False):
         super(BertMLVariantCWSPOS, self).__init__(config)
         self.num_CWStags = num_CWStags
         self.num_POStags = num_POStags
@@ -1527,7 +1527,7 @@ class BertMLCWSPOS(PreTrainedBertModel):
     ```
     """
     def __init__(self, device, config, vocab_file, max_length, num_CWStags=6, num_POStags=110, batch_size=64,
-                 do_lower_case=False, do_mask_as_whole=False, fclassifier='Softmax', pclassifier='CRF', \
+                 do_lower_case=False, do_mask_as_whole=False, fclassifier='Softmax', pclassifier='Softmax', \
                  method='fine_tune'):
         super(BertMLCWSPOS, self).__init__(config)
         self.device = device
@@ -1748,12 +1748,13 @@ class BertMLCWSPOS(PreTrainedBertModel):
             cws_decode_output = cws_decode_output.replace(str(segType.BMES_label_map['[START]']), str(segType.BMES_label_map['S']))
             cws_decode_output = cws_decode_output.replace(str(segType.BMES_label_map['[END]']), str(segType.BMES_label_map['S']))
 
-            lang_status_i = lang_status_torch[idx]
-            cws_decode_output_l = list(cws_decode_output)
-            for ii, ls_ii in enumerate(lang_status_i):
-                if ls_ii==1: cws_decode_output_l[ii] = str(segType.BMES_label_map['S'])
+            if 1:
+                lang_status_i = lang_status_torch[idx]
+                cws_decode_output_l = list(cws_decode_output)
+                for ii, ls_ii in enumerate(lang_status_i):
+                    if ls_ii==1: cws_decode_output_l[ii] = str(segType.BMES_label_map['S'])
+                cws_decode_output = ''.join(cws_decode_output_l)
 
-            cws_decode_output = ''.join(cws_decode_output_l)
             cws_output_list.append(cws_decode_output)
 
         pos_output_list = []
