@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelEncoder
 from src.utilis import save_model
 from src.config import args, segType
 from src.utilis import get_dataset_and_dataloader, restore_unknown_tokens_without_unused_with_pos
-from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes
+from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec
 from src.BERT import BertTokenizer
 from tqdm import tqdm
 import time
@@ -568,6 +568,15 @@ def compare_time_tokenize():
     print(t1)
 
 
+def test_make_dict_feature_vec():
+    sentence = '北京大学生学会很会惹事'
+    word_dict = ['北京', '北京大学']
+
+    #for max_gram in range(2, 5):
+    max_gram = 5
+    print(make_dict_feature_vec(sentence, word_dict, max_gram))
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -600,6 +609,6 @@ if __name__ == '__main__':
     #test_restore_unknown()
     #test_tokenize_list_with_cand_indexes()
 
-    compare_time_tokenize()
+    #compare_time_tokenize()
 
-
+    test_make_dict_feature_vec()
