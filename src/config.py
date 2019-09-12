@@ -167,3 +167,5 @@ PUNC_TOKENS = "(＂|＃|＄|％|＆|＇|（|）|＊|＋|，|－|／|：|；|＜|
 MAX_SUBWORDS = 64 # train: 10; test: 64
 
 UNUSED_SPACE_TOKEN = '[UnUsed_!@#]'
+
+MAX_GRAM_LEN = 16 # suppose the last length is 16 for two eight-words idioms

@@ -727,3 +727,19 @@ def extract_pos(pos_list):
         result_pos_str += pos_used + ' '
 
     return result_pos_str
+
+
+def read_dict(dict_file):
+    with open(dict_file, 'r', encoding='utf8') as f:
+        raw_data = f.readlines()
+
+    dict = {}
+    for rd in raw_data:
+        wdl = rd.strip().split()
+
+        if len(wdl)==1:
+            dict[wdl[0]] = 'Nil'
+        else:
+            dict[wdl[0]] = wdl[1]
+
+    return dict

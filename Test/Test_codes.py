@@ -11,7 +11,7 @@ Scenario:
 from sklearn.preprocessing import LabelEncoder
 from src.utilis import save_model
 from src.config import args, segType
-from src.utilis import get_dataset_and_dataloader, restore_unknown_tokens_without_unused_with_pos
+from src.utilis import get_dataset_and_dataloader, restore_unknown_tokens_without_unused_with_pos, read_dict
 from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec
 from src.BERT import BertTokenizer
 from tqdm import tqdm
@@ -577,6 +577,11 @@ def test_make_dict_feature_vec():
     print(make_dict_feature_vec(sentence, word_dict, max_gram))
 
 
+def test_read_dict():
+    infile = '../resource/dict.txt'
+    dict_o = read_dict(infile)
+    print(dict_o)
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -611,4 +616,6 @@ if __name__ == '__main__':
 
     #compare_time_tokenize()
 
-    test_make_dict_feature_vec()
+    #test_make_dict_feature_vec()
+
+    test_read_dict()
