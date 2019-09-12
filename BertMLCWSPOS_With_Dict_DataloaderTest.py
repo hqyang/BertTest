@@ -13,9 +13,8 @@ import os
 
 from tqdm import tqdm, trange
 from src.config import args
-from src.preprocess import CWS_POS # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
+from src.preprocess import CWS_POS, get_dataset_and_dataloader, get_eval_dataloaders
 import time
-from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
 from src.BERT.optimization import BertAdam
 from src.metrics import outputFscoreUsedBIO, outputPOSFscoreUsedBIO
 
@@ -98,13 +97,12 @@ def load_CWS_POS_model(CWS_label_list, POS_label_list, args):
 #    }
 #    models = models[args.fclassifier]()
 
-    model = BertMLVariantCWSPOS(bert_config, len(CWS_label_list), len(POS_label_list), method=args.method, \
-                fclassifier=args.fclassifier, pclassifier=args.pclassifier, do_mask_as_whole=args.do_mask_as_whole)
+    model = BertMLVariantCWSPOS_with_Dict(bert_config, len(CWS_label_list), len(POS_label_list), method=args.method, \
+                fclassifier=args.fclassifier, pclassifier=args.pclassifier, do_mask_as_whole=args.do_mask_as_whole, \
+                dict_file=args.dict_file)
 
     if args.bert_model_dir is None:
         raise RuntimeError('Evaluating a random initialized models is not supported...!')
-    #elif os.path.isdir(args.init_checkpoint):
-    #    raise ValueError("init_checkpoint is not a file")
     else:
         weights_path = os.path.join(args.bert_model_dir, WEIGHTS_NAME)
 
@@ -153,8 +151,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
     old_cws_F1 = 0.
     old_cws_Acc = 0.
-    old_pos_F1 = 0.
-    old_pos_Acc = 0.
+
     for ep in trange(int(args.num_train_epochs), desc="Epoch"):
         st = time.time()
         tr_loss = 0
@@ -166,12 +163,18 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 batch = tuple(t.to(device) for t in batch)
                 batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
 
-                input_ids, segment_ids, input_mask = batch[:3]
+                if args.dict_file is not None:
+                    input_ids, segment_ids, input_mask, input_via_dict = batch[:4]
+                else:
+                    input_ids, segment_ids, input_mask = batch[:3]
+                    input_via_dict = None
+
                 cand_indexes, token_ids = batch2[:2]
 
                 label_ids, pos_label_ids = batch[3:]
 
-                loss = model(input_ids, segment_ids, input_mask, cand_indexes, token_ids, label_ids, pos_label_ids)
+                loss = model(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict,
+                             label_ids, pos_label_ids)
 
                 n_gpu = torch.cuda.device_count()
                 if n_gpu > 1: # or loss.shape[0] > 1:
@@ -213,7 +216,12 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         else: # no cand_info
             for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
-                input_ids, segment_ids, input_mask = batch[:3]
+
+                if args.dict_file is not None:
+                    input_ids, segment_ids, input_mask, input_via_dict = batch[:4]
+                else:
+                    input_ids, segment_ids, input_mask = batch[:3]
+                    input_via_dict = None
 
                 label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
                 loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
@@ -365,7 +373,14 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
             batch = tuple(t.to(device) for t in batch)
             batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
 
-            input_ids, segment_ids, input_mask = batch[:3]
+            if args.dict_file is not None:
+                input_ids, segment_ids, input_mask, input_via_dict = batch[:4]
+            else:
+                input_ids, segment_ids, input_mask = batch[:3]
+                input_via_dict = None
+
+            # input_ids, segment_ids, input_mask = batch[:3]
+
             cand_indexes, token_ids = batch2[:2]
             label_ids, pos_label_ids = batch[3:]
 
@@ -375,12 +390,12 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
                 if n_gpu > 1: # multiple gpus
                     # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
+                        = model.decode(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict, label_ids, pos_label_ids)
                     loss_cws = loss_cws.mean()
                     loss_pos = loss_pos.mean()
                 else:
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
+                        = model.decode(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict, label_ids, pos_label_ids)
 
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
@@ -405,7 +420,13 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
     else:
         for batch in tqdm(eval_dataloader, desc="TestIter"):
             batch = tuple(t.to(device) for t in batch)
-            input_ids, segment_ids, input_mask = batch[:3]
+
+            #input_ids, segment_ids, input_mask = batch[:3]
+            if args.dict_file is not None:
+                input_ids, segment_ids, input_mask, input_via_dict = batch[:4]
+            else:
+                input_ids, segment_ids, input_mask = batch[:3]
+                input_via_dict = None
 
             label_ids, pos_label_ids, cand_indexes = batch[3:]
 
@@ -415,12 +436,12 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
                 if n_gpu > 1: # multiple gpus
                     # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+                        = model.decode(input_ids, segment_ids, input_mask, input_via_dict, label_ids, pos_label_ids)
                     loss_cws = loss_cws.mean()
                     loss_pos = loss_pos.mean()
                 else:
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+                        = model.decode(input_ids, segment_ids, input_mask, input_via_dict, label_ids, pos_label_ids)
 
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
@@ -581,7 +602,7 @@ def set_local_Ontonotes_param():
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_update/valid',
             'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
-            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS2/',
+            'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS2/dict/',
             'do_lower_case': True,
             'train_batch_size': 5,
             'max_seq_length': 128,
@@ -603,7 +624,7 @@ def set_server_Ontonotes_param():
             'data_dir': '../data/ontonotes5/4nerpos_update/valid/',
             'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
-            'output_dir': './tmp/ontonotes/CWSPOS2/',
+            'output_dir': './tmp/ontonotes/CWSPOS2/dict/',
             'do_lower_case': False,
             'train_batch_size': 4,
             'max_seq_length': 128,
