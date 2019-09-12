@@ -9,14 +9,14 @@ Feature:
 Scenario: 
 """
 from sklearn.preprocessing import LabelEncoder
-from src.utilis import save_model
 from src.config import args, segType
-from src.utilis import get_dataset_and_dataloader, restore_unknown_tokens_without_unused_with_pos, read_dict
-from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec
+from src.utilis import save_model, get_dataset_and_dataloader, restore_unknown_tokens_without_unused_with_pos
+from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec, read_dict
 from src.BERT import BertTokenizer
 from tqdm import tqdm
 import time
 import torch
+import numpy as np
 
 
 def test_BertCRF_constructor():
@@ -582,6 +582,26 @@ def test_read_dict():
     dict_o = read_dict(infile)
     print(dict_o)
 
+
+def gen_tuples(bEmpty=True):
+    inputs = np.random.randint(5, size=(5, 3)).tolist()
+    labels = np.random.randint(2, size=(5, 1)).tolist()
+    wd_fvs = []
+
+    if not bEmpty:
+        wd_fvs = np.random.randint(10, size=(5, 2)).tolist()
+
+    print(inputs)
+    print(labels)
+    print(wd_fvs)
+    return tuple(inputs + labels + wd_fvs)
+
+
+def test_tuples():
+    vv = gen_tuples()
+    print(vv)
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -618,4 +638,6 @@ if __name__ == '__main__':
 
     #test_make_dict_feature_vec()
 
-    test_read_dict()
+    #test_read_dict()
+
+    test_tuples()
