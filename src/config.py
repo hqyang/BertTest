@@ -1,7 +1,6 @@
 from pprint import pprint
 
 class Config:
-    
     ## Required parameters
     task_name = None  # MSR， PKU, AS, CITYU, ONTONOTES
     data_dir = None
@@ -15,15 +14,15 @@ class Config:
     do_train = False
     do_eval = False
     do_eval_df = False
-    append_dir = False  # evaluate the performance of training data, work when do_eval = True
-    trainBERT = True    
+    trainBERT = True
     bert_model = None
 
     ##2.Preprocessing
     do_lower_case = False
     nopunc = False
     do_mask_as_whole = True
-    
+    dict_file = './resource/dict.txt'
+
     ##3.Training configs
     init_checkpoint = None
     seed = 42
