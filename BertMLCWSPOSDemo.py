@@ -605,7 +605,7 @@ LOCAL_FLAG = False
 LOCAL_FLAG = True
 
 TEST_FLAG = False
-TEST_FLAG = True
+#TEST_FLAG = True
 
 
 if __name__=='__main__':
@@ -651,6 +651,9 @@ if __name__=='__main__':
 
             infile = './Test_cases/bad_cases.txt'
             outfile = './Test_cases/bad_cases_rs.txt'
+
+            infile = './resource/dict.txt'
+            outfile = './Test_cases/dict_rs.txt'
 
             model = preload(args)
             test_from_file(model, infile, outfile)
