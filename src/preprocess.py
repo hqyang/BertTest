@@ -1214,3 +1214,55 @@ def make_dict_feature_vec(sentence: str, word_dict: list, max_gram: int):
                     char_res[2*(rel_ind) - 1] = 1
         res.append(char_res)
     return res
+
+
+def preprocess_ner_2dict(json_path, tokenizer):
+    s = replace_nrt(open(json_path, 'r', encoding='utf8').read())
+    raw_data_list = s.split('{"text": "')
+    raw_data_list = [raw_string.replace('"}, ', '')
+                     for raw_string in raw_data_list]
+    raw_data_list = raw_data_list[1:]
+    project_table = {
+        '人名': 'PER',
+        '组织机构': 'ORG',
+        '地址': 'LOC',
+        '产品': 'PRD',
+        '时间': 'TME',
+        '地缘政治实体': 'GPE'
+    }
+    input_list = []
+    target_list = []
+    for sentence in raw_data_list:
+        input_list.append([])
+        target_list.append([])
+        doc_chunk_list = sentence.split('{{')
+        for chunk in doc_chunk_list:
+            if '}}' not in chunk or ':' not in chunk:
+                tokenized_chunk = tokenizer.tokenize(chunk)
+                target_list[-1] += ['O']*len(tokenized_chunk)
+                input_list[-1] += tokenized_chunk
+            else:
+                ent_chunk, text_chunk = chunk.split('}}')
+                punc_ind = ent_chunk.index(':')
+                ent_type = ent_chunk[:punc_ind]
+                ent = ent_chunk[punc_ind+1:]
+                if ent_type in project_table:
+                    ent = tokenizer.tokenize(ent)
+                    for char_ind, ent_char in enumerate(ent):
+                        if char_ind == 0:
+                            loc_char = 'B'
+                        else:
+                            loc_char = 'I'
+                        target_list[-1].append(loc_char +
+                                               '-'+project_table[ent_type])
+                        input_list[-1].append(ent_char)
+                else:
+                    ent = tokenizer.tokenize(ent)
+                    target_list[-1] += ['O']*len(ent)
+                    input_list[-1] += ent
+
+                text_chunk = tokenizer.tokenize(text_chunk)
+                target_list[-1] += ['O']*len(text_chunk)
+                input_list[-1] += text_chunk
+
+    return input_list, target_list
