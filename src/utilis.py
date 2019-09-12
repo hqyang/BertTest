@@ -29,30 +29,6 @@ CONFIG_NAME = 'bert_config.json'
 WEIGHTS_NAME = 'pytorch_model.bin'
 
 
-def get_dataset_and_dataloader(processor, args, training=True, type_name='train'):
-    dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
-                             args.max_seq_length, training=training, type_name=type_name,
-                               do_lower_case=args.do_lower_case,
-                               do_mask_as_whole=args.do_mask_as_whole)
-    dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
-                                       args.local_rank, training=training)
-    return dataset, dataloader
-
-
-def get_eval_dataloaders(processor, args):
-    if 'ontonotes' in args.task_name.lower():
-        parts = ['test', 'dev', 'train']
-    else:
-        parts = ['test', 'train']
-
-    eval_dataloaders = {}
-    for part in parts:
-        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type_name=part)
-        eval_dataloaders[part] = eval_dataloader
-
-    return eval_dataloaders
-
-
 # copy from https://github.com/supercoderhawk/DNN_CWS/blob/master/utils.py
 def strQ2B(ustring):
     '''全角转半角'''
@@ -729,17 +705,3 @@ def extract_pos(pos_list):
     return result_pos_str
 
 
-def read_dict(dict_file):
-    with open(dict_file, 'r', encoding='utf8') as f:
-        raw_data = f.readlines()
-
-    dict = {}
-    for rd in raw_data:
-        wdl = rd.strip().split()
-
-        if len(wdl)==1:
-            dict[wdl[0]] = 'Nil'
-        else:
-            dict[wdl[0]] = wdl[1]
-
-    return dict

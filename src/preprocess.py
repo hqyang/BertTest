@@ -6,7 +6,6 @@ import re
 import torch
 from src.BERT.tokenization import BertTokenizer
 import copy
-
 import time
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
@@ -377,6 +376,53 @@ def construct_pos_tags(pos_tags_file, mode = 'BIO'):
         pos_idx_to_label_map[i] = lmap
 
     return pos_label_list, pos_label_map, pos_idx_to_label_map
+
+
+def get_dataset_and_dataloader(processor, args, training=True, type_name='train'):
+    dataset = OntoNotesDataset(processor, args.data_dir, args.vocab_file,
+                             args.max_seq_length, training=training, type_name=type_name,
+                               do_lower_case=args.do_lower_case,
+                               do_mask_as_whole=args.do_mask_as_whole)
+    dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
+                                       args.local_rank, training=training)
+    return dataset, dataloader
+
+
+def get_eval_dataloaders(processor, args):
+    if 'ontonotes' in args.task_name.lower():
+        parts = ['test', 'dev', 'train']
+    else:
+        parts = ['test', 'train']
+
+    eval_dataloaders = {}
+    for part in parts:
+        eval_dataset, eval_dataloader = get_dataset_and_dataloader(processor, args, training=False, type_name=part)
+        eval_dataloaders[part] = eval_dataloader
+
+    return eval_dataloaders
+
+
+def get_dataset_with_dict_and_dataloader(processor, args, training=True, type_name='train'):
+    dataset = OntoNotesDataset_With_Dict(processor, args.data_dir, args.vocab_file,
+                             args.max_seq_length, training=training, type_name=type_name,
+                               do_lower_case=args.do_lower_case, do_mask_as_whole=args.do_mask_as_whole)                             )
+    dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
+                                       args.local_rank, training=training)
+    return dataset, dataloader
+
+
+def get_eval_with_dict_dataloaders(processor, args):
+    if 'ontonotes' in args.task_name.lower():
+        parts = ['test', 'dev', 'train']
+    else:
+        parts = ['test', 'train']
+
+    eval_dataloaders = {}
+    for part in parts:
+        eval_dataset, eval_dataloader = get_dataset_with_dict_and_dataloader(processor, args, training=False, type_name=part)
+        eval_dataloaders[part] = eval_dataloader
+
+    return eval_dataloaders
 
 
 class MeituProcessor:
@@ -903,6 +949,183 @@ class OntoNotesDataset(Dataset):
         return self.df.shape[0]
 
 
+class OntoNotesDataset_With_Dict(OntoNotesDataset):
+    def __init__(self, processor, data_dir, vocab_file, max_length, training=True, type_name='train', do_lower_case=True, \
+                 do_mask_as_whole=False, dict_file='./resource/dict.txt'):
+        self.tokenizer = BertTokenizer(
+                vocab_file=vocab_file, do_lower_case=do_lower_case)
+        self.max_length = max_length
+        self.processor = processor
+        self.data_dir = data_dir
+        self.training = training
+        self.train_df = None
+        self.dev_df = None
+        self.test_df = None
+        self.df = None
+        self.train(training=training, type_name=type_name)
+        self.label_list = processor.get_labels()
+        self.label_map = processor.label_map
+        self.do_mask_as_whole = do_mask_as_whole
+        if dict_file is not None:
+            self.dict = list(read_dict(dict_file).keys()) # set dict as a list
+            self.max_gram = MAX_GRAM_LEN # default is 16
+        else:
+            self.max_gram = 1 # if no dictionary
+
+        pos_label_map = getattr(processor, 'pos_label_map', None)
+        if pos_label_map is not None:
+            self.pos_label_map = pos_label_map
+        else:
+            self.pos_label_map = None
+
+    def train(self, training=True, type_name='train'):
+        self.training = training
+        if type_name=='train':
+            if self.train_df is None:
+                self.train_df = self.processor.get_train_examples(self.data_dir)
+            self.df = self.train_df
+        elif type_name=='dev':
+            if self.dev_df is None:
+                self.dev_df = self.processor.get_dev_examples(self.data_dir)
+            self.df = self.dev_df
+        elif type_name=='test':
+            if self.test_df is None:
+                self.test_df = self.processor.get_test_examples(self.data_dir)
+            self.df = self.test_df
+        else:
+            self.df = self.processor.get_other_examples(self.data_dir, ty+".tsv")
+
+        return self
+
+    def dev(self):
+        return self.train(training=False)
+
+    def _tokenize(self):
+        logging.info('Tokenizing...')
+        st = time.time()
+        tokens = []
+        labelids = []
+        pos_label_ids = []
+        cand_indexes = []
+        wd_fvs = []
+
+        for i, data in enumerate(self.df.itertuples()):
+            if self.do_mask_as_whole:
+                token, cand_index = tokenize_text_with_cand_indexes(data.text, self.max_length, self.tokenizer)
+                # cand_index_len = list(cand_index.size())[0]
+                # labelid = tokenize_label_list_restriction(data.label, self.max_length, self.label_map, cand_index_len)
+                labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
+
+                if self.pos_label_map:
+                    # pos_label_id = tokenize_label_list_restriction(data.label_pos, self.max_length, self.pos_label_map, cand_index_len)
+                    pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
+                    pos_label_ids.append(pos_label_id)
+            else: # no cand_index
+                token = tokenize_text(data.text, self.max_length, self.tokenizer)
+                labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
+
+                if self.pos_label_map:
+                    pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
+                    pos_label_ids.append(pos_label_id)
+
+            tokens.append(token)
+            labelids.append(labelid)
+
+            if self.do_mask_as_whole:
+                cand_indexes.append(cand_index)
+
+            if self.max_gram > 1:
+                wd_fv = make_dict_feature_vec(data.text, self.dict, self.max_gram)
+                wd_fvs.append(wd_fv)
+
+            if i % 100000 == 0:
+                logging.info("Writing example %d of %d" % (i, self.df.shape[0]))
+        self.df['token'] = tokens
+        self.df['labelid'] = labelids
+
+        # The rest three components may be empty
+        self.df['pos_label_id'] = pos_label_ids
+        self.df['cand_index'] = cand_indexes
+        self.df['word_feature_vector'] = wd_fvs
+
+        logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
+        logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
+
+    def __getitem__(self, i):
+        if 'token' not in self.df.columns: # encode is here
+            self._tokenize()
+        data = self.df.iloc[i]
+
+        wd_fvs = []
+        if self.max_gram > 1:
+            wd_fvs = data.word_feature_vector
+
+        if self.pos_label_map is None:
+            if not self.do_mask_as_whole: # no cand_index
+                token, labelid = data.token, data.labelid
+                if not isinstance(labelid, list):
+                    labelid = [labelid]
+
+                return tuple(token + labelid + wd_fvs)
+            else: # contain cand_index
+                token, labelid, cand_index = data.token, data.labelid, data.cand_index
+
+                if not isinstance(labelid, list):
+                    labelid = [labelid]
+
+                if not isinstance(cand_index, list):
+                    cand_index = [cand_index]
+
+                return tuple(token + labelid + wd_fvs), cand_index # three tuples
+        else:
+            if not self.do_mask_as_whole: # no cand_index, cand_mask
+                token, labelid, pos_label_id = data.token, data.labelid, data.pos_label_id
+
+                if not isinstance(labelid, list):
+                    labelid = [labelid]
+
+                if not isinstance(pos_label_id, list):
+                    pos_label_id = [pos_label_id]
+
+                return tuple(token + labelid + pos_label_id + wd_fvs) # three tuples
+            else: # contain cand_index, cand_mask
+                token, labelid, pos_label_id, cand_index \
+                    = data.token, data.labelid, data.pos_label_id, data.cand_index
+
+                if not isinstance(labelid, list):
+                    labelid = [labelid]
+
+                if not isinstance(pos_label_id, list):
+                    pos_label_id = [pos_label_id]
+
+                if not isinstance(cand_index, list):
+                    cand_index = [cand_index]
+
+                return tuple(token + labelid + pos_label_id + wd_fvs), cand_index # four tuples
+
+    def __call__(self, i):
+        data = self.df.iloc[i]
+
+        if self.pos_label_map is None:
+            if self.do_mask_as_whole: # no cand_index
+                text, label, cand_index, wd_fv = data.text, data.label, data.cand_inde, data.word_feature_vector#, data.cand_mask
+                return text, label, cand_index, wd_fv#, cand_mask
+            else: # contain cand_index
+                text, label, wd_fv = data.text, data.label, data.word_feature_vector
+                return text, label, wd_fv
+        else: # no pos_label_map
+            if self.do_mask_as_whole: # no cand_index
+                text, label, pos_label, cand_index, wd_fv \
+                    = data.text, data.label, data.pos_label, data.cand_index, data.word_feature_vector
+                return text, label, pos_label, cand_index, wd_fv #, cand_mask
+            else: # contain cand_index
+                text, label, pos_label, wd_fv = data.text, data.label, data.pos_label, data.word_feature_vector
+                return text, label, pos_label, wd_fv
+
+    def __len__(self):
+        return self.df.shape[0]
+
+
 def text2tokens(text, max_length, tokenizer):
     tokens = tokenizer.tokenize(text)
     if len(tokens) > max_length - 2:
@@ -1192,6 +1415,22 @@ def randomly_mask_input(input_ids, tokenizer, mask_token_rate=0.15,
     return masked_input_ids, label_ids
 
 
+def read_dict(dict_file):
+    with open(dict_file, 'r', encoding='utf8') as f:
+        raw_data = f.readlines()
+
+    dict = {}
+    for rd in raw_data:
+        wdl = rd.strip().split()
+
+        if len(wdl)==1:
+            dict[wdl[0]] = 'Nil'
+        else:
+            dict[wdl[0]] = wdl[1]
+
+    return dict
+
+
 def make_dict_feature_vec(sentence: str, word_dict: list, max_gram: int):
     if max_gram <= 1:
         raise ValueError('max gram should be greater than 1')
@@ -1216,6 +1455,7 @@ def make_dict_feature_vec(sentence: str, word_dict: list, max_gram: int):
     return res
 
 
+# need more checkings
 def preprocess_ner_2dict(json_path, tokenizer):
     s = replace_nrt(open(json_path, 'r', encoding='utf8').read())
     raw_data_list = s.split('{"text": "')
@@ -1266,3 +1506,5 @@ def preprocess_ner_2dict(json_path, tokenizer):
                 input_list[-1] += text_chunk
 
     return input_list, target_list
+
+
