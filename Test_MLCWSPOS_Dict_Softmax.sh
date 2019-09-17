@@ -9,7 +9,7 @@ do
         --task_name ontonotes_cws_pos2.0 \
         --model_type sequencelabeling \
         --data_dir ../data/ontonotes5/4nerpos_update \
-        --output_dir ./tmp/ontonotes/CWSPOS2/cased2/Softmax_Dict/ \
+        --output_dir ./tmp/ontonotes/CWSPOS2/cased/Softmax_Dict/ \
         --dict_file ./resource/dict.txt
         --fclassifier Softmax \
         --pclassifier Softmax \
