@@ -602,7 +602,7 @@ def test_tuples():
     print(vv)
 
 
-def test_torch_assignment():
+def Test/Test_codes.py():
     sz0, sz1, sz2 = 2, 3, 5
     sz_s = 2
 
