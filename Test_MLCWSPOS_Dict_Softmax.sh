@@ -5,7 +5,7 @@ do
     set -- $i;
     echo $1, $2;
 
-    python BertMLCWSPOS_With_Dict_DataloaderTest.py.py \
+    python BertMLCWSPOS_With_Dict_DataloaderTest.py \
         --task_name ontonotes_cws_pos2.0 \
         --model_type sequencelabeling \
         --data_dir ../data/ontonotes5/4nerpos_update \
