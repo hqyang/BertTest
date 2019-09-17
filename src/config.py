@@ -169,5 +169,5 @@ UNUSED_SPACE_TOKEN = '[UnUsed_!@#]'
 
 # suppose the last length is 16 for two eight-words idioms
 # however, to make the hidden size is not a multiple of the number of attention heads (12),
-# we set it to 25
-MAX_GRAM_LEN = 25
+# we set the default to 25
+MAX_GRAM_LEN = 13
