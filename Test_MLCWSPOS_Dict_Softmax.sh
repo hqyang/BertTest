@@ -10,7 +10,7 @@ do
         --model_type sequencelabeling \
         --data_dir ../data/ontonotes5/4nerpos_update \
         --output_dir ./tmp/ontonotes/CWSPOS2/cased/Softmax_Dict/ \
-        --dict_file ./resource/dict.txt
+        --dict_file ./resource/dict.txt \
         --fclassifier Softmax \
         --pclassifier Softmax \
         --bert_model_dir ../models/multi_cased_L-12_H-768_A-12/ \
