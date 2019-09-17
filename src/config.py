@@ -1,8 +1,9 @@
 from pprint import pprint
 
+
 class Config:
     ## Required parameters
-    task_name = None  # MSR， PKU, AS, CITYU, ONTONOTES
+    task_name = None  # MSR， PKU, AS, CITYU, ontonotes_cws_pos, ontonotes_cws_pos2.0
     data_dir = None
     bert_config_file = None
     vocab_file = None
@@ -13,18 +14,15 @@ class Config:
     ##1.Basic tasks
     do_train = False
     do_eval = False
-    do_eval_df = False
-    trainBERT = True
-    bert_model = None
 
     ##2.Preprocessing
-    do_lower_case = False
+    do_lower_case = False # do_lower_case = True is suggested
     nopunc = False
     do_mask_as_whole = True
     dict_file = './resource/dict.txt'
 
     ##3.Training configs
-    init_checkpoint = None
+    init_checkpoint = None #
     seed = 42
     max_seq_length = 128
     train_batch_size = 128
@@ -35,8 +33,8 @@ class Config:
     num_hidden_layers = 0
     projected_size = 6
     method = 'fine_tune' # 'last_layer', 'cat_last4', 'sum_last4', 'sum_all'
-    fclassifier = 'Softmax' # 'CRF'
-    pclassifier = 'CRF'
+    fclassifier = 'Softmax' # or 'CRF', fclassifier is the classifier for word segmentation
+    pclassifier = 'CRF' # 'Softmax' is suggested, pclassifier is the classifier for part-of-speech
 
     ##4.Devices
     no_cuda = False
@@ -45,7 +43,7 @@ class Config:
     optimize_on_cpu = False
     fp16 = False
     loss_scale = 128
-    visible_device = None
+    visible_device = None # 0, 1, 2 to determine the number of GPU devices
     
     #5.Task options
     isResume = False
@@ -73,14 +71,18 @@ class Config:
         return {k: getattr(self, k) for k, _ in Config.__dict__.items() \
                 if not k.startswith('_')}
 
+
 args = Config()
+
 
 class SegType:
     BMES_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'M', 4: 'E', 5: 'S'}
     BIO_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'I', 4: 'O'}
     BMES_label_map = {'[START]': 0, '[END]': 1, 'B': 2, 'M': 3, 'E': 4, 'S': 5}
 
+
 segType = SegType()
+
 
 class POSType:
     BIO_idx_to_label_map = {
@@ -119,6 +121,7 @@ class POSType:
         'NT': 22, 'OD': 23, 'ON': 24, 'P': 25, 'PN': 26, 'PU': 27, 'SB': 28,
         'SP': 29, 'URL': 30, 'VA': 31, 'VC': 32, 'VE': 33, 'VV': 34, 'X': 35
     }
+
 
 posType = POSType()
 
@@ -160,7 +163,9 @@ posType = POSType()
     # 34 VV    情态动词、  动词、possess/拥有 ，rich/富有,具有
     # 35 X     English x
 
+
 UNK_TOKEN = "[UNK]"
+
 PUNC_TOKENS = "(＂|＃|＄|％|＆|＇|（|）|＊|＋|，|－|／|：|；|＜|＝|＞|＠|［|＼|］|＾|＿|｀|｛|｜|｝|～|｟|｠|｢|｣|､|\u3000|、|〃|〈|〉|《|》|「|」|『|』|【|】|〔|〕|〖|〗|〘|〙|〚|〛|〜|〝|〞|〟|〰|〾|〿|–|—|‘|’|‛|“|”|„|‟|…|‧|﹏|﹑|﹔|·|！|？|｡|。|')"
 
 MAX_SUBWORDS = 64 # train: 10; test: 64
