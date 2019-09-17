@@ -1318,12 +1318,17 @@ class BertMLModel_With_Dict(PreTrainedBertModel):
             sz_eo = embedding_output.shape
             sz_ivd = input_via_dict.shape
 
-            tt = torch.zeros([sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2]], dtype=next(self.parameters()).dtype)
-            input_via_dict = input_via_dict.to(dtype=next(self.parameters()).dtype)
-            input_via_dict = torch.cat((tt, input_via_dict), 2)
-            embedding_output += input_via_dict
+            t_mask0 = torch.zeros(sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2])
+            t_mask1 = torch.ones(sz_eo[0], sz_eo[1], sz_ivd[2])
+            t_mask  = torch.cat((t_mask0, t_mask1), 2)
+            t_mask = t_mask.byte()
+            t_mask = t_mask.to(dtype=next(self.parameters()).dtype)
+            embedding_output = embedding_output.masked_scatter(t_mask, input_via_dict)
+            #tt = torch.zeros([sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2]], dtype=next(self.parameters()).dtype)
+            #input_via_dict = input_via_dict.to(dtype=next(self.parameters()).dtype)
+            #input_via_dict = torch.cat((tt, input_via_dict), 2)
+            #embedding_output[:][:][sz_eo[2]:] += input_via_dict
             #embedding_output = torch.cat((embedding_output, input_via_dict), 2)
-
 
         encoded_layers = self.encoder(embedding_output,
                                       extended_attention_mask,
