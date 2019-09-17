@@ -1,15 +1,16 @@
 #!/bin/sh
-for i in 1,128 3,96 6,64 12,32
+for i in 1,96 3,32 6,32 12,32
 do
     IFS=",";
     set -- $i;
     echo $1, $2;
 
-    python BertMLCWSPOSDataloaderTest.py \
+    python BertMLCWSPOS_With_Dict_DataloaderTest.py.py \
         --task_name ontonotes_cws_pos2.0 \
         --model_type sequencelabeling \
         --data_dir ../data/ontonotes5/4nerpos_update \
-        --output_dir ./tmp/ontonotes/CWSPOS2/cased2/Softmax/ \
+        --output_dir ./tmp/ontonotes/CWSPOS2/cased2/Softmax_Dict/ \
+        --dict_file ./resource/dict.txt
         --fclassifier Softmax \
         --pclassifier Softmax \
         --bert_model_dir ../models/multi_cased_L-12_H-768_A-12/ \
