@@ -10,8 +10,8 @@ Scenario:
 """
 from sklearn.preprocessing import LabelEncoder
 from src.config import args, segType
-from src.utilis import save_model, get_dataset_and_dataloader, restore_unknown_tokens_without_unused_with_pos
-from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec, read_dict
+from src.utilis import save_model, restore_unknown_tokens_without_unused_with_pos
+from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec, read_dict, get_dataset_and_dataloader
 from src.BERT import BertTokenizer
 from tqdm import tqdm
 import time
@@ -602,6 +602,28 @@ def test_tuples():
     print(vv)
 
 
+def test_torch_assignment():
+    sz0, sz1, sz2 = 2, 3, 5
+    sz_s = 2
+
+    t1 = torch.randint(1, 4, (sz0, sz1, sz2))
+    t2 = torch.randint(-3, -1, [sz0, sz1, sz_s])
+
+    print(t1)
+    print(t2)
+
+    t_mask0 = torch.zeros(sz0, sz1, sz2-sz_s)
+    t_mask1 = torch.ones(sz0, sz1, sz_s)
+    t_mask  = torch.cat((t_mask0, t_mask1), 2)
+    t_mask = t_mask.byte()
+    t3 = t1.masked_scatter(t_mask, t2)
+    #t1[:][:][sz3-2:] = t2
+    t1.masked_scatter_(t_mask, t2)
+
+    print(t3)
+    print('finished')
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -640,4 +662,6 @@ if __name__ == '__main__':
 
     #test_read_dict()
 
-    test_tuples()
+    #test_tuples()
+
+    test_torch_assignment()
