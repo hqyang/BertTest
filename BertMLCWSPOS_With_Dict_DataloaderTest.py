@@ -13,7 +13,7 @@ import os
 
 from tqdm import tqdm, trange
 from src.config import args
-from src.preprocess import CWS_POS, get_dataset_and_dataloader, get_eval_dataloaders
+from src.preprocess import CWS_POS, get_dataset_with_dict_and_dataloader, get_eval_with_dict_dataloaders
 import time
 from src.BERT.optimization import BertAdam
 from src.metrics import outputFscoreUsedBIO, outputPOSFscoreUsedBIO
@@ -29,7 +29,7 @@ from src.BERT.modeling import BertConfig
 # `BertConfig`. To create a models from a Google pretrained models use
 # `models = BertVariant.from_pretrained(PRETRAINED_MODEL_NAME)`
 
-from src.customize_modeling import BertMLVariantCWSPOS
+from src.customize_modeling import BertMLVariantCWSPOS_with_Dict
 from tensorboardX import SummaryWriter
 
 import logging
@@ -158,111 +158,203 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         nb_tr_examples, nb_tr_steps = 0, 0
 
         step = 1
-        if args.do_mask_as_whole:
-            for step, (batch, batch2) in enumerate(tqdm(train_dataloader, desc="Iteration")):
-                batch = tuple(t.to(device) for t in batch)
-                batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
+        if args.dict_file is not None: # contains dictionary file
+            if args.do_mask_as_whole:
+                for step, (batch, batch2, input_via_dict) in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                    batch = tuple(t.to(device) for t in batch)
+                    batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
+                    #batch3 = tuple(t.to(device) for t in batch3) # for t in wd_fvs
 
-                if args.dict_file is not None:
-                    input_ids, segment_ids, input_mask, input_via_dict = batch[:4]
-                else:
                     input_ids, segment_ids, input_mask = batch[:3]
-                    input_via_dict = None
 
-                cand_indexes, token_ids = batch2[:2]
+                    cand_indexes, token_ids = batch2[:2]
 
-                label_ids, pos_label_ids = batch[3:]
+                    label_ids, pos_label_ids = batch[3:]
+                    #input_via_dict = batch3[0:]
 
-                loss = model(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict,
-                             label_ids, pos_label_ids)
+                    loss = model(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict,
+                                 label_ids, pos_label_ids)
 
-                n_gpu = torch.cuda.device_count()
-                if n_gpu > 1: # or loss.shape[0] > 1:
-                    loss = loss.mean() # mean() to average on multi-gpu or multitask.
-                if args.fp16 and args.loss_scale != 1.0:
-                    # rescale loss for fp16 training
-                    # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
-                    loss = loss * args.loss_scale
-                if args.gradient_accumulation_steps > 1:
-                    loss = loss / args.gradient_accumulation_steps
+                    n_gpu = torch.cuda.device_count()
+                    if n_gpu > 1: # or loss.shape[0] > 1:
+                        loss = loss.mean() # mean() to average on multi-gpu or multitask.
+                    if args.fp16 and args.loss_scale != 1.0:
+                        # rescale loss for fp16 training
+                        # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
+                        loss = loss * args.loss_scale
+                    if args.gradient_accumulation_steps > 1:
+                        loss = loss / args.gradient_accumulation_steps
 
-                if args.fclassifier == 'Softmax':
-                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
-                else:
-                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
-
-                loss.backward()
-                tr_loss += loss.item()
-                nb_tr_examples += input_ids.size(0)
-                nb_tr_steps += 1
-                if (step + 1) % args.gradient_accumulation_steps == 0:
-                    if args.fp16 or args.optimize_on_cpu:
-                        if args.fp16 and args.loss_scale != 1.0:
-                            # scale down gradients for fp16 training
-                            for param in model.parameters():
-                                param.grad.data = param.grad.data / args.loss_scale
-                        is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
-                        if is_nan:
-                            logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
-                            args.loss_scale = args.loss_scale / 2
-                            model.zero_grad()
-                            continue
-                        optimizer.step()
-                        copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                    if args.fclassifier == 'Softmax':
+                        logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
                     else:
-                        optimizer.step()
-                    model.zero_grad()
-                    global_step += 1
-        else: # no cand_info
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
-                batch = tuple(t.to(device) for t in batch)
+                        logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
 
-                if args.dict_file is not None:
-                    input_ids, segment_ids, input_mask, input_via_dict = batch[:4]
-                else:
+                    loss.backward()
+                    tr_loss += loss.item()
+                    nb_tr_examples += input_ids.size(0)
+                    nb_tr_steps += 1
+                    if (step + 1) % args.gradient_accumulation_steps == 0:
+                        if args.fp16 or args.optimize_on_cpu:
+                            if args.fp16 and args.loss_scale != 1.0:
+                                # scale down gradients for fp16 training
+                                for param in model.parameters():
+                                    param.grad.data = param.grad.data / args.loss_scale
+                            is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
+                            if is_nan:
+                                logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
+                                args.loss_scale = args.loss_scale / 2
+                                model.zero_grad()
+                                continue
+                            optimizer.step()
+                            copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                        else:
+                            optimizer.step()
+                        model.zero_grad()
+                        global_step += 1
+            else: # no cand_info
+                for step, batch, batch2 in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                    batch = tuple(t.to(device) for t in batch)
+                    batch2 = tuple(t.to(device) for t in batch2)
+
                     input_ids, segment_ids, input_mask = batch[:3]
-                    input_via_dict = None
+                    input_via_dict = batch2[0:]
 
-                label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
-                loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+                    label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
+                    loss = model(input_ids, segment_ids, input_mask, input_via_dict, label_ids, pos_label_ids)
 
-                n_gpu = torch.cuda.device_count()
-                if n_gpu > 1: # or loss.shape[0] > 1:
-                    loss = loss.mean() # mean() to average on multi-gpu or multitask.
-                if args.fp16 and args.loss_scale != 1.0:
-                    # rescale loss for fp16 training
-                    # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
-                    loss = loss * args.loss_scale
-                if args.gradient_accumulation_steps > 1:
-                    loss = loss / args.gradient_accumulation_steps
+                    n_gpu = torch.cuda.device_count()
+                    if n_gpu > 1: # or loss.shape[0] > 1:
+                        loss = loss.mean() # mean() to average on multi-gpu or multitask.
+                    if args.fp16 and args.loss_scale != 1.0:
+                        # rescale loss for fp16 training
+                        # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
+                        loss = loss * args.loss_scale
+                    if args.gradient_accumulation_steps > 1:
+                        loss = loss / args.gradient_accumulation_steps
 
-                if args.fclassifier == 'Softmax':
-                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
-                else:
-                    logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
-
-                loss.backward()
-                tr_loss += loss.item()
-                nb_tr_examples += input_ids.size(0)
-                nb_tr_steps += 1
-                if (step + 1) % args.gradient_accumulation_steps == 0:
-                    if args.fp16 or args.optimize_on_cpu:
-                        if args.fp16 and args.loss_scale != 1.0:
-                            # scale down gradients for fp16 training
-                            for param in model.parameters():
-                                param.grad.data = param.grad.data / args.loss_scale
-                        is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
-                        if is_nan:
-                            logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
-                            args.loss_scale = args.loss_scale / 2
-                            model.zero_grad()
-                            continue
-                        optimizer.step()
-                        copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                    if args.fclassifier == 'Softmax':
+                        logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
                     else:
-                        optimizer.step()
-                    model.zero_grad()
-                    global_step += 1
+                        logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+
+                    loss.backward()
+                    tr_loss += loss.item()
+                    nb_tr_examples += input_ids.size(0)
+                    nb_tr_steps += 1
+                    if (step + 1) % args.gradient_accumulation_steps == 0:
+                        if args.fp16 or args.optimize_on_cpu:
+                            if args.fp16 and args.loss_scale != 1.0:
+                                # scale down gradients for fp16 training
+                                for param in model.parameters():
+                                    param.grad.data = param.grad.data / args.loss_scale
+                            is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
+                            if is_nan:
+                                logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
+                                args.loss_scale = args.loss_scale / 2
+                                model.zero_grad()
+                                continue
+                            optimizer.step()
+                            copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                        else:
+                            optimizer.step()
+                        model.zero_grad()
+                        global_step += 1
+        else: # no dictionary file
+            if args.do_mask_as_whole:
+                for step, (batch, batch2) in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                    batch = tuple(t.to(device) for t in batch)
+                    batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
+
+                    input_ids, segment_ids, input_mask = batch[:3]
+                    cand_indexes, token_ids = batch2[:2]
+
+                    label_ids, pos_label_ids = batch[3:]
+
+                    loss = model(input_ids, segment_ids, input_mask, cand_indexes, token_ids, label_ids, pos_label_ids)
+
+                    n_gpu = torch.cuda.device_count()
+                    if n_gpu > 1: # or loss.shape[0] > 1:
+                        loss = loss.mean() # mean() to average on multi-gpu or multitask.
+                    if args.fp16 and args.loss_scale != 1.0:
+                        # rescale loss for fp16 training
+                        # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
+                        loss = loss * args.loss_scale
+                    if args.gradient_accumulation_steps > 1:
+                        loss = loss / args.gradient_accumulation_steps
+
+                    if args.fclassifier == 'Softmax':
+                        logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
+                    else:
+                        logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+
+                    loss.backward()
+                    tr_loss += loss.item()
+                    nb_tr_examples += input_ids.size(0)
+                    nb_tr_steps += 1
+                    if (step + 1) % args.gradient_accumulation_steps == 0:
+                        if args.fp16 or args.optimize_on_cpu:
+                            if args.fp16 and args.loss_scale != 1.0:
+                                # scale down gradients for fp16 training
+                                for param in model.parameters():
+                                    param.grad.data = param.grad.data / args.loss_scale
+                            is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
+                            if is_nan:
+                                logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
+                                args.loss_scale = args.loss_scale / 2
+                                model.zero_grad()
+                                continue
+                            optimizer.step()
+                            copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                        else:
+                            optimizer.step()
+                        model.zero_grad()
+                        global_step += 1
+            else: # no cand_info
+                for step, batch in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                    batch = tuple(t.to(device) for t in batch)
+                    input_ids, segment_ids, input_mask = batch[:3]
+
+                    label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
+                    loss = model(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+
+                    n_gpu = torch.cuda.device_count()
+                    if n_gpu > 1: # or loss.shape[0] > 1:
+                        loss = loss.mean() # mean() to average on multi-gpu or multitask.
+                    if args.fp16 and args.loss_scale != 1.0:
+                        # rescale loss for fp16 training
+                        # see https://docs.nvidia.com/deeplearning/sdk/mixed-precision-training/index.html
+                        loss = loss * args.loss_scale
+                    if args.gradient_accumulation_steps > 1:
+                        loss = loss / args.gradient_accumulation_steps
+
+                    if args.fclassifier == 'Softmax':
+                        logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss*1e5))
+                    else:
+                        logger.info("Training loss: {:d}: {:+.2f}".format(ep, loss))
+
+                    loss.backward()
+                    tr_loss += loss.item()
+                    nb_tr_examples += input_ids.size(0)
+                    nb_tr_steps += 1
+                    if (step + 1) % args.gradient_accumulation_steps == 0:
+                        if args.fp16 or args.optimize_on_cpu:
+                            if args.fp16 and args.loss_scale != 1.0:
+                                # scale down gradients for fp16 training
+                                for param in model.parameters():
+                                    param.grad.data = param.grad.data / args.loss_scale
+                            is_nan = set_optimizer_params_grad(param_optimizer, model.named_parameters(), test_nan=True)
+                            if is_nan:
+                                logger.info("FP16 TRAINING: Nan in gradients, reducing loss scaling")
+                                args.loss_scale = args.loss_scale / 2
+                                model.zero_grad()
+                                continue
+                            optimizer.step()
+                            copy_optimizer_params_to_model(model.named_parameters(), param_optimizer)
+                        else:
+                            optimizer.step()
+                        model.zero_grad()
+                        global_step += 1
 
         tr_time = time.time()-st
         tr_times.append(tr_time)
@@ -368,101 +460,178 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
     results = []
 
     st = time.time()
-    if args.do_mask_as_whole:
-        for step, (batch, batch2) in enumerate(tqdm(eval_dataloader, desc="Iteration")):
-            batch = tuple(t.to(device) for t in batch)
-            batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
+    if args.dict_file is not None: # contains dictionary file
+        if args.do_mask_as_whole:
+            for step, (batch, batch2, input_via_dict) in enumerate(tqdm(eval_dataloader, desc="Iteration")):
+                batch = tuple(t.to(device) for t in batch)
+                batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
 
-            if args.dict_file is not None:
-                input_ids, segment_ids, input_mask, input_via_dict = batch[:4]
-            else:
                 input_ids, segment_ids, input_mask = batch[:3]
-                input_via_dict = None
 
-            # input_ids, segment_ids, input_mask = batch[:3]
+                cand_indexes, token_ids = batch2[:2]
+                label_ids, pos_label_ids = batch[3:]
 
-            cand_indexes, token_ids = batch2[:2]
-            label_ids, pos_label_ids = batch[3:]
+                with torch.no_grad():
+                    n_gpu = torch.cuda.device_count()
 
-            with torch.no_grad():
-                n_gpu = torch.cuda.device_count()
+                    if n_gpu > 1: # multiple gpus
+                        # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
+                        loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                            = model.decode(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict,
+                                           label_ids, pos_label_ids)
+                        loss_cws = loss_cws.mean()
+                        loss_pos = loss_pos.mean()
+                    else:
+                        loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                            = model.decode(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict,
+                                           label_ids, pos_label_ids)
 
-                if n_gpu > 1: # multiple gpus
-                    # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
-                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict, label_ids, pos_label_ids)
-                    loss_cws = loss_cws.mean()
-                    loss_pos = loss_pos.mean()
+                if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
+                    label_array = label_ids.data
+                    pos_label_array = pos_label_ids.data
+                    mask_array = input_mask.data
+                    tmp_el_cws = loss_cws
+                    tmp_el_pos = loss_pos
                 else:
-                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict, label_ids, pos_label_ids)
+                    label_array = label_ids.data.cpu()
+                    pos_label_array = pos_label_ids.cpu()
+                    mask_array = input_mask.data.cpu()
+                    tmp_el_cws = loss_cws.cpu()
+                    tmp_el_pos = loss_pos.cpu()
 
-            if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
-                label_array = label_ids.data
-                pos_label_array = pos_label_ids.data
-                mask_array = input_mask.data
-                tmp_el_cws = loss_cws
-                tmp_el_pos = loss_pos
-            else:
-                label_array = label_ids.data.cpu()
-                pos_label_array = pos_label_ids.cpu()
-                mask_array = input_mask.data.cpu()
-                tmp_el_cws = loss_cws.cpu()
-                tmp_el_pos = loss_pos.cpu()
+                all_label_ids.extend(label_array.tolist())
+                pos_all_label_ids.extend(pos_label_array.tolist())
+                all_mask_tokens.extend(mask_array.tolist())
+                cws_all_labels.extend(best_cws_tags_list)
+                pos_all_labels.extend(best_pos_tags_list)
+                cws_all_losses.append(tmp_el_cws.tolist())
+                pos_all_losses.append(tmp_el_pos.tolist())
+        else:
+            for step, (batch, input_via_dict) in enumerate(tqdm(eval_dataloader, desc="TestIter")):
+                batch = tuple(t.to(device) for t in batch)
 
-            all_label_ids.extend(label_array.tolist())
-            pos_all_label_ids.extend(pos_label_array.tolist())
-            all_mask_tokens.extend(mask_array.tolist())
-            cws_all_labels.extend(best_cws_tags_list)
-            pos_all_labels.extend(best_pos_tags_list)
-            cws_all_losses.append(tmp_el_cws.tolist())
-            pos_all_losses.append(tmp_el_pos.tolist())
+                input_ids, segment_ids, input_mask = batch[:3]
+
+                label_ids, pos_label_ids, cand_indexes = batch[3:]
+
+                with torch.no_grad():
+                    n_gpu = torch.cuda.device_count()
+
+                    if n_gpu > 1: # multiple gpus
+                        # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
+                        loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                            = model.decode(input_ids, segment_ids, input_mask, input_via_dict,
+                                           label_ids, pos_label_ids)
+                        loss_cws = loss_cws.mean()
+                        loss_pos = loss_pos.mean()
+                    else:
+                        loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                            = model.decode(input_ids, segment_ids, input_mask, input_via_dict,
+                                           label_ids, pos_label_ids)
+
+                if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
+                    label_array = label_ids.data
+                    pos_label_array = pos_label_ids.data
+                    mask_array = input_mask.data
+                    tmp_el_cws = loss_cws
+                    tmp_el_pos = loss_pos
+                else:
+                    label_array = label_ids.data.cpu()
+                    pos_label_array = pos_label_ids.cpu()
+                    mask_array = input_mask.data.cpu()
+                    tmp_el_cws = loss_cws.cpu()
+                    tmp_el_pos = loss_pos.cpu()
+
+                all_label_ids.extend(label_array.tolist())
+                pos_all_label_ids.extend(pos_label_array.tolist())
+                all_mask_tokens.extend(mask_array.tolist())
+                cws_all_labels.extend(best_cws_tags_list)
+                pos_all_labels.extend(best_pos_tags_list)
+                cws_all_losses.append(tmp_el_cws.tolist())
+                pos_all_losses.append(tmp_el_pos.tolist())
     else:
-        for batch in tqdm(eval_dataloader, desc="TestIter"):
-            batch = tuple(t.to(device) for t in batch)
+        if args.do_mask_as_whole:
+            for step, (batch, batch2) in enumerate(tqdm(eval_dataloader, desc="Iteration")):
+                batch = tuple(t.to(device) for t in batch)
+                batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
 
-            #input_ids, segment_ids, input_mask = batch[:3]
-            if args.dict_file is not None:
-                input_ids, segment_ids, input_mask, input_via_dict = batch[:4]
-            else:
                 input_ids, segment_ids, input_mask = batch[:3]
-                input_via_dict = None
+                cand_indexes, token_ids = batch2[:2]
+                label_ids, pos_label_ids = batch[3:]
 
-            label_ids, pos_label_ids, cand_indexes = batch[3:]
+                with torch.no_grad():
+                    n_gpu = torch.cuda.device_count()
 
-            with torch.no_grad():
-                n_gpu = torch.cuda.device_count()
+                    if n_gpu > 1: # multiple gpus
+                        # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
+                        loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                            = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
+                        loss_cws = loss_cws.mean()
+                        loss_pos = loss_pos.mean()
+                    else:
+                        loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                            = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
 
-                if n_gpu > 1: # multiple gpus
-                    # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
-                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, input_via_dict, label_ids, pos_label_ids)
-                    loss_cws = loss_cws.mean()
-                    loss_pos = loss_pos.mean()
+                if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
+                    label_array = label_ids.data
+                    pos_label_array = pos_label_ids.data
+                    mask_array = input_mask.data
+                    tmp_el_cws = loss_cws
+                    tmp_el_pos = loss_pos
                 else:
-                    loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, input_via_dict, label_ids, pos_label_ids)
+                    label_array = label_ids.data.cpu()
+                    pos_label_array = pos_label_ids.cpu()
+                    mask_array = input_mask.data.cpu()
+                    tmp_el_cws = loss_cws.cpu()
+                    tmp_el_pos = loss_pos.cpu()
 
-            if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
-                label_array = label_ids.data
-                pos_label_array = pos_label_ids.data
-                mask_array = input_mask.data
-                tmp_el_cws = loss_cws
-                tmp_el_pos = loss_pos
-            else:
-                label_array = label_ids.data.cpu()
-                pos_label_array = pos_label_ids.cpu()
-                mask_array = input_mask.data.cpu()
-                tmp_el_cws = loss_cws.cpu()
-                tmp_el_pos = loss_pos.cpu()
+                all_label_ids.extend(label_array.tolist())
+                pos_all_label_ids.extend(pos_label_array.tolist())
+                all_mask_tokens.extend(mask_array.tolist())
+                cws_all_labels.extend(best_cws_tags_list)
+                pos_all_labels.extend(best_pos_tags_list)
+                cws_all_losses.append(tmp_el_cws.tolist())
+                pos_all_losses.append(tmp_el_pos.tolist())
+        else:
+            for batch in tqdm(eval_dataloader, desc="TestIter"):
+                batch = tuple(t.to(device) for t in batch)
+                input_ids, segment_ids, input_mask = batch[:3]
 
-            all_label_ids.extend(label_array.tolist())
-            pos_all_label_ids.extend(pos_label_array.tolist())
-            all_mask_tokens.extend(mask_array.tolist())
-            cws_all_labels.extend(best_cws_tags_list)
-            pos_all_labels.extend(best_pos_tags_list)
-            cws_all_losses.append(tmp_el_cws.tolist())
-            pos_all_losses.append(tmp_el_pos.tolist())
+                label_ids, pos_label_ids, cand_indexes = batch[3:]
+
+                with torch.no_grad():
+                    n_gpu = torch.cuda.device_count()
+
+                    if n_gpu > 1: # multiple gpus
+                        # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
+                        loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                            = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+                        loss_cws = loss_cws.mean()
+                        loss_pos = loss_pos.mean()
+                    else:
+                        loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
+                            = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids)
+
+                if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
+                    label_array = label_ids.data
+                    pos_label_array = pos_label_ids.data
+                    mask_array = input_mask.data
+                    tmp_el_cws = loss_cws
+                    tmp_el_pos = loss_pos
+                else:
+                    label_array = label_ids.data.cpu()
+                    pos_label_array = pos_label_ids.cpu()
+                    mask_array = input_mask.data.cpu()
+                    tmp_el_cws = loss_cws.cpu()
+                    tmp_el_pos = loss_pos.cpu()
+
+                all_label_ids.extend(label_array.tolist())
+                pos_all_label_ids.extend(pos_label_array.tolist())
+                all_mask_tokens.extend(mask_array.tolist())
+                cws_all_labels.extend(best_cws_tags_list)
+                pos_all_labels.extend(best_pos_tags_list)
+                cws_all_losses.append(tmp_el_cws.tolist())
+                pos_all_losses.append(tmp_el_pos.tolist())
 
     cws_score, cws_sInfo = outputFscoreUsedBIO(all_label_ids, cws_all_labels, all_mask_tokens)
 
@@ -557,9 +726,9 @@ def train_CWS_POS(args):
     os.system('mkdir %s' %args.output_dir)
     os.system('chmod 777 %s' %args.output_dir)
 
-    train_dataset, train_dataloader = get_dataset_and_dataloader(processor, args, training=True, type_name='train')
+    train_dataset, train_dataloader = get_dataset_with_dict_and_dataloader(processor, args, training=True, type_name='train')
 
-    eval_dataloaders = get_eval_dataloaders(processor, args)
+    eval_dataloaders = get_eval_with_dict_dataloaders(processor, args)
 
     num_train_steps = int(
         len(train_dataset) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs)
