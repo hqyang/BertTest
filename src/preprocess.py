@@ -11,7 +11,7 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data import RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-from .config import MAX_SUBWORDS
+from .config import MAX_SUBWORDS, MAX_GRAM_LEN
 
 
 def is_chinese_char(cp):
@@ -405,7 +405,9 @@ def get_eval_dataloaders(processor, args):
 def get_dataset_with_dict_and_dataloader(processor, args, training=True, type_name='train'):
     dataset = OntoNotesDataset_With_Dict(processor, args.data_dir, args.vocab_file,
                              args.max_seq_length, training=training, type_name=type_name,
-                               do_lower_case=args.do_lower_case, do_mask_as_whole=args.do_mask_as_whole)                             )
+                                do_lower_case=args.do_lower_case,
+                                do_mask_as_whole=args.do_mask_as_whole)
+
     dataloader = dataset_to_dataloader(dataset, args.train_batch_size,
                                        args.local_rank, training=training)
     return dataset, dataloader
@@ -559,90 +561,6 @@ class MeituProcessor:
             output_dict_file = os.path.join(output_dir, 'tag%d_labelidmap.dict'%(i+1))
             torch.save(lidmap, output_dict_file)
 
-class MeituDataset(Dataset):
-    def __init__(self, processor, data_dir, vocab_file, max_length, training=True):
-        self.tokenizer = BertTokenizer(
-                vocab_file=vocab_file, do_lower_case=True)
-        self.max_length = max_length
-        self.processor = processor
-        self.data_dir = data_dir
-        self.training = training
-        self.train_df = None
-        self.dev_df = None
-        self.df = None
-        self.train(training=training)
-        self.label_list = processor.get_labels(data_dir=data_dir)
-        self.label_map = processor.label_map
-
-    def train(self, training=True):
-        self.training = training
-        if training:
-            if self.train_df is None:
-                self.train_df = self.processor.get_train_examples(self.data_dir)
-            self.df = self.train_df
-        else:
-            if self.dev_df is None:
-                self.dev_df = self.processor.get_dev_examples(self.data_dir)
-            self.df = self.dev_df
-        return self
-
-    def dev(self):
-        return self.train(training=False)
-
-    def _tokenize(self):
-        logging.info('Tokenizing...')
-        tokens = []
-        labelids = []
-        st = time.time()
-        tokens = []
-        labelids = []
-        for i, data in enumerate(self.df.itertuples()):
-            token = tokenize_text(data.text, self.max_length, self.tokenizer)
-            labelid = tokenize_label(data.label, self.label_map)
-            tokens.append(token)
-            labelids.append(labelid)
-            if i % 100000 == 0:
-                logging.info("Writing example %d of %d" % (i, self.df.shape[0]))
-        self.df['token'] = tokens
-        self.df['labelid'] = labelids
-        logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
-
-    def __getitem__(self, i):
-        if 'token' not in self.df.columns:
-            self._tokenize()
-        data = self.df.iloc[i]
-        token, labelid = data.token, data.labelid
-        if not isinstance(labelid, list):
-            labelid = [labelid]
-        return tuple(token + labelid)
-
-    def __call__(self, i):
-        data = self.df.iloc[i]
-        text, label = data.text, data.label
-        return text, label
-
-    def __len__(self):
-        return self.df.shape[0]
-
-class MeituTagProcessor:
-    def __init__(self, nopunc=False):
-        self.label_list = None
-        self.label_map = None
-        self.nopunc = nopunc
-        self.label_list = ['negative', 'positive']
-        self.label_map = {'negative': 0, 'positive': 1}
-
-    def get_train_examples(self, data_dir):
-        """See base class."""
-        df = pd.read_csv(os.path.join(data_dir, "train_tag.tsv"), sep='\t')
-        return df
-
-    def get_dev_examples(self, data_dir):
-        df = pd.read_csv(os.path.join(data_dir, "dev_tag.tsv"), sep='\t')
-        return df
-
-    def get_labels(self):
-        return self.label_list
 
 class CWS_BMEO(MeituProcessor):
     def __init__(self, nopunc=False, drop_columns=None):
@@ -726,65 +644,6 @@ class CWS_POS(MeituProcessor):
 
     def get_POS_labels(self):
         return self.pos_label_list
-
-
-class MeituTagDataset(Dataset):
-    def __init__(self, processor, data_dir, vocab_file, max_length, training=True):
-        self.tokenizer = BertTokenizer(
-                vocab_file=vocab_file, do_lower_case=True)
-        self.max_length = max_length
-        self.processor = processor
-        self.data_dir = data_dir
-        self.training = training
-        self.train_df = None
-        self.dev_df = None
-        self.df = None
-        self.train(training=training)
-        self.label_list = processor.get_labels()
-        self.label_map = processor.label_map
-
-    def train(self, training=True):
-        self.training = training
-        if training:
-            if self.train_df is None:
-                self.train_df = self.processor.get_train_examples(self.data_dir)
-            self.df = self.train_df
-        else:
-            if self.dev_df is None:
-                self.dev_df = self.processor.get_dev_examples(self.data_dir)
-            self.df = self.dev_df
-        return self
-
-    def dev(self):
-        return self.train(training=False)
-
-    def _tokenize(self):
-        logging.info('Tokenizing...')
-        st = time.time()
-        tokens = []
-        for i, data in enumerate(self.df.itertuples()):
-            token = tokenize_text_tag(data.text, data.tag, self.max_length, self.tokenizer)
-            tokens.append(token)
-            if i % 100000 == 0:
-                logging.info("Writing example %d of %d" % (i, self.df.shape[0]))
-        self.df['token'] = tokens
-        logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
-
-    def __call__(self, i):
-        data = self.df.iloc[i]
-        text = data.text
-        tag = data.tag
-        return text, tag
-
-    def __getitem__(self, i):
-        if 'token' not in self.df.columns:
-            self._tokenize()
-        data = self.df.iloc[i]
-        token, labelid = data.token, [1]
-        return tuple(token + labelid)
-
-    def __len__(self):
-        return self.df.shape[0]
 
 
 class OntoNotesDataset(Dataset):
@@ -1011,7 +870,7 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
 
         for i, data in enumerate(self.df.itertuples()):
             if self.do_mask_as_whole:
-                token, cand_index = tokenize_text_with_cand_indexes(data.text, self.max_length, self.tokenizer)
+                token, cand_index, words = tokenize_text_with_cand_indexes_to_words(data.text, self.max_length, self.tokenizer)
                 # cand_index_len = list(cand_index.size())[0]
                 # labelid = tokenize_label_list_restriction(data.label, self.max_length, self.label_map, cand_index_len)
                 labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
@@ -1021,7 +880,7 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
                     pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
                     pos_label_ids.append(pos_label_id)
             else: # no cand_index
-                token = tokenize_text(data.text, self.max_length, self.tokenizer)
+                token, words = tokenize_text_to_words(data.text, self.max_length, self.tokenizer)
                 labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
 
                 if self.pos_label_map:
@@ -1035,8 +894,9 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
                 cand_indexes.append(cand_index)
 
             if self.max_gram > 1:
-                wd_fv = make_dict_feature_vec(data.text, self.dict, self.max_gram)
-                wd_fvs.append(wd_fv)
+                wd_fv = words2dict_feature_vec(words, self.dict, self.max_gram, self.max_length)
+                    # make_dict_feature_vec(data.text, self.dict, self.max_gram) #make_dict_feature_np_vec(data.text, self.dict, self.max_gram)
+                wd_fvs.append(np.array(wd_fv))
 
             if i % 100000 == 0:
                 logging.info("Writing example %d of %d" % (i, self.df.shape[0]))
@@ -1056,9 +916,11 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
             self._tokenize()
         data = self.df.iloc[i]
 
-        wd_fvs = []
-        if self.max_gram > 1:
+        #wd_fvs = []
+        if self.max_gram > 1: # non-empty
             wd_fvs = data.word_feature_vector
+        else:
+            wd_fvs = []
 
         if self.pos_label_map is None:
             if not self.do_mask_as_whole: # no cand_index
@@ -1066,7 +928,7 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
                 if not isinstance(labelid, list):
                     labelid = [labelid]
 
-                return tuple(token + labelid + wd_fvs)
+                return tuple(token + labelid), wd_fvs
             else: # contain cand_index
                 token, labelid, cand_index = data.token, data.labelid, data.cand_index
 
@@ -1076,7 +938,7 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
                 if not isinstance(cand_index, list):
                     cand_index = [cand_index]
 
-                return tuple(token + labelid + wd_fvs), cand_index # three tuples
+                return tuple(token + labelid), cand_index, wd_fvs # three tuples
         else:
             if not self.do_mask_as_whole: # no cand_index, cand_mask
                 token, labelid, pos_label_id = data.token, data.labelid, data.pos_label_id
@@ -1087,7 +949,7 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
                 if not isinstance(pos_label_id, list):
                     pos_label_id = [pos_label_id]
 
-                return tuple(token + labelid + pos_label_id + wd_fvs) # three tuples
+                return tuple(token + labelid + pos_label_id), wd_fvs # three tuples
             else: # contain cand_index, cand_mask
                 token, labelid, pos_label_id, cand_index \
                     = data.token, data.labelid, data.pos_label_id, data.cand_index
@@ -1101,7 +963,7 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
                 if not isinstance(cand_index, list):
                     cand_index = [cand_index]
 
-                return tuple(token + labelid + pos_label_id + wd_fvs), cand_index # four tuples
+                return tuple(token + labelid + pos_label_id), cand_index, wd_fvs # three tuples
 
     def __call__(self, i):
         data = self.df.iloc[i]
@@ -1173,12 +1035,45 @@ def tokenize_text_with_cand_indexes(text, max_length, tokenizer):
 
     if len(tokens) < max_length:
         tokens.extend([0] * (max_length - len(tokens)))
+
     tokens = np.array(tokens)
     mask = np.array([1] * can_index_len + [0] * (max_length - can_index_len))
     segment = np.array([0] * max_length)
 
     cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
-    return [tokens, segment, mask], [cand_indexes, token_ids]#, can_index_len # include ['SEP']
+
+    return [tokens, segment, mask], [cand_indexes, token_ids] #, can_index_len # include ['SEP']
+
+
+def tokenize_text_with_cand_indexes_to_words(text, max_length, tokenizer):
+    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
+    # words = list(filter(lambda x: x!=' ', words))
+    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
+    words = tokenizer.tokenize(text)
+    words = ['[CLS]'] + words
+
+    cand_indexes = define_words_set(words)
+
+    # prepare the length of words does not exceed max_length while considering the situation of do_whole as _mask
+    words, can_index_len = set_words_boundary(words, cand_indexes, max_length)
+    words += ['[SEP]']
+
+    tokens = tokenizer.convert_tokens_to_ids(words)
+
+    # suppose the length of words and tokens is less than max_length
+    cand_indexes, token_ids, words, tokens = define_tokens_set(words, tokens)
+
+    if len(tokens) < max_length:
+        tokens.extend([0] * (max_length - len(tokens)))
+        words.extend(['[PAD]'] * (max_length - len(tokens)))
+
+    tokens = np.array(tokens)
+    mask = np.array([1] * can_index_len + [0] * (max_length - can_index_len))
+    segment = np.array([0] * max_length)
+
+    cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
+
+    return [tokens, segment, mask], [cand_indexes, token_ids], words#, can_index_len # include ['SEP']
 
 
 def tokenize_list_with_cand_indexes(words, max_length, tokenizer):
@@ -1259,6 +1154,28 @@ def tokenize_text(text, max_length, tokenizer):
     mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
     segment = np.array([0] * max_length)
     return [tokens, segment, mask]
+
+
+def tokenize_text_to_words(text, max_length, tokenizer):
+    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
+    # words = list(filter(lambda x: x!=' ', words))
+    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
+    words = tokenizer.tokenize(text)
+    if len(words) > max_length - 2:
+        words = words[:max_length - 2]
+    words = ['[CLS]'] + words + ['[SEP]']
+    # models = tokenizer.models
+    # tokens = [models[_] if _ in models.keys() else models['[UNK]'] for _ in words]
+    # tokens = [models['[CLS]']] + tokens + [models['[SEP]']]
+    tokens = tokenizer.convert_tokens_to_ids(words)
+    if len(tokens) < max_length:
+        tokens.extend([0] * (max_length - len(tokens)))
+        words.extend(['[PAD]'] * (max_length - len(tokens)))
+
+    tokens = np.array(tokens)
+    mask = np.array([1] * (len(words)) + [0] * (max_length - len(words)))
+    segment = np.array([0] * max_length)
+    return [tokens, segment, mask], words
 
 
 def tokenize_list(words, max_length, tokenizer):
@@ -1431,7 +1348,7 @@ def read_dict(dict_file):
     return dict
 
 
-def make_dict_feature_vec(sentence: str, word_dict: list, max_gram: int):
+def make_dict_feature_vec(sentence: str, word_dict: list, max_gram: int): #-> list
     if max_gram <= 1:
         raise ValueError('max gram should be greater than 1')
 
@@ -1454,6 +1371,83 @@ def make_dict_feature_vec(sentence: str, word_dict: list, max_gram: int):
         res.append(char_res)
     return res
 
+
+def words2dict_feature_vec(words: list, word_dict: list, max_gram: int, max_length: int): #-> list
+    if max_gram <= 1:
+        raise ValueError('max gram should be greater than 1')
+
+    if not words:
+        return []
+
+    res = []
+
+    # for each char,
+    for char_ind, char in enumerate(words):
+        char_res = [0]*(2*(max_gram - 1))
+
+        for rel_ind in range(1, max_gram):
+            if char_ind - rel_ind >= 0:
+                # construct words
+                sent = ''.join(words[char_ind - rel_ind:char_ind + 1])
+                if sent in word_dict:
+                    char_res[2*(rel_ind - 1)] = 1
+            if char_ind + rel_ind < len(words):
+                sent = ''.join(words[char_ind:char_ind + rel_ind + 1])
+                if sent in word_dict:
+                    char_res[2*rel_ind - 1] = 1
+        res.append(char_res)
+
+    if len(words) < max_length:
+        res.extend([[0]*(2*(max_gram - 1))] * (max_length - len(words)))
+    return res
+
+
+def make_dict_feature_vec(sentence: str, word_dict: list, max_gram: int): #-> list
+    if max_gram <= 1:
+        raise ValueError('max gram should be greater than 1')
+
+    if not sentence:
+        return []
+
+    res = []
+
+    # for each char,
+    for char_ind, char in enumerate(sentence):
+        char_res = [0]*(2*(max_gram - 1))
+        for rel_ind in range(1, max_gram):
+
+            if char_ind - rel_ind >= 0:
+                if sentence[char_ind - rel_ind:char_ind + 1] in word_dict:
+                    char_res[2*(rel_ind - 1)] = 1
+            if char_ind + rel_ind < len(sentence):
+                if sentence[char_ind:char_ind + rel_ind + 1] in word_dict:
+                    char_res[2*(rel_ind) - 1] = 1
+        res.append(char_res)
+    return res
+
+
+def make_dict_feature_np_vec(sentence: str, word_dict: list, max_gram: int): #-> list of np
+    if max_gram <= 1:
+        raise ValueError('max gram should be greater than 1')
+
+    if not sentence:
+        return []
+
+    res = []
+
+    # for each char,
+    for char_ind, char in enumerate(sentence):
+        char_res = [0]*(2*(max_gram - 1))
+        for rel_ind in range(1, max_gram):
+
+            if char_ind - rel_ind >= 0:
+                if sentence[char_ind - rel_ind:char_ind + 1] in word_dict:
+                    char_res[2*(rel_ind - 1)] = 1
+            if char_ind + rel_ind < len(sentence):
+                if sentence[char_ind:char_ind + rel_ind + 1] in word_dict:
+                    char_res[2*(rel_ind) - 1] = 1
+        res.append(np.array(char_res))
+    return res
 
 # need more checkings
 def preprocess_ner_2dict(json_path, tokenizer):

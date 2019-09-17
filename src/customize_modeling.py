@@ -1314,7 +1314,16 @@ class BertMLModel_With_Dict(PreTrainedBertModel):
 
         # concatinate embedding_output and input_via_dict
         if input_via_dict is not None:
-            embedding_output = torch.cat((embedding_output, input_via_dict), 0)
+            # make the type of input_via_dict compatible with parameter type
+            sz_eo = embedding_output.shape
+            sz_ivd = input_via_dict.shape
+
+            tt = torch.zeros([sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2]], dtype=next(self.parameters()).dtype)
+            input_via_dict = input_via_dict.to(dtype=next(self.parameters()).dtype)
+            input_via_dict = torch.cat((tt, input_via_dict), 2)
+            embedding_output += input_via_dict
+            #embedding_output = torch.cat((embedding_output, input_via_dict), 2)
+
 
         encoded_layers = self.encoder(embedding_output,
                                       extended_attention_mask,
@@ -1818,7 +1827,7 @@ class BertMLVariantCWSPOS_with_Dict(BertMLVariantCWSPOS):
     ```
     """
     def __init__(self, config, num_CWStags=6, num_POStags=108, method='fine_tune', fclassifier='Softmax', \
-                 pclassifier='Softmax', do_mask_as_whole=False, dict_file='./resource/dict.txt'):
+                 pclassifier='Softmax', do_mask_as_whole=False, dict_file=None):
         super(BertMLVariantCWSPOS_with_Dict, self).__init__(config)
         self.num_CWStags = num_CWStags
         self.num_POStags = num_POStags
@@ -1827,6 +1836,13 @@ class BertMLVariantCWSPOS_with_Dict(BertMLVariantCWSPOS):
         self.pclassifier = pclassifier  # pos classifier
         self.do_mask_as_whole = do_mask_as_whole
 
+        if dict_file is not None:
+            self.dict = read_dict(dict_file)
+            self.max_gram = MAX_GRAM_LEN # default is 16
+            config.hidden_size += (self.max_gram-1)*2 # if no dictionary, self.max_gram=1
+        else:
+            self.max_gram = 1 # if no dictionary
+
         if self.do_mask_as_whole:
             self.bert = BertMLModel_With_Dict(config)
         else:
@@ -1834,22 +1850,16 @@ class BertMLVariantCWSPOS_with_Dict(BertMLVariantCWSPOS):
 
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
-        if dict_file is not None:
-            self.dict = read_dict(dict_file)
-            self.max_gram = MAX_GRAM_LEN # default is 16
-        else:
-            self.max_gram = 1 # if no dictionary
-
         if method == 'fine_tune':
-            last_hidden_size = self.config.hidden_size + (self.max_gram-1)*2 # if no dictionary, self.max_gram=1
+            last_hidden_size = self.config.hidden_size
         elif method == 'cat_last4':
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4 + (self.max_gram-1)*2, # if no dictionary, self.max_gram=1
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
             last_hidden_size = self.config.hidden_size*2
         elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size + (self.max_gram-1)*2, # if no dictionary, self.max_gram=1
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
