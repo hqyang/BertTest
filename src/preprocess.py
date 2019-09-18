@@ -36,6 +36,13 @@ def is_chinese_char(cp):
     return False
 
 
+def check_chinese_words(word):
+    for idx in range(len(word)):
+        if not is_chinese_char(ord(word[idx])):
+            return False # one char is not English, it is not an English word
+    return True
+
+
 def is_english_char(cp):
     """Checks whether CP is an English character."""
     # https://zh.wikipedia.org/wiki/%E5%85%A8%E5%BD%A2%E5%92%8C%E5%8D%8A%E5%BD%A2
@@ -825,6 +832,8 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
         self.label_list = processor.get_labels()
         self.label_map = processor.label_map
         self.do_mask_as_whole = do_mask_as_whole
+        self.dict_file = dict_file
+
         if dict_file is not None:
             self.dict = list(read_dict(dict_file).keys()) # set dict as a list
             self.max_gram = MAX_GRAM_LEN # default is 16
@@ -871,12 +880,9 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
         for i, data in enumerate(self.df.itertuples()):
             if self.do_mask_as_whole:
                 token, cand_index, words = tokenize_text_with_cand_indexes_to_words(data.text, self.max_length, self.tokenizer)
-                # cand_index_len = list(cand_index.size())[0]
-                # labelid = tokenize_label_list_restriction(data.label, self.max_length, self.label_map, cand_index_len)
                 labelid = tokenize_label_list(data.label, self.max_length, self.label_map)
 
                 if self.pos_label_map:
-                    # pos_label_id = tokenize_label_list_restriction(data.label_pos, self.max_length, self.pos_label_map, cand_index_len)
                     pos_label_id = tokenize_label_list(data.label_pos, self.max_length, self.pos_label_map)
                     pos_label_ids.append(pos_label_id)
             else: # no cand_index
@@ -895,11 +901,19 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
 
             if self.max_gram > 1:
                 wd_fv = words2dict_feature_vec(words, self.dict, self.max_gram, self.max_length)
-                    # make_dict_feature_vec(data.text, self.dict, self.max_gram) #make_dict_feature_np_vec(data.text, self.dict, self.max_gram)
                 wd_fvs.append(np.array(wd_fv))
 
             if i % 100000 == 0:
                 logging.info("Writing example %d of %d" % (i, self.df.shape[0]))
+
+        # generate t_mask
+        sz_eo = token.shape
+        sz_ivd = wd_fv.shape
+
+        t_mask0 = np.zeros((sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2]))
+        t_mask1 = np.ones((sz_eo[0], sz_eo[1], sz_ivd[2]))
+        t_mask = np.concatenate((t_mask0, t_mask1), axis=2)
+
         self.df['token'] = tokens
         self.df['labelid'] = labelids
 
@@ -907,6 +921,7 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
         self.df['pos_label_id'] = pos_label_ids
         self.df['cand_index'] = cand_indexes
         self.df['word_feature_vector'] = wd_fvs
+        self.df['t_mask'] = t_mask
 
         logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
         logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
@@ -916,7 +931,6 @@ class OntoNotesDataset_With_Dict(OntoNotesDataset):
             self._tokenize()
         data = self.df.iloc[i]
 
-        #wd_fvs = []
         if self.max_gram > 1: # non-empty
             wd_fvs = data.word_feature_vector
         else:
@@ -1399,6 +1413,44 @@ def words2dict_feature_vec(words: list, word_dict: list, max_gram: int, max_leng
 
     if len(words) < max_length:
         res.extend([[0]*(2*(max_gram - 1))] * (max_length - len(words)))
+    return res
+
+
+def words2dict_tuple(words: list, word_dict: list, max_gram: int): #-> tuple
+    # the output tuple stores the indexes to indicate the words appear in the dict
+
+    if max_gram <= 1:
+        raise ValueError('max gram should be greater than 1')
+
+    if not words:
+        return []
+
+    res = []
+
+    # for each char,
+    for char_ind, char in enumerate(words):
+        #char_res = [0]*(2*(max_gram - 1))
+        for rel_ind in range(1, max_gram):
+            if char_ind - rel_ind >= 0:
+                # construct words
+                sent = ''.join(words[char_ind - rel_ind:char_ind + 1])
+                if sent in word_dict:
+                    # char_res[2*(rel_ind - 1)] = 1
+                    idx_res = (char_ind, 2*(rel_ind - 1))
+                    res.append(idx_res)
+
+            if char_ind + rel_ind < len(words):
+                sent = ''.join(words[char_ind:char_ind + rel_ind + 1])
+                if sent in word_dict:
+                    #char_res[2*rel_ind - 1] = 1
+                    idx_res = (char_ind, 2*rel_ind - 1)
+                    res.append(idx_res)
+
+
+        #res.append(char_res)
+
+    #if len(words) < max_length:
+    #    res.extend([[0]*(2*(max_gram - 1))] * (max_length - len(words)))
     return res
 
 

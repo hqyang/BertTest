@@ -75,6 +75,14 @@ class Config:
 args = Config()
 
 
+class LangType:
+    CHINESE = 'Chinese'
+    ENGLISH = 'English'
+    OTHERS = 'Others'
+
+langtype = LangType()
+
+
 class SegType:
     BMES_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'M', 4: 'E', 5: 'S'}
     BIO_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'I', 4: 'O'}
@@ -82,6 +90,17 @@ class SegType:
 
 
 segType = SegType()
+
+
+def bmes2bio(x):
+    if x=='B':
+        return x
+    elif x=='M' or x=='E':
+        return 'I'
+    elif x=='S':
+        return 'O'
+    else:
+        raise ValueError("The input is not in {B, M, E, S}")
 
 
 class POSType:
