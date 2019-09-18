@@ -632,6 +632,14 @@ def test_torch_assignment():
     print('finished')
 
 
+def test_check_attribute_exist():
+    from src.config import langtype
+
+    print('langtype has attribution, CHINESE? ' + str(hasattr(langtype, 'CHINESE')))
+    print('langtype has attribution, OTHER? ' + str(hasattr(langtype, 'OTHER')))
+    print('langtype has attribution, OTHERS? ' + str(hasattr(langtype, 'OTHERS')))
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -666,10 +674,12 @@ if __name__ == '__main__':
 
     #compare_time_tokenize()
 
-    test_word_in_dict_feature_vec()
+    #test_word_in_dict_feature_vec()
 
     #test_read_dict()
 
     #test_tuples()
 
     #test_torch_assignment()
+
+    test_check_attribute_exist()
