@@ -11,7 +11,8 @@ Scenario:
 from sklearn.preprocessing import LabelEncoder
 from src.config import args, segType
 from src.utilis import save_model, restore_unknown_tokens_without_unused_with_pos
-from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec, read_dict, get_dataset_and_dataloader
+from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec, \
+    read_dict, get_dataset_and_dataloader, words2dict_tuple
 from src.BERT import BertTokenizer
 from tqdm import tqdm
 import time
@@ -568,13 +569,20 @@ def compare_time_tokenize():
     print(t1)
 
 
-def test_make_dict_feature_vec():
+def test_word_in_dict_feature_vec():
     sentence = '北京大学生学会很会惹事'
     word_dict = ['北京', '北京大学']
 
     #for max_gram in range(2, 5):
+    print(word_dict)
+    print(sentence)
+
     max_gram = 5
+    print('word in dict vec: ')
     print(make_dict_feature_vec(sentence, word_dict, max_gram))
+
+    print('word in dict tuple: ')
+    print(words2dict_tuple(sentence, word_dict, max_gram))
 
 
 def test_read_dict():
@@ -602,7 +610,7 @@ def test_tuples():
     print(vv)
 
 
-def Test/Test_codes.py():
+def test_torch_assignment():
     sz0, sz1, sz2 = 2, 3, 5
     sz_s = 2
 
@@ -658,10 +666,10 @@ if __name__ == '__main__':
 
     #compare_time_tokenize()
 
-    #test_make_dict_feature_vec()
+    test_word_in_dict_feature_vec()
 
     #test_read_dict()
 
     #test_tuples()
 
-    test_torch_assignment()
+    #test_torch_assignment()
