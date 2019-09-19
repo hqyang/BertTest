@@ -1081,7 +1081,8 @@ class OntoNotesDataset_Stored_With_Dict(OntoNotesDataset):
     def _generate_wd_vec(self, wd_tuple):
         # generate t_mask
         dict2feat_vec = self.zeros_mat.copy()
-        set1_from_tuple(self.pattern, dict2feat_vec, wd_tuple, NUM_HIDDEN_SIZE)
+        # the second axis should be shifted NUM_HIDDEN_SIZE
+        set1_from_tuple(self.pattern, dict2feat_vec, wd_tuple, 0, NUM_HIDDEN_SIZE)
 
         return dict2feat_vec
 
