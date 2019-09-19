@@ -18,7 +18,9 @@ from tqdm import tqdm
 import time
 import torch
 import numpy as np
-
+import pandas as pd
+import re
+from src.utilis import set1_from_tuple
 
 def test_BertCRF_constructor():
     from src.BERT.modeling import BertCRF
@@ -640,6 +642,50 @@ def test_check_attribute_exist():
     print('langtype has attribution, OTHERS? ' + str(hasattr(langtype, 'OTHERS')))
 
 
+zeros_mat = np.zeros((100, 128), np.uint8)
+
+
+def test_np_mat_assignment():
+    print('zeros_mat')
+    print(zeros_mat)
+
+    a = zeros_mat
+    a[0][0] = 1
+
+    print('a')
+    print(a)
+
+    print('zeros_mat')
+    print(zeros_mat)
+
+    a = zeros_mat.copy()
+    a[0][0] = 2
+
+    print('a')
+    print(a)
+
+    print('zeros_mat')
+    print(zeros_mat)
+
+
+def test_process_tuple_assignment():
+    infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/' \
+             'proc_data/4nerpos_update/valid/feat_with_dict/test.tsv'
+    df = pd.read_csv(infile, sep='\t', low_memory=False)
+    wd_tuples = df.word_in_dict_tuple
+
+    pp = re.compile(r'[(](.*?)[)]', re.S)
+
+    for idx, wd_tuple in enumerate(wd_tuples):
+        dd = zeros_mat.copy()
+
+        set1_from_tuple(dd, wd_tuple, pp)
+
+        if idx==13:
+            print(idx)
+        print(dd)
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -682,4 +728,8 @@ if __name__ == '__main__':
 
     #test_torch_assignment()
 
-    test_check_attribute_exist()
+    #test_check_attribute_exist()
+
+    #test_np_mat_assignment()
+
+    test_process_tuple_assignment()

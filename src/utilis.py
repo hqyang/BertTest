@@ -81,6 +81,17 @@ def count_words_in_part(words, part, data_stat, data_count, store_dicts, store_c
                 store_chi_chars[part].add(w)
 
 
+def set1_from_tuple(mat, wd_tuple, pp):
+    if wd_tuple != '[]':
+        wd_list = re.findall(pp, wd_tuple)
+
+        for wdl in wd_list:
+            idx_l = wdl.split(',')
+            i0 = int(idx_l[0])
+            i1 = int(idx_l[1])
+            mat[i0][i1] = 1
+
+
 def count_data_stat_in_part(data_count, part, store_dicts, store_chi_chars, data_stat):
     np_sents = np.array(data_count[part, 'num_words_in_sent'])
     data_stat[part, 'total_words'] = np_sents.sum()
