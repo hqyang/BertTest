@@ -15,7 +15,7 @@ import pandas as pd
 import torch
 import numpy as np
 from .config import UNK_TOKEN, PUNC_TOKENS, UNUSED_SPACE_TOKEN
-from .preprocess import dataset_to_dataloader, OntoNotesDataset
+#from .preprocess import dataset_to_dataloader, OntoNotesDataset
 from functools import reduce
 import operator
 
@@ -79,17 +79,6 @@ def count_words_in_part(words, part, data_stat, data_count, store_dicts, store_c
 
             for w in word:
                 store_chi_chars[part].add(w)
-
-
-def set1_from_tuple(mat, wd_tuple, pp):
-    if wd_tuple != '[]':
-        wd_list = re.findall(pp, wd_tuple)
-
-        for wdl in wd_list:
-            idx_l = wdl.split(',')
-            i0 = int(idx_l[0])
-            i1 = int(idx_l[1])
-            mat[i0][i1] = 1
 
 
 def count_data_stat_in_part(data_count, part, store_dicts, store_chi_chars, data_stat):

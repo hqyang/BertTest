@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelEncoder
 from src.config import args, segType
 from src.utilis import save_model, restore_unknown_tokens_without_unused_with_pos
 from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec, \
-    read_dict, get_dataset_and_dataloader, words2dict_tuple
+    read_dict, get_dataset_and_dataloader, words2dict_tuple, set1_from_tuple
 from src.BERT import BertTokenizer
 from tqdm import tqdm
 import time
@@ -20,7 +20,7 @@ import torch
 import numpy as np
 import pandas as pd
 import re
-from src.utilis import set1_from_tuple
+
 
 def test_BertCRF_constructor():
     from src.BERT.modeling import BertCRF
@@ -672,14 +672,15 @@ def test_process_tuple_assignment():
     infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/' \
              'proc_data/4nerpos_update/valid/feat_with_dict/test.tsv'
     df = pd.read_csv(infile, sep='\t', low_memory=False)
-    wd_tuples = df.word_in_dict_tuple
+    #wd_tuples = df.word_in_dict_tuple
 
     pp = re.compile(r'[(](.*?)[)]', re.S)
 
-    for idx, wd_tuple in enumerate(wd_tuples):
-        dd = zeros_mat.copy()
+    #for idx, wd_tuple in enumerate(wd_tuples):
 
-        set1_from_tuple(dd, wd_tuple, pp)
+    for idx, data in enumerate(df.itertuples()):
+        dd = zeros_mat.copy()
+        set1_from_tuple(pp, dd, data.word_in_dict_tuple)
 
         if idx==13:
             print(idx)
