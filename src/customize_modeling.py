@@ -1289,7 +1289,7 @@ class BertMLModel_With_Dict(PreTrainedBertModel):
         self.apply(self.init_bert_weights)
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=True, \
-                cand_indexes=None, token_ids=None, input_via_dict=None):
+                cand_indexes=None, token_ids=None, input_via_dict=None, t_mask=None):
         if attention_mask is None:
             attention_mask = torch.ones_like(input_ids)
         if token_type_ids is None:
@@ -1314,16 +1314,18 @@ class BertMLModel_With_Dict(PreTrainedBertModel):
 
         # concatinate embedding_output and input_via_dict
         if input_via_dict is not None:
+            embedding_output += input_via_dict
+            # update embedding_output via t_mask
+            #embedding_output = embedding_output.masked_scatter(t_mask, input_via_dict)
             # make the type of input_via_dict compatible with parameter type
-            sz_eo = embedding_output.shape
-            sz_ivd = input_via_dict.shape
+            #sz_eo = embedding_output.shape
+            #sz_ivd = input_via_dict.shape
 
-            t_mask0 = torch.zeros(sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2])
-            t_mask1 = torch.ones(sz_eo[0], sz_eo[1], sz_ivd[2])
-            t_mask  = torch.cat((t_mask0, t_mask1), 2)
-            t_mask = t_mask.byte()
-            t_mask = t_mask.to(dtype=next(self.parameters()).dtype)
-            embedding_output = embedding_output.masked_scatter(t_mask, input_via_dict)
+            #t_mask0 = torch.zeros(sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2])
+            #t_mask1 = torch.ones(sz_eo[0], sz_eo[1], sz_ivd[2])
+            #t_mask  = torch.cat((t_mask0, t_mask1), 2)
+            #t_mask = t_mask.byte()
+            #t_mask = t_mask.to(dtype=next(self.parameters()).dtype)
             #tt = torch.zeros([sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2]], dtype=next(self.parameters()).dtype)
             #input_via_dict = input_via_dict.to(dtype=next(self.parameters()).dtype)
             #input_via_dict = torch.cat((tt, input_via_dict), 2)
@@ -1970,3 +1972,313 @@ class BertMLVariantCWSPOS_with_Dict(BertMLVariantCWSPOS):
 
         return feat_used
 
+
+class BertMLCWSPOS_with_Dict(BertMLVariantCWSPOS_with_Dict):
+    """Apply BERT for Sequence Labeling on Chinese Word Segmentation and Part-of-Speech.
+
+    models = BertMLCWSPOS_with_Dict(device, config, vocab_file, max_length, num_CWStags=6, num_POStags=110, batch_size=64, fclassifier='Softmax', method='fine_tune')
+    logits = models(input_ids, token_type_ids, input_mask)
+    ```
+    """
+    def __init__(self, device, config, vocab_file, max_length, num_CWStags=6, num_POStags=110, batch_size=64,
+                 do_lower_case=False, do_mask_as_whole=False, fclassifier='Softmax', pclassifier='Softmax', \
+                 method='fine_tune', dict_file=None):
+        super(BertMLCWSPOS_with_Dict, self).__init__(config)
+        self.device = device
+        self.batch_size = batch_size
+        self.tokenizer = BertTokenizer(
+                vocab_file=vocab_file, do_lower_case=do_lower_case)
+        self.max_length = max_length
+        self.num_CWStags = num_CWStags
+        self.num_POStags = num_POStags
+        self.do_mask_as_whole = do_mask_as_whole
+
+        if dict_file is not None:
+            self.dict = read_dict(dict_file)
+            self.max_gram = MAX_GRAM_LEN # default is 16
+            config.hidden_size += (self.max_gram-1)*2 # if no dictionary, self.max_gram=1
+        else:
+            self.max_gram = 1 # if no dictionary
+
+        if self.do_mask_as_whole:
+            self.bert = BertMLModel(config)
+        else:
+            self.bert = BertModel(config)
+
+        self.method = method
+        self.fclassifier = fclassifier  # cws classifier
+        self.pclassifier = pclassifier  # pos classifier
+        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
+
+        if method == 'fine_tune':
+            last_hidden_size = self.config.hidden_size
+        elif method == 'cat_last4':
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+            last_hidden_size = self.config.hidden_size*2
+        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
+            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
+                                  hidden_size=self.config.hidden_size,
+                                  num_layers=2, batch_first=True,
+                                  dropout=0, bidirectional=True)
+            last_hidden_size = self.config.hidden_size*2
+        elif self.method == 'MHMLA':
+            self.MHMLA = MultiHeadMultiLayerAttention(config)
+
+        # Maps the output of BERT into tag space.
+        self.hidden2CWStag = nn.Linear(last_hidden_size, num_CWStags)
+        self.hidden2POStag = nn.Linear(last_hidden_size, num_POStags)
+
+        if self.fclassifier == 'CRF':
+            self.CWSclassifier = CRF(num_CWStags, batch_first=True)
+
+        if self.pclassifier == 'CRF':
+            self.POSclassifier = CRF(num_POStags, batch_first=True)
+
+        self.apply(self.init_bert_weights)
+
+    def _seg_wordslist(self, lword):  # ->str
+        # lword: list of words (list)
+        # input_ids, segment_ids, input_mask = tokenize_list(
+        #     words, self.max_length, self.tokenizer)
+        #print(lword)
+        tuple1, tuple2, tuple3 = zip(
+            *[tokenize_list_with_cand_indexes_lang_status(w, self.max_length, self.tokenizer) for w in lword if w]) # w is not empty
+            #*[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
+            #*[tokenize_list_no_seg(w, self.max_length, self.tokenizer) for w in lword])
+        list1 = unpackTuple(tuple1)
+        input_ids = list1[0::3]
+        segment_ids = list1[1::3]
+        input_masks = list1[2::3]
+
+        list2 = unpackTuple(tuple2)
+        cand_indexes = list2[0::2]
+        token_ids = list2[1::2]
+
+        lang_status = unpackTuple(tuple3)
+        #lang_status = list3[0::]
+
+        input_id_torch = torch.from_numpy(np.array(input_ids)).to(self.device)
+        segment_ids_torch = torch.from_numpy(np.array(segment_ids)).to(self.device)
+        input_masks_torch = torch.from_numpy(np.array(input_masks)).to(self.device)
+        cand_indexes_troch = torch.from_numpy(np.array(cand_indexes)).to(self.device)
+        token_ids_torch = torch.from_numpy(np.array(token_ids)).to(self.device)
+        lang_status_torch = torch.from_numpy(np.array(lang_status)).to(self.device)
+
+        _, _, best_cws_tags_list, best_pos_tags_list = self.decode(input_id_torch, segment_ids_torch, \
+                                           input_masks_torch, cand_indexes_troch, token_ids_torch)
+
+        cws_output_list = []
+        for idx, rs in enumerate(best_cws_tags_list):
+            cws_decode_output = ''.join(str(v) for v in rs[1:-1]) #
+
+            # tmp_rs[1:-1]: remove the tokens, [START] and [END]
+            #decode_output = tmp_rs[1:-1]
+
+            # Now decode_output should consists of the tokens corresponding to B, M, E, S, [START], [END],
+            # i.e, BMES_idx_to_label_map = {0: 'B', 1: 'M', 2: 'E', 3: 'S', 4: '[START]', 5: '[END]'}
+            # i.e., BMES_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'M', 4: 'E', 5: 'S'}
+
+            # replace the [START] and [END] tokens
+            # predict those wrong tokens as a separated word
+            # replacing 0 and 1 should not be conducted usually
+            cws_decode_output = cws_decode_output.replace(str(segType.BMES_label_map['[START]']), str(segType.BMES_label_map['S']))
+            cws_decode_output = cws_decode_output.replace(str(segType.BMES_label_map['[END]']), str(segType.BMES_label_map['S']))
+
+            if 1:
+                lang_status_i = lang_status_torch[idx]
+                cws_decode_output_l = list(cws_decode_output)
+                for ii, ls_ii in enumerate(lang_status_i):
+                    if ls_ii==1: cws_decode_output_l[ii] = str(segType.BMES_label_map['S'])
+                cws_decode_output = ''.join(cws_decode_output_l)
+
+            cws_output_list.append(cws_decode_output)
+
+        pos_output_list = []
+        for rs in best_pos_tags_list:
+            pos_decode_output = ' '.join(posType.POS_label_map[(v-2)//3] if v > 2 else posType.POS_label_map[35] for v in rs[1:-1]) #
+
+            # tmp_rs[1:-1]: remove the tokens, [START] and [END]
+            #decode_output = tmp_rs[1:-1]
+
+            # Now decode_output should consists of the tokens in POSType.BIO_idx_to_label_map
+
+            # replace the [START] and [END] tokens ??
+            # predict those wrong tokens as a separated word
+            # replacing 0 and 1 should not be conducted usually
+            #decode_output = decode_output.replace(str(segType.BMES_label_map['[START]']), str(segType.BMES_label_map['S']))
+            #decode_output = decode_output.replace(str(segType.BMES_label_map['[END]']), str(segType.BMES_label_map['S']))
+
+            pos_output_list.append(pos_decode_output)
+
+        return cws_output_list, pos_output_list  # list of string
+
+    def cutlist_noUNK(self, input_list):
+        """
+        # Example usage:
+            text = '''
+            目前由２３２位院士（Ｆｅｌｌｏｗ及Ｆｏｕｎｄｉｎｇ　Ｆｅｌｌｏｗ），６６位協院士（Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）
+            ２４位通信院士（Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ｆｅｌｌｏｗ）及２位通信協院士
+            （Ｃｏｒｒｅｓｐｏｎｄｉｎｇ　Ａｓｓｏｃｉａｔｅ　Ｆｅｌｌｏｗ）組成（不包括一九九四年當選者）
+            # of students is 256.
+            '''
+
+            models = BertCWS(config, num_tags, vocab_file, max_length)
+            output = models.cutlist_noUNK([text])
+        """
+        processed_text_list = []
+        merge_index_list = []
+        merge_index = 0
+
+        for l_ind, text in enumerate(input_list):
+            merge_index_tuple = [merge_index]
+            buff = ''
+
+            if isinstance(text, float): continue # process problem of empty line, which is converted to nan
+
+            text_chunk_list = split_text_by_punc(text)
+            len_max = self.max_length-2
+
+            for text_chunk in text_chunk_list:
+                # if text chunk longer than len_max, split text_chunk
+                if len(text_chunk) > len_max:
+                    for sub_text_chunk in [
+                            text_chunk[i:i+len_max]
+                            for i in range(0, len(text_chunk), len_max)]:
+                        buff, merge_index = append_to_buff(processed_text_list,
+                            buff, sub_text_chunk, len_max, merge_index)
+                else:
+                    buff, merge_index = append_to_buff(processed_text_list,
+                        buff, text_chunk, len_max, merge_index)
+            if buff:
+                processed_text_list.append(buff)
+                merge_index += 1
+            merge_index_tuple.append(merge_index)
+            merge_index_list.append(merge_index_tuple)
+
+        original_text_list = processed_text_list
+        processed_text_list = [self.tokenizer.tokenize(t) if len(self.tokenizer.tokenize(t))>0 \
+                               else ['[UNK]'] for t in processed_text_list]
+
+        cws_output_list = []
+        pos_output_list = []
+        tmp_pos_list = []
+
+        batch_size = self.batch_size
+        for p_t_l in [processed_text_list[0+i:batch_size+i] for i in range(0, len(processed_text_list), batch_size)]:
+            #print(p_t_l)
+            #if '翡翠' in ''.join(p_t_l[0]):
+            #    print('test')
+            #if len(p_t_l)==0:
+            #    cws_output = segType.BMES_label_map['S']
+            #    pos_output = posType.POS2idx_map['PU']
+            #    continue # avoid input empty tokens
+
+            cws_output, pos_output = self._seg_wordslist(p_t_l)
+            cws_output_list.extend(cws_output)
+            pos_output_list.extend(pos_output)
+
+        # restoring processed_text_list to list of strings
+        #processed_text_list = [''.join(char_list) for char_list in processed_text_list]
+        result_str_list = []
+
+        for merge_start, merge_end in merge_index_list:
+            result_str = ''
+            original_str = ''
+            result_pos = '' # storing pos results
+
+            cws_tag = ''.join(cws_output_list[merge_start:merge_end])
+            pos_tag = ' '.join(pos_output_list[merge_start:merge_end]).split()
+
+            text = []
+            for a in processed_text_list[merge_start:merge_end]:
+                cand_indexes = define_words_set(a)
+
+                for idx_ls in cand_indexes:
+                    pa = ''
+                    for idx in idx_ls:
+                        pa += a[idx].replace('##', '')
+                    text.append(pa)
+
+            for a in original_text_list[merge_start:merge_end]:
+                str_used = ''
+                al = re.split('[\n\r]', a)
+
+                for aa in al: str_used += ''.join(aa.strip())
+
+                original_str += str_used
+
+            tmp_pos = []
+            seg_start = False
+            for idx in range(len(cws_tag)):
+                tt = text[idx]
+                tt = tt.replace('##', '')
+                ti = cws_tag[idx]
+                pos_tag_i = pos_tag[idx]
+
+                try:
+                    int(ti)
+                except ValueError:
+                    print(ti + '\n')      # or whatever
+                    print(cws_tag)
+
+                int_ti = int(ti)
+                if int_ti == segType.BMES_label_map['B']:  # 'B'
+                    result_str += ' ' + tt
+
+                    if not seg_start:
+                        seg_start = True
+
+                    if tmp_pos != []:
+                        tmp_pos_list.append(tmp_pos)
+
+                    result_pos += pos_tag_i + ' '
+                    tmp_pos = [pos_tag_i]
+                elif int_ti > segType.BMES_label_map['M']:  # and (cur_word_is_english)
+                    # int(ti)>1: tokens of 'E' and 'S'
+                    # current word is english
+                    result_str += tt + ' '
+
+                    #if int_ti == segType.BMES_label_map['S']:
+                    #    result_pos += pos_tag_i + ' '
+                    #    tmp_pos = []
+
+                    #    tmp_pos_list.append([pos_tag_i])
+                    #else:
+                    if tmp_pos == []:
+                        result_pos += pos_tag_i + ' '
+
+                    tmp_pos.extend([pos_tag_i])
+                    tmp_pos_list.append(tmp_pos)
+                    tmp_pos = []
+
+                    seg_start = False
+                else:
+                    result_str += tt
+                    tmp_pos.append(pos_tag_i)
+                    if not seg_start:
+                        seg_start = True
+                        result_pos += pos_tag_i + ' '
+
+            result_pos_str = extract_pos(tmp_pos_list)
+
+            if '[UNK]' in result_str or '[unused' in result_str:
+                print(original_str)
+                seg_ls, pos_ls = restore_unknown_tokens_without_unused_with_pos(original_str, result_str, result_pos)
+            else:
+                seg_ls = result_str.strip().split()
+                pos_ls = result_pos.strip().split()
+
+            #seg_ls = result_str_rev.strip().split()
+            #pos_ls = result_pos_rev.strip().split()
+            assert(len(seg_ls)==len(pos_ls))
+
+            rs = []
+            for i in range(len(seg_ls)):
+                rs.append(seg_ls[i] + ' / ' + pos_ls[i])
+
+            result_str_list.append(rs)
+
+        return result_str_list

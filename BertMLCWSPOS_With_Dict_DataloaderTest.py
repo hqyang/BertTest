@@ -13,7 +13,7 @@ import os
 
 from tqdm import tqdm, trange
 from src.config import args
-from src.preprocess import CWS_POS, get_dataset_with_dict_and_dataloader, get_eval_with_dict_dataloaders
+from src.preprocess import CWS_POS, get_dataset_stored_with_dict_and_dataloader, get_eval_stored_with_dict_dataloaders
 import time
 from src.BERT.optimization import BertAdam
 from src.metrics import outputFscoreUsedBIO, outputPOSFscoreUsedBIO
@@ -163,14 +163,13 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 for step, (batch, batch2, input_via_dict) in enumerate(tqdm(train_dataloader, desc="Iteration")):
                     batch = tuple(t.to(device) for t in batch)
                     batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
-                    #batch3 = tuple(t.to(device) for t in batch3) # for t in wd_fvs
+                    input_via_dict = input_via_dict.to(device)
 
                     input_ids, segment_ids, input_mask = batch[:3]
 
                     cand_indexes, token_ids = batch2[:2]
 
                     label_ids, pos_label_ids = batch[3:]
-                    #input_via_dict = batch3[0:]
 
                     loss = model(input_ids, segment_ids, input_mask, cand_indexes, token_ids, input_via_dict,
                                  label_ids, pos_label_ids)
@@ -213,12 +212,11 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                         model.zero_grad()
                         global_step += 1
             else: # no cand_info
-                for step, batch, batch2 in enumerate(tqdm(train_dataloader, desc="Iteration")):
+                for step, (batch, input_via_dict) in enumerate(tqdm(train_dataloader, desc="Iteration")):
                     batch = tuple(t.to(device) for t in batch)
-                    batch2 = tuple(t.to(device) for t in batch2)
+                    input_via_dict = input_via_dict.to(device)
 
                     input_ids, segment_ids, input_mask = batch[:3]
-                    input_via_dict = batch2[0:]
 
                     label_ids, pos_label_ids = batch[3:] #if len(batch[3:])>2 else batch[3]
                     loss = model(input_ids, segment_ids, input_mask, input_via_dict, label_ids, pos_label_ids)
@@ -465,6 +463,7 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
             for step, (batch, batch2, input_via_dict) in enumerate(tqdm(eval_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
                 batch2 = tuple(t.to(device) for t in batch2) # for t in cand_indexes
+                input_via_dict = input_via_dict.to(device)
 
                 input_ids, segment_ids, input_mask = batch[:3]
 
@@ -509,6 +508,7 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
         else:
             for step, (batch, input_via_dict) in enumerate(tqdm(eval_dataloader, desc="TestIter")):
                 batch = tuple(t.to(device) for t in batch)
+                input_via_dict = input_via_dict.to(device)
 
                 input_ids, segment_ids, input_mask = batch[:3]
 
@@ -549,7 +549,7 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
                 pos_all_labels.extend(best_pos_tags_list)
                 cws_all_losses.append(tmp_el_cws.tolist())
                 pos_all_losses.append(tmp_el_pos.tolist())
-    else:
+    else: # no dictionary
         if args.do_mask_as_whole:
             for step, (batch, batch2) in enumerate(tqdm(eval_dataloader, desc="Iteration")):
                 batch = tuple(t.to(device) for t in batch)
