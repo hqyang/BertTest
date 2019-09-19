@@ -8,7 +8,7 @@ do
     python BertMLCWSPOS_With_Dict_DataloaderTest.py \
         --task_name ontonotes_cws_pos2.0 \
         --model_type sequencelabeling \
-        --data_dir ../data/ontonotes5/4nerpos_update \
+        --data_dir ../data/ontonotes5/4nerpos_update/feat_with_dict/ \
         --output_dir ./tmp/ontonotes/CWSPOS2/cased/Softmax_Dict/ \
         --dict_file ./resource/dict.txt \
         --fclassifier Softmax \
