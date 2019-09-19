@@ -195,3 +195,5 @@ UNUSED_SPACE_TOKEN = '[UnUsed_!@#]'
 # however, to make the hidden size is not a multiple of the number of attention heads (12),
 # we set the default to 25
 MAX_GRAM_LEN = 13
+
+NUM_HIDDEN_SIZE = 768 # This is for generating feature in OntoNotesDataset_Stored_With_Dict in preprocess.py
