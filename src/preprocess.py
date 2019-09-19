@@ -14,10 +14,11 @@ from torch.utils.data.distributed import DistributedSampler
 from .config import MAX_SUBWORDS, MAX_GRAM_LEN, NUM_HIDDEN_SIZE
 
 
-def set1_from_tuple(pp, mat, wd_tuple, shift0=0, shift1=0):
+def set1_from_tuple(pp, mat, wd_tuple, max_length=128, shift0=0, shift1=0):
     # pp: re.compile(r'[(](.*?)[)]', re.S)
     # mat: matrix
     # wd_tuple: word_tuple stored in string format
+    # max_length: max_length tokens, e.g., 128
     # shift0: add the shifted index in the first axis to store 1
     # shift1: add the shifted index in the second axis to store 1
 
@@ -28,7 +29,9 @@ def set1_from_tuple(pp, mat, wd_tuple, shift0=0, shift1=0):
             idx_l = wdl.split(',')
             i0 = int(idx_l[0])
             i1 = int(idx_l[1])
-            mat[i0+shift0][i1+shift1] = 1
+
+            if i0+shift0 < max_length:
+                mat[i0+shift0][i1+shift1] = 1
 
 
 def is_chinese_char(cp):
@@ -1082,7 +1085,7 @@ class OntoNotesDataset_Stored_With_Dict(OntoNotesDataset):
         # generate t_mask
         dict2feat_vec = self.zeros_mat.copy()
         # the second axis should be shifted NUM_HIDDEN_SIZE
-        set1_from_tuple(self.pattern, dict2feat_vec, wd_tuple, 0, NUM_HIDDEN_SIZE)
+        set1_from_tuple(self.pattern, dict2feat_vec, wd_tuple, self.max_length, 0, NUM_HIDDEN_SIZE)
 
         return dict2feat_vec
 
