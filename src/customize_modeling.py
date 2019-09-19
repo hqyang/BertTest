@@ -1314,6 +1314,7 @@ class BertMLModel_With_Dict(PreTrainedBertModel):
 
         # concatinate embedding_output and input_via_dict
         if input_via_dict is not None:
+            input_via_dict = input_via_dict.to(dtype=next(self.parameters()).dtype)
             embedding_output += input_via_dict
             # update embedding_output via t_mask
             #embedding_output = embedding_output.masked_scatter(t_mask, input_via_dict)

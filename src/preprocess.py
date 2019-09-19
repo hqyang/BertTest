@@ -1132,7 +1132,6 @@ class OntoNotesDataset_Stored_With_Dict(OntoNotesDataset):
         self.df['pos_label_id'] = pos_label_ids
         self.df['cand_index'] = cand_indexes
         self.df['word_feature_vector'] = wd_fvs
-        self.df['t_mask'] = t_mask
 
         logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))
         logging.info('Loading time: %.2fmin' % ((time.time()-st)/60))

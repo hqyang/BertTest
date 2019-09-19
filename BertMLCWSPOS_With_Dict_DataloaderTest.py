@@ -726,9 +726,9 @@ def train_CWS_POS(args):
     os.system('mkdir %s' %args.output_dir)
     os.system('chmod 777 %s' %args.output_dir)
 
-    train_dataset, train_dataloader = get_dataset_with_dict_and_dataloader(processor, args, training=True, type_name='train')
+    train_dataset, train_dataloader = get_dataset_stored_with_dict_and_dataloader(processor, args, training=True, type_name='train')
 
-    eval_dataloaders = get_eval_with_dict_dataloaders(processor, args)
+    eval_dataloaders = get_eval_stored_with_dict_and_dataloader(processor, args)
 
     num_train_steps = int(
         len(train_dataset) / args.train_batch_size / args.gradient_accumulation_steps * args.num_train_epochs)
@@ -810,7 +810,7 @@ def set_server_Ontonotes_param():
 
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
 isServer = True
 isServer = False
 
