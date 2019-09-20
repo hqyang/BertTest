@@ -10,7 +10,8 @@ Scenario:
 """
 import os
 import sys
-sys.path.append('../src')
+sys.path.append('..')
+print(sys.path)
 from src.BERT.tokenization import BertTokenizer
 import numpy as np
 from src.preprocess import read_dict
