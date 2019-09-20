@@ -43,6 +43,7 @@ WEIGHTS_NAME = 'pytorch_model.bin'
 
 TS_WRITER = SummaryWriter()
 
+
 def load_CWS_POS_model(CWS_label_list, POS_label_list, args):
     if args.visible_device is not None:
         if isinstance(args.visible_device, int):
