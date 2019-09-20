@@ -9,6 +9,8 @@ Feature:
 Scenario: 
 """
 import os
+import sys
+sys.path.append('../src')
 from src.BERT.tokenization import BertTokenizer
 import numpy as np
 from src.preprocess import read_dict
