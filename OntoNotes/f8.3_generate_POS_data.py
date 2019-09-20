@@ -69,6 +69,7 @@ if __name__ == '__main__':
     lm = 'bert-base-chinese'
     lm = 'multi_cased_L-12_H-768_A-12'
     dict_file = '../resource/dict.txt'
+    dict_file = '../resource/dict_idioms_name.txt'
     dict = list(read_dict(dict_file).keys())
 
     vocab_file = '../src/BERT/models/' + lm + '/vocab.txt'
