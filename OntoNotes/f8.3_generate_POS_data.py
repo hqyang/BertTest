@@ -106,7 +106,7 @@ if __name__ == '__main__':
     else:
         if inServer:
             in_dir = '../../data/ontonotes5/4nerpos_ori/'
-            out_dir = '../../data/ontonotes5/4nerpos_update/feat_with_dict/'
+            out_dir = '../../data/ontonotes5/4nerpos_update/feat_with_dict2/'
         else:
             in_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/5.fuse-tree2/'
             out_dir = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/4nerpos_update/feat_with_dict/'
