@@ -10,7 +10,7 @@ Scenario:
 """
 from sklearn.preprocessing import LabelEncoder
 from src.config import args, segType
-from src.utilis import save_model, restore_unknown_tokens_without_unused_with_pos
+from src.utilis import save_model, restore_unknown_tokens_without_unused_with_pos, restore_unknown_tokens_with_pos
 from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec, \
     read_dict, get_dataset_and_dataloader, words2dict_tuple, set1_from_tuple
 from src.BERT import BertTokenizer
@@ -687,6 +687,18 @@ def test_process_tuple_assignment():
         print(dd)
 
 
+def test_restore_unknown_tokens_with_pos():
+    original_str = '以民族传统工艺制作的  “掐丝珐琅”'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] 丝 [UNK] 琅[UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU  NN  NN  NN NN '
+
+    print(str_with_unknown_tokens)
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -733,4 +745,6 @@ if __name__ == '__main__':
 
     #test_np_mat_assignment()
 
-    test_process_tuple_assignment()
+    #test_process_tuple_assignment()
+
+    test_restore_unknown_tokens_with_pos()

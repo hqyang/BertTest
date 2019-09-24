@@ -459,7 +459,123 @@ def findtextdirect(strIn, start_idx, len_original_str, text, shift=0):
     return s_idx+num_space
 
 
+def chunks(l, n):
+    """Yield n number of striped chunks from l."""
+    for i in range(0, n):
+        yield l[i::n]
+
+
 def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str):
+    s_str = original_str.lower()
+    len_original_str = len(original_str)
+
+    text_ls = str_with_unknown_tokens.split()
+    pos_ls = pos_str.split()
+    assert(len(text_ls) == len(pos_ls))
+
+    pos_outstr = ''
+
+    strOut = original_str
+    used_idx = 0
+
+    text_list = []
+    pos_list = []
+    ori_used_idx = 0
+    unk_count = 0
+    unk_pos = []
+
+    unk_status = False
+    shift = 0
+    for i, text in enumerate(text_ls):
+        # if i == 67:
+        #    print(text)
+        pos = pos_ls[i]
+
+        if UNK_TOKEN not in text:
+
+            if unk_status:  # previous is an unknown token
+                unk_status = False
+
+                s_idx = findtextdirect(
+                    s_str, ori_used_idx, len_original_str, text, shift)
+
+                # pos_list.append(unk_pos)
+                pos_list += unk_pos
+                unk_pos = []
+                e_idx = len(text)
+                splited_original_str = chunks(
+                    original_str[ori_used_idx:ori_used_idx+s_idx], unk_count)
+                # text_list.append(
+                #     original_str[ori_used_idx:ori_used_idx+s_idx])
+                text_list += splited_original_str
+                ori_used_idx += s_idx
+                e_idx = ori_used_idx + e_idx
+                unk_count = 0
+            else:  # previous is a normal token
+                s_idx = findtextdirect(
+                    s_str, ori_used_idx, len_original_str, text, shift)
+                e_idx = ori_used_idx + s_idx + len(text)
+
+            text_list.append(original_str[ori_used_idx:e_idx])
+            ori_used_idx = e_idx
+
+            pos_list.append(pos)
+            shift = 0
+        else:  # unknown tokens exist, need to update shift
+            shift += len(text)
+            tmp_text_list = text.split(UNK_TOKEN)
+            tmp_text_list = [
+                v for v in tmp_text_list if v.replace('[unused1]', '')]
+
+            buff = ''
+
+            # process tmp_text_list
+            for v in tmp_text_list:  # unknown tokens with word and
+                s_idx = findtextdirect(
+                    s_str, ori_used_idx, len_original_str, v, shift)
+
+                if s_idx > 0:  # append unknown token
+                    text_list.append(
+                        original_str[ori_used_idx:ori_used_idx+s_idx])
+
+                    ori_used_idx += s_idx
+                    # keep previous unknown tokens
+                    if unk_status:
+                        # pos_list.append(unk_pos)
+                        pos_list += unk_pos
+                        unk_pos = []
+                        unk_status = False
+                    else:
+                        pos_list.append(pos)
+
+                    buff += original_str[ori_used_idx:ori_used_idx+len(v)]
+
+                    text_list.append(
+                        original_str[ori_used_idx:ori_used_idx+len(v)])
+
+                    pos_list.append(pos)
+
+                    ori_used_idx += len(v)
+
+            if text[-5:] == UNK_TOKEN:  # [UNK] is in the end
+                unk_count += 1
+                unk_status = True
+                # unk_pos = pos
+                unk_pos.append(pos)
+            else:
+                unk_status = False
+
+    if unk_status and UNK_TOKEN in text_ls[-1]:
+        text_list[-1] += original_str[ori_used_idx:]
+        # pos_list.append(pos)
+    else:
+        text_list.append(original_str[ori_used_idx:])
+        pos_list.append(pos)
+
+    return text_list, pos_list
+
+
+def restore_unknown_tokens_with_pos_old(original_str, str_with_unknown_tokens, pos_str):
     s_str = original_str.lower()
     len_original_str = len(original_str)
 
