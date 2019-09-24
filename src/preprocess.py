@@ -1066,7 +1066,7 @@ class OntoNotesDataset_Stored_With_Dict(OntoNotesDataset):
         self.label_map = processor.label_map
         self.do_mask_as_whole = do_mask_as_whole
         self.dict_file = dict_file
-        self.zeros_mat = np.zeros((max_length, NUM_HIDDEN_SIZE+2*(MAX_GRAM_LEN-1)), dtype=np.uint8)
+        self.zeros_mat = np.zeros((max_length, 2*(MAX_GRAM_LEN-1)), dtype=np.uint8)
         self.pattern = re.compile(r'[(](.*?)[)]', re.S) # minimum matching ()
 
         if dict_file is not None:
@@ -1085,7 +1085,7 @@ class OntoNotesDataset_Stored_With_Dict(OntoNotesDataset):
         # generate t_mask
         dict2feat_vec = self.zeros_mat.copy()
         # the second axis should be shifted NUM_HIDDEN_SIZE
-        set1_from_tuple(self.pattern, dict2feat_vec, wd_tuple, self.max_length, 0, NUM_HIDDEN_SIZE)
+        set1_from_tuple(self.pattern, dict2feat_vec, wd_tuple, self.max_length, 0, 0) # NUM_HIDDEN_SIZE
 
         return dict2feat_vec
 
@@ -1389,6 +1389,47 @@ def tokenize_list_with_cand_indexes_lang_status(words, max_length, tokenizer):
 
     cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
     return [tokens, segment, mask], [cand_indexes, token_ids], [lang_status]#, can_index_len # include ['SEP']
+
+
+def tokenize_list_with_cand_indexes_lang_status_dict_vec(words, max_length, tokenizer, word_dict, word_mat):
+    # words: list, max_length: int, tokenizer, word_dict: list，word_mat: np.array
+    # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
+    # words = list(filter(lambda x: x!=' ', words))
+    # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
+    words = ['[CLS]'] + words
+
+    cand_indexes = define_words_set(words)
+
+    # prepare the length of words does not exceed max_length while considering the situation of do_whole as _mask
+    if len(cand_indexes)!=0:
+        words, can_index_len = set_words_boundary(words, cand_indexes, max_length)
+    words += ['[SEP]']
+
+    tokens = tokenizer.convert_tokens_to_ids(words)
+
+    # suppose the length of words and tokens is less than max_length
+    cand_indexes, token_ids, words, tokens, lang_status = define_tokens_set_lang_status(words, tokens)
+
+    len_tokens = len(tokens)
+    if len_tokens < max_length:
+        tokens.extend([0] * (max_length - len_tokens))
+        lang_status.extend([0] * (max_length - len(token_ids)))  # no two tokens: [CLS] and [SEP]
+
+    tokens = np.array(tokens)
+    lang_status = np.array(lang_status)
+    mask = np.array([1] * can_index_len + [0] * (max_length - can_index_len))
+    segment = np.array([0] * max_length)
+
+    cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
+
+    word_tuples = words2dict_tuple(words, word_dict, MAX_GRAM_LEN)
+    word_mat = word_mat.copy()
+
+    for word_tuple in word_tuples:
+        i, j = word_tuple[0], word_tuple[j]
+        word_mat[i][j+NUM_HIDDEN_SIZE] = 1
+
+    return [tokens, segment, mask], [cand_indexes, token_ids], [lang_status], word_mat
 
 
 def tokenize_text(text, max_length, tokenizer):

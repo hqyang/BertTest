@@ -3,7 +3,8 @@ import torch.nn as nn
 import math
 from .BERT.modeling import PreTrainedBertModel, BertModel, BertLayerNorm, BertEncoder, BertPooler
 from .TorchCRF import CRF
-from .preprocess import read_dict, tokenize_list, define_words_set, tokenize_list_with_cand_indexes_lang_status
+from .preprocess import read_dict, tokenize_list, define_words_set, tokenize_list_with_cand_indexes_lang_status, \
+            tokenize_list_with_cand_indexes_lang_status_dict_vec
 from .tokenization import FullTokenizer
 from .BERT.tokenization import BertTokenizer
 import numpy as np
@@ -1235,114 +1236,6 @@ class BertMLModel(PreTrainedBertModel):
         return encoded_layers, pooled_output
 
 
-class BertMLModel_With_Dict(PreTrainedBertModel):
-    """Modified from BERT models ("Bidirectional Embedding Representations from a Transformer").
-        for multilinguisticss with additional input processed from Dictionary
-
-    Params:
-        config: a BertConfig class instance with the configuration to build a new models
-
-    Inputs:
-        `input_ids`: a torch.LongTensor of shape [batch_size, sequence_length]
-            with the word token indices in the vocabulary(see the tokens preprocessing logic in the scripts
-            `extract_features.py`, `run_classifier.py` and `run_squad.py`)
-        `token_type_ids`: an optional torch.LongTensor of shape [batch_size, sequence_length] with the token
-            types indices selected in [0, 1]. Type 0 corresponds to a `sentence A` and type 1 corresponds to
-            a `sentence B` token (see BERT paper for more details).
-        `attention_mask`: an optional torch.LongTensor of shape [batch_size, sequence_length] with indices
-            selected in [0, 1]. It's a mask to be used if the input sequence length is smaller than the max
-            input sequence length in the current batch. It's the mask that we typically use for attention when
-            a batch has varying length sentences.
-        `output_all_encoded_layers`: boolean which controls the content of the `encoded_layers` output as described below. Default: `True`.
-
-    Outputs: Tuple of (encoded_layers, pooled_output)
-        `encoded_layers`: controled by `output_all_encoded_layers` argument:
-            - `output_all_encoded_layers=True`: outputs a list of the full sequences of encoded-hidden-states at the end
-                of each attention block (i.e. 12 full sequences for BERT-base, 24 for BERT-large), each
-                encoded-hidden-state is a torch.FloatTensor of size [batch_size, sequence_length, hidden_size],
-            - `output_all_encoded_layers=False`: outputs only the full sequence of hidden-states corresponding
-                to the last attention block of shape [batch_size, sequence_length, hidden_size],
-        `pooled_output`: a torch.FloatTensor of size [batch_size, hidden_size] which is the output of a
-            classifier pretrained on top of the hidden state associated to the first character of the
-            input (`CLF`) to train on the Next-Sentence task (see BERT's paper).
-
-    Example usage:
-    ```python
-    # Already been converted into WordPiece token ids
-    input_ids = torch.LongTensor([[31, 51, 99], [15, 5, 0]])
-    input_mask = torch.LongTensor([[1, 1, 1], [1, 1, 0]])
-    token_type_ids = torch.LongTensor([[0, 0, 1], [0, 1, 0]])
-    cand_indexes = torch.LongTensor([[0, 1, 2], [0, 1]])
-
-    config = modeling.BertConfig(vocab_size_or_config_json_file=32000, hidden_size=768,
-        num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
-
-    models = modeling.BertMLModel_With_Dict(config=config)
-    all_encoder_layers, pooled_output = models(input_ids, token_type_ids, input_mask)
-    ```
-    """
-    def __init__(self, config, update_method='mean'):
-        super(BertMLModel_With_Dict, self).__init__(config)
-        self.embeddings = BertMLEmbeddings(config, update_method)
-        self.encoder = BertEncoder(config)
-        self.pooler = BertPooler(config)
-        self.apply(self.init_bert_weights)
-
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, output_all_encoded_layers=True, \
-                cand_indexes=None, token_ids=None, input_via_dict=None, t_mask=None):
-        if attention_mask is None:
-            attention_mask = torch.ones_like(input_ids)
-        if token_type_ids is None:
-            token_type_ids = torch.zeros_like(input_ids)
-
-        # We create a 3D attention mask from a 2D tensor mask.
-        # Sizes are [batch_size, 1, 1, to_seq_length]
-        # So we can broadcast to [batch_size, num_heads, from_seq_length, to_seq_length]
-        # this attention mask is more simple than the triangular masking of causal attention
-        # used in OpenAI GPT, we just need to prepare the broadcast dimension here.
-        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
-
-        # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-        # masked positions, this operation will create a tensor which is 0.0 for
-        # positions we want to attend and -10000.0 for masked positions.
-        # Since we are adding it to the raw scores before the softmax, this is
-        # effectively the same as removing these entirely.
-        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
-
-        embedding_output = self.embeddings(input_ids, token_type_ids, attention_mask, cand_indexes, token_ids)
-
-        # concatinate embedding_output and input_via_dict
-        if input_via_dict is not None:
-            input_via_dict = input_via_dict.to(dtype=next(self.parameters()).dtype)
-            embedding_output += input_via_dict
-            # update embedding_output via t_mask
-            #embedding_output = embedding_output.masked_scatter(t_mask, input_via_dict)
-            # make the type of input_via_dict compatible with parameter type
-            #sz_eo = embedding_output.shape
-            #sz_ivd = input_via_dict.shape
-
-            #t_mask0 = torch.zeros(sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2])
-            #t_mask1 = torch.ones(sz_eo[0], sz_eo[1], sz_ivd[2])
-            #t_mask  = torch.cat((t_mask0, t_mask1), 2)
-            #t_mask = t_mask.byte()
-            #t_mask = t_mask.to(dtype=next(self.parameters()).dtype)
-            #tt = torch.zeros([sz_eo[0], sz_eo[1], sz_eo[2]-sz_ivd[2]], dtype=next(self.parameters()).dtype)
-            #input_via_dict = input_via_dict.to(dtype=next(self.parameters()).dtype)
-            #input_via_dict = torch.cat((tt, input_via_dict), 2)
-            #embedding_output[:][:][sz_eo[2]:] += input_via_dict
-            #embedding_output = torch.cat((embedding_output, input_via_dict), 2)
-
-        encoded_layers = self.encoder(embedding_output,
-                                      extended_attention_mask,
-                                      output_all_encoded_layers=output_all_encoded_layers)
-        sequence_output = encoded_layers[-1]
-        pooled_output = self.pooler(sequence_output)
-        if not output_all_encoded_layers:
-            encoded_layers = encoded_layers[-1]
-        return encoded_layers, pooled_output
-
-
 class BertMLVariantCWSPOS(PreTrainedBertModel):
     """Apply BERT for Sequence Labeling on Chinese Word Segmentation and Part-of-Speech with multilinguistics.
 
@@ -1847,33 +1740,34 @@ class BertMLVariantCWSPOS_with_Dict(BertMLVariantCWSPOS):
         if dict_file is not None:
             self.dict = read_dict(dict_file)
             self.max_gram = MAX_GRAM_LEN # default is 16
-            config.hidden_size += (self.max_gram-1)*2 # if no dictionary, self.max_gram=1
+            #config.hidden_size += (self.max_gram-1)*2 # if no dictionary, self.max_gram=1
         else:
             self.max_gram = 1 # if no dictionary
 
         if self.do_mask_as_whole:
-            self.bert = BertMLModel_With_Dict(config)
+            self.bert = BertMLModel(config)
         else:
             self.bert = BertModel(config)
 
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
         if method == 'fine_tune':
-            last_hidden_size = self.config.hidden_size
+            last_hidden_size = self.config.hidden_size + (self.max_gram-1)*2
         elif method == 'cat_last4':
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
+            last_hidden_size = self.config.hidden_size*2 + (self.max_gram-1)*2
         elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
+            last_hidden_size = self.config.hidden_size*2 + (self.max_gram-1)*2
         elif self.method == 'MHMLA':
             self.MHMLA = MultiHeadMultiLayerAttention(config)
+            last_hidden_size = self.config.hidden_size + (self.max_gram-1)*2
 
         # Maps the output of BERT into tag space.
         self.hidden2CWStag = nn.Linear(last_hidden_size, num_CWStags)
@@ -1948,7 +1842,7 @@ class BertMLVariantCWSPOS_with_Dict(BertMLVariantCWSPOS):
                 raise RuntimeError('Input: cand_indexes and token_ids are missing!')
 
         sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, cand_indexes=cand_indexes,
-                               token_ids=token_ids, input_via_dict=input_via_dict, output_all_encoded_layers=output_all_encoded_layers)
+                               token_ids=token_ids, output_all_encoded_layers=output_all_encoded_layers)
 
         if self.method == 'sum_last4':
             feat_used = self.dropout(sequence_output[-1])
@@ -1970,6 +1864,10 @@ class BertMLVariantCWSPOS_with_Dict(BertMLVariantCWSPOS):
 
         if self.method in ['sum_last4', 'sum_all', 'cat_last4', 'last_layer']:
             feat_used, _ = self.biLSTM(feat_used)
+
+        if input_via_dict is not None:
+            input_via_dict = input_via_dict.to(dtype=next(self.parameters()).dtype)
+            feat_used = torch.cat((feat_used, input_via_dict), 2)
 
         return feat_used
 
@@ -2045,8 +1943,10 @@ class BertMLCWSPOS_with_Dict(BertMLVariantCWSPOS_with_Dict):
         # input_ids, segment_ids, input_mask = tokenize_list(
         #     words, self.max_length, self.tokenizer)
         #print(lword)
-        tuple1, tuple2, tuple3 = zip(
-            *[tokenize_list_with_cand_indexes_lang_status(w, self.max_length, self.tokenizer) for w in lword if w]) # w is not empty
+        tuple1, tuple2, tuple3, input_via_dict = zip(
+            *[tokenize_list_with_cand_indexes_lang_status_dict_vec(w, self.max_length, self.tokenizer, self.dict)
+              for w in lword if w])
+            #*[tokenize_list_with_cand_indexes_lang_status(w, self.max_length, self.tokenizer) for w in lword if w]) # w is not empty
             #*[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
             #*[tokenize_list_no_seg(w, self.max_length, self.tokenizer) for w in lword])
         list1 = unpackTuple(tuple1)
@@ -2059,6 +1959,7 @@ class BertMLCWSPOS_with_Dict(BertMLVariantCWSPOS_with_Dict):
         token_ids = list2[1::2]
 
         lang_status = unpackTuple(tuple3)
+        input_via_dict = unpackTuple(input_via_dict)
         #lang_status = list3[0::]
 
         input_id_torch = torch.from_numpy(np.array(input_ids)).to(self.device)
@@ -2067,9 +1968,10 @@ class BertMLCWSPOS_with_Dict(BertMLVariantCWSPOS_with_Dict):
         cand_indexes_troch = torch.from_numpy(np.array(cand_indexes)).to(self.device)
         token_ids_torch = torch.from_numpy(np.array(token_ids)).to(self.device)
         lang_status_torch = torch.from_numpy(np.array(lang_status)).to(self.device)
+        input_via_dict_torch = torch.from_numpy(np.array(input_via_dict)).to(self.device)
 
         _, _, best_cws_tags_list, best_pos_tags_list = self.decode(input_id_torch, segment_ids_torch, \
-                                           input_masks_torch, cand_indexes_troch, token_ids_torch)
+                                           input_masks_torch, cand_indexes_troch, token_ids_torch, input_via_dict_torch)
 
         cws_output_list = []
         for idx, rs in enumerate(best_cws_tags_list):
