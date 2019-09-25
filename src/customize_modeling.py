@@ -1751,6 +1751,21 @@ class BertMLVariantCWSPOS_with_Dict(BertMLVariantCWSPOS):
 
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
 
+        self.last_hidden_size = self._set_last_hidden_size(method)
+
+        # Maps the output of BERT into tag space.
+        self.hidden2CWStag = nn.Linear(self.last_hidden_size, num_CWStags)
+        self.hidden2POStag = nn.Linear(self.last_hidden_size, num_POStags)
+
+        if self.fclassifier == 'CRF':
+            self.CWSclassifier = CRF(num_CWStags, batch_first=True)
+
+        if self.pclassifier == 'CRF':
+            self.POSclassifier = CRF(num_POStags, batch_first=True)
+
+        self.apply(self.init_bert_weights)
+
+    def _set_last_hidden_size(self, method='fine_tune'):
         if method == 'fine_tune':
             last_hidden_size = self.config.hidden_size + (self.max_gram-1)*2
         elif method == 'cat_last4':
@@ -1768,18 +1783,7 @@ class BertMLVariantCWSPOS_with_Dict(BertMLVariantCWSPOS):
         elif self.method == 'MHMLA':
             self.MHMLA = MultiHeadMultiLayerAttention(config)
             last_hidden_size = self.config.hidden_size + (self.max_gram-1)*2
-
-        # Maps the output of BERT into tag space.
-        self.hidden2CWStag = nn.Linear(last_hidden_size, num_CWStags)
-        self.hidden2POStag = nn.Linear(last_hidden_size, num_POStags)
-
-        if self.fclassifier == 'CRF':
-            self.CWSclassifier = CRF(num_CWStags, batch_first=True)
-
-        if self.pclassifier == 'CRF':
-            self.POSclassifier = CRF(num_POStags, batch_first=True)
-
-        self.apply(self.init_bert_weights)
+        return last_hidden_size
 
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, cand_indexes=None, token_ids=None, \
                 input_via_dict=None, labels_CWS=None, labels_POS=None):
@@ -1883,60 +1887,19 @@ class BertMLCWSPOS_with_Dict(BertMLVariantCWSPOS_with_Dict):
                  do_lower_case=False, do_mask_as_whole=False, fclassifier='Softmax', pclassifier='Softmax', \
                  method='fine_tune', dict_file=None):
         super(BertMLCWSPOS_with_Dict, self).__init__(config)
+        BertMLVariantCWSPOS_with_Dict.__init__(self, config, num_CWStags=num_CWStags, num_POStags=num_POStags, \
+                    method=method, fclassifier=fclassifier, pclassifier=pclassifier, \
+                    do_mask_as_whole=do_mask_as_whole,
+                    dict_file=dict_file)
+
         self.device = device
         self.batch_size = batch_size
         self.tokenizer = BertTokenizer(
                 vocab_file=vocab_file, do_lower_case=do_lower_case)
         self.max_length = max_length
-        self.num_CWStags = num_CWStags
-        self.num_POStags = num_POStags
-        self.do_mask_as_whole = do_mask_as_whole
 
-        if dict_file is not None:
-            self.dict = read_dict(dict_file)
-            self.max_gram = MAX_GRAM_LEN # default is 16
-            config.hidden_size += (self.max_gram-1)*2 # if no dictionary, self.max_gram=1
-        else:
-            self.max_gram = 1 # if no dictionary
-
-        if self.do_mask_as_whole:
-            self.bert = BertMLModel(config)
-        else:
-            self.bert = BertModel(config)
-
-        self.method = method
-        self.fclassifier = fclassifier  # cws classifier
-        self.pclassifier = pclassifier  # pos classifier
-        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
-
-        if method == 'fine_tune':
-            last_hidden_size = self.config.hidden_size
-        elif method == 'cat_last4':
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
-        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
-        elif self.method == 'MHMLA':
-            self.MHMLA = MultiHeadMultiLayerAttention(config)
-
-        # Maps the output of BERT into tag space.
-        self.hidden2CWStag = nn.Linear(last_hidden_size, num_CWStags)
-        self.hidden2POStag = nn.Linear(last_hidden_size, num_POStags)
-
-        if self.fclassifier == 'CRF':
-            self.CWSclassifier = CRF(num_CWStags, batch_first=True)
-
-        if self.pclassifier == 'CRF':
-            self.POSclassifier = CRF(num_POStags, batch_first=True)
-
-        self.apply(self.init_bert_weights)
+        #if dict_file is not None:
+        #    self.dict_mat = torch.zeros((max_length, (self.max_gram-1)*2), device=device)
 
     def _seg_wordslist(self, lword):  # ->str
         # lword: list of words (list)
@@ -1945,7 +1908,7 @@ class BertMLCWSPOS_with_Dict(BertMLVariantCWSPOS_with_Dict):
         #print(lword)
         tuple1, tuple2, tuple3, input_via_dict = zip(
             *[tokenize_list_with_cand_indexes_lang_status_dict_vec(w, self.max_length, self.tokenizer, self.dict)
-              for w in lword if w])
+              for w in lword if w]) # , self.dict_mat
             #*[tokenize_list_with_cand_indexes_lang_status(w, self.max_length, self.tokenizer) for w in lword if w]) # w is not empty
             #*[tokenize_list(w, self.max_length, self.tokenizer) for w in lword])
             #*[tokenize_list_no_seg(w, self.max_length, self.tokenizer) for w in lword])
@@ -2169,7 +2132,7 @@ class BertMLCWSPOS_with_Dict(BertMLVariantCWSPOS_with_Dict):
 
             if '[UNK]' in result_str or '[unused' in result_str:
                 print(original_str)
-                seg_ls, pos_ls = restore_unknown_tokens_without_unused_with_pos(original_str, result_str, result_pos)
+                seg_ls, pos_ls = restore_unknown_tokens_with_pos(original_str, result_str, result_pos)
             else:
                 seg_ls = result_str.strip().split()
                 pos_ls = result_pos.strip().split()
