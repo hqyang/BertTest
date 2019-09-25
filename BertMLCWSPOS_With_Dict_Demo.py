@@ -189,13 +189,12 @@ def set_server_eval_param():
             'dict_file': './resource/dict.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': './tmp/ontonotes/out/',
-            'bert_model': '/data1/yhq/BertTest/tmp/ontonotes/CWSPOS2/cased/Softmax_Dict4/l6/cws_F1_weights_epoch13.pt',
             'do_lower_case': True,
             'train_batch_size': 128,
             'max_seq_length': 128,
             'num_hidden_layers': 6,
+            'bert_model': '/data1/yhq/BertTest/tmp/ontonotes/CWSPOS2/cased/Softmax_Dict4/l6/cws_F1_weights_epoch13.pt',
             'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
-            'bert_model': './tmp/ontonotes/l3/cws_F1_weights_epoch16.pt',
             'no_cuda': True,
             'override_output': True
             }
