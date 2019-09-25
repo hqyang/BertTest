@@ -9,6 +9,7 @@ class Config:
     vocab_file = None
     output_dir = None
     bert_model_dir = None
+    bert_model = None  # a trained bert model
 
     ## Other parameters
     ##1.Basic tasks
