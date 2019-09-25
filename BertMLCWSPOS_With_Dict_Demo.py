@@ -193,7 +193,7 @@ def set_server_eval_param():
             'train_batch_size': 128,
             'max_seq_length': 128,
             'num_hidden_layers': 6,
-            'bert_model': '/data1/yhq/BertTest/tmp/ontonotes/CWSPOS2/cased/Softmax_Dict4/l6/cws_F1_weights_epoch13.pt',
+            'bert_model': './tmp/ontonotes/CWSPOS2/cased/Softmax_Dict4/l6/cws_F1_weights_epoch13.pt',
             'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
             'no_cuda': True,
             'override_output': True
