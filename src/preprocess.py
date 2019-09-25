@@ -1380,7 +1380,9 @@ def tokenize_list_with_cand_indexes_lang_status(words, max_length, tokenizer):
     len_tokens = len(tokens)
     if len_tokens < max_length:
         tokens.extend([0] * (max_length - len_tokens))
-        lang_status.extend([0] * (max_length - len(token_ids)))  # no two tokens: [CLS] and [SEP]
+
+    if len(lang_status) < max_length:
+        lang_status.extend([0] * (max_length - len(lang_status)))  # no two tokens: [CLS] and [SEP]
 
     tokens = np.array(tokens)
     lang_status = np.array(lang_status)
@@ -1413,7 +1415,9 @@ def tokenize_list_with_cand_indexes_lang_status_dict_vec(words, max_length, toke
     len_tokens = len(tokens)
     if len_tokens < max_length:
         tokens.extend([0] * (max_length - len_tokens))
-        lang_status.extend([0] * (max_length - len(token_ids)))  # no two tokens: [CLS] and [SEP]
+
+    if len(lang_status) < max_length:
+        lang_status.extend([0] * (max_length - len(lang_status)))  # no two tokens: [CLS] and [SEP]
 
     tokens = np.array(tokens)
     lang_status = np.array(lang_status)
