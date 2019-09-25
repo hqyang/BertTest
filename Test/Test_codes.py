@@ -9,8 +9,9 @@ Feature:
 Scenario: 
 """
 from sklearn.preprocessing import LabelEncoder
-from src.config import args, segType
-from src.utilis import save_model, restore_unknown_tokens_without_unused_with_pos, restore_unknown_tokens_with_pos
+from src.config import args, segType, MAX_GRAM_LEN
+from src.utilis import save_model, restore_unknown_tokens_without_unused_with_pos, restore_unknown_tokens_with_pos, \
+    chunk_list
 from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec, \
     read_dict, get_dataset_and_dataloader, words2dict_tuple, set1_from_tuple
 from src.BERT import BertTokenizer
@@ -687,16 +688,93 @@ def test_process_tuple_assignment():
         print(dd)
 
 
-def test_restore_unknown_tokens_with_pos():
-    original_str = '以民族传统工艺制作的  “掐丝珐琅”'
-    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] 丝 [UNK] 琅[UNK]'
-    pos_str = 'P NN JJ NN VV DEG PU  NN  NN  NN NN '
+def test_chunk_list():
+    l = '  abc  '
+    n = 2
+    print(chunk_list(l, n))
 
+    l = '  ab  '
+    n = 2
+    print(chunk_list(l, n))
+
+    l = '  abcdefg  '
+    n = 4
+    print(chunk_list(l, n))
+
+
+def test_restore_unknown_tokens_with_pos():
+    original_str = "Eye of Evil。把守护带回这座城    •精品荟萃•。 以民族传统工艺制作的“掐丝珐琅”。    fall in love    旺铺转让 因本人工作调动，现将黄金地段琪琪馍店予以转让，本店设备齐全，清一色全新机器和蒸笼，接手即可营业，有意者请面见详谈 非诚勿扰联系电话15886939311    反正也是烂命一条，我就烂着活。。It's a rotten job anyway. I'm gonna suck."
+    #text_ls = ['Eye', 'of', 'Evil', '。', '把', '守护', '带回', '这', '座', '城', '•', '精品', '荟萃', '•', '。', '以', '民族', '传统', '工艺', '制作', '的', '[UNK]', '[UNK]', '丝[UNK]', '琅[UNK]', '。', 'fall', 'in', 'love', '旺铺', '转让', '因', '本人', '工作', '调动', '，', '现', '将', '黄金', '地段', '琪琪', '[UNK]', '店', '予以', '转让', '，', '本', '店', '设备', '齐全', '，', '清', '一色', '全新', '机器', '和', '蒸笼', '，', '接手', '即', '可', '营业', '，', '有意者', '请', '面见', '详谈', '非诚勿扰', '联系', '电话', '15886939311', '反正', '也', '是', '烂命一', '条', '，', '我', '就', '烂', '着', '活', '。', '。', 'It', "'s", 'a', 'rotten', 'job', 'anyway', '.', 'I', "'m", 'gonna', 'suck', '.']
+    #str_with_unknown_tokens = #' '.join(text_ls)
+    str_with_unknown_tokens = "Eye of Evil 。 把 守护 带回 这 座 城 • 精品 荟萃 • 。 以 民族 传统 工艺 制作 的 [UNK] [UNK] 丝[UNK] 琅[UNK] 。 fall in love 旺铺 转让 因 本人 工作 调动 ， 现 将 黄金 地段 琪琪 [UNK] 店 予以 转让 ， 本 店 设备 齐全 ， 清 一色 全新 机器 和 蒸笼 ， 接手 即 可 营业 ， 有意者 请 面见 详谈 非诚勿扰 联系 电话 15886939311 反正 也 是 烂命一 条 ， 我 就 烂 着 活 。 。 It 's a rotten job anyway . I 'm gonna suck ."
+    pos_str = 'NR NR NR PU BA NN VV DT M NN PU NN VV PU PU P NN JJ NN VV DEC PU NN NN NN PU VV VV VV NN VV P PN NN VV PU AD BA JJ NN NR PU NN VV NN PU DT NN NN VA PU JJ JJ JJ NN CC NN PU VV AD VV VV PU NN VV VV NN X NN NN PU X AD VC VV M PU PN AD VV AS VV PU PU PN VV CD JJ NN NN PU PN AD VV VV PU'
+
+    original_str = '以民族传统工艺制作的 “掐丝珐琅”'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] 丝 [UNK] 琅[UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU  NN  NN NN NN '
+    print(str_with_unknown_tokens)
+    print(pos_str.split())
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+    assert(len(text_list)==len(pos_list))
+
+    original_str = '以民族传统工艺制作的 “掐丝珐琅”'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] 丝[UNK] 琅[UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU  NN  NN  NN '
     print(str_with_unknown_tokens)
 
     text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
     print(text_list)
     print(pos_list)
+    assert(len(text_list)==len(pos_list))
+
+    original_str = '以民族传统工艺制作的 “““掐丝珐琅”””'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] [UNK] [UNK] 丝[UNK] 琅[UNK][UNK][UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU PU PU NN NN  NN'
+    print(str_with_unknown_tokens)
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+
+    assert(len(text_list)==len(pos_list))
+
+    original_str = '以民族传统工艺制作的 “““掐丝珐琅”””'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] [UNK] [UNK] 丝[UNK] 琅[UNK] [UNK] [UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU PU PU NN NN  NN PU PU'
+    print(str_with_unknown_tokens)
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+
+    assert(len(text_list)==len(pos_list))
+
+    original_str = '以民族传统工艺制作的 “““掐丝珐琅”    ””'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] [UNK] [UNK] 丝[UNK] 琅[UNK] [UNK] [UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU PU PU NN NN  NN PU PU'
+    print(str_with_unknown_tokens)
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+
+    assert(len(text_list)==len(pos_list))
+
+
+def test_words2dict_tuple():
+    infile = '../resource/dict_idioms_name.txt'
+    word_dict = read_dict(infile)
+
+    words = ['[CLS]', '女', '人', '保', '养', '：', '不', '仅', '要', '外', '养', '，', '还', '要', '内', '调', '，', '内', '外', '双', '管', '齐', '下', '，', '才', '能', '调', '养', '出', '好', '气', '色', '，', '主', '内', '调', '，', '副', '外', '养', '！', '。', '藏', '红', '花', '[UNK]', '[UNK]', '斑', '的', '克', '星', '，', '妇', '科', '病', '的', '救', '星', '！', '。', '每', '天', '早', '晨', '泡', '3', '-', '-', '-', '6', '根', '，', '坚', '持', '服', '用', '三', '个', '月', '，', '会', '有', '你', '意', '想', '不', '到', '的', '效', '果', '！', '[SEP]']
+    word_tuples = words2dict_tuple(words, word_dict, MAX_GRAM_LEN)
+    word_mat = np.zeros((128, 2*(MAX_GRAM_LEN-1)))
+
+    for word_tuple in word_tuples:
+        i, j = word_tuple[0], word_tuple[1]
+        word_mat[i][j] = 1
 
 
 if __name__ == '__main__':
@@ -747,4 +825,7 @@ if __name__ == '__main__':
 
     #test_process_tuple_assignment()
 
-    test_restore_unknown_tokens_with_pos()
+    # test_chunk_list()
+    # test_restore_unknown_tokens_with_pos()
+
+    test_words2dict_tuple()

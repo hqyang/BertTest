@@ -1391,8 +1391,8 @@ def tokenize_list_with_cand_indexes_lang_status(words, max_length, tokenizer):
     return [tokens, segment, mask], [cand_indexes, token_ids], [lang_status]#, can_index_len # include ['SEP']
 
 
-def tokenize_list_with_cand_indexes_lang_status_dict_vec(words, max_length, tokenizer, word_dict, word_mat):
-    # words: list, max_length: int, tokenizer, word_dict: list，word_mat: np.array
+def tokenize_list_with_cand_indexes_lang_status_dict_vec(words, max_length, tokenizer, word_dict):
+    # words: list, max_length: int, tokenizer, word_dict: list#，word_mat: np.array
     # words = re.findall('[^0-9a-zA-Z]|[0-9a-zA-Z]+', text.lower())
     # words = list(filter(lambda x: x!=' ', words))
     # words = list(itertools.chain(*[tokenizer.tokenize(x) for x in words]))
@@ -1423,13 +1423,13 @@ def tokenize_list_with_cand_indexes_lang_status_dict_vec(words, max_length, toke
     cand_indexes, token_ids = indexes2nparray(max_length, cand_indexes, token_ids)
 
     word_tuples = words2dict_tuple(words, word_dict, MAX_GRAM_LEN)
-    word_mat = word_mat.copy()
+    word_mat = np.zeros((max_length, 2*(MAX_GRAM_LEN-1)))
 
     for word_tuple in word_tuples:
-        i, j = word_tuple[0], word_tuple[j]
-        word_mat[i][j+NUM_HIDDEN_SIZE] = 1
+        i, j = word_tuple[0], word_tuple[1]
+        word_mat[i][j] = 1
 
-    return [tokens, segment, mask], [cand_indexes, token_ids], [lang_status], word_mat
+    return [tokens, segment, mask], [cand_indexes, token_ids], [lang_status], [word_mat]
 
 
 def tokenize_text(text, max_length, tokenizer):
