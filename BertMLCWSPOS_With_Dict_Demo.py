@@ -546,8 +546,6 @@ def test_cases(model):
     # ， / PU    超级 / AD    好看 / VA    。 / PU    就 / AD    酱紫 / VV    啦 / SP    ！ / PU    拜拜 / VV
     # ！ / PU    # / PU    口红 / NN    安利 / NR    # / PU
 
-
-def test_bad_case(model):
     tt00 = '''
     女人保养：不仅要外养，还要内调，内外双管齐下，才能调养出好气色，主内调，副外养！。藏红花——斑的克星，妇科病的救星！。每天早晨泡3---6根，坚持服用三个月，会有你意想不到的效果！
     '''
@@ -570,6 +568,16 @@ def test_bad_case(model):
     ！ / PU    。 / PU    每 / DT    天 / M    早晨 / NT    泡 / VV    3 / CD    - / PU    -- / PU    6 / CD    根 / M    
     ， / PU    坚持 / VV    服用 / VV    三 / CD    个 / M    月 / NN    ， / PU    会 / VV    有 / VE    你 / PN    
     意想 / VV    不 / AD    到 / VV    的 / DEC    效果 / NN    ！ / PU 	
+    '''
+
+
+def test_bad_case(model):
+    tt00 = '''
+    也不怕掉“眉”-诗蒂娅眉膏。✨眉笔对于我来说是非常重要的，我现在出门肯定不能遗漏的步骤就是眉毛，而且进入夏季，没有定妆，就必须带着补眉毛的产品。。✨入手了两款不同色系的眉膏，一款是EB03，深棕色，这款眉膏是上下两层的那种，上面是填充的眉粉，下面是眉膏。深棕色很适合日常。EB04，深灰褐，灰褐色这个颜色很妙，和我本身眉毛颜色很相近，防水防汗易上色，好勾勒眉形，小小的也便于携带，最近也爱上了眉膏化眉，保持也比较久。。#逆袭小仙女#。#理发前后#。#这不是化妆是魔法#。#我怎么这么好看#
+    '''
+    extract_CWSPOS(model, tt00)
+
+    '''
     '''
 
 
@@ -610,10 +618,10 @@ def test_from_file(model, infile, outfile): # line 77
 
 
 LOCAL_FLAG = False
-#LOCAL_FLAG = True
+LOCAL_FLAG = True
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
 
 
 if __name__=='__main__':

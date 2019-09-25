@@ -588,10 +588,6 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
 
                     ori_used_idx += s_idx
 
-                #else: # no normal text
-                #    unk_count += len(tmp_text_list_split)-1 # add the number of unknown tokens
-                #    unk_pos.append(pos)
-
             if len(tmp_text_list)>0: # there is at least one observed token
                 if text[-5:] != UNK_TOKEN: # the final part is not [UNK], append text and pos
                     v = tmp_text_list[-1]
@@ -621,11 +617,6 @@ def restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_s
 
         text_list += splited_original_str
         pos_list += unk_pos
-        # text_list[-1] += original_str[ori_used_idx:]
-        # pos_list.append(pos)
-    #else:
-    #    text_list.append(original_str[ori_used_idx:])
-    #    pos_list.append(pos)
 
     return text_list, pos_list
 
