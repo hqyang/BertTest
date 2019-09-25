@@ -618,10 +618,10 @@ def test_from_file(model, infile, outfile): # line 77
 
 
 LOCAL_FLAG = False
-LOCAL_FLAG = True
+#LOCAL_FLAG = True
 
 TEST_FLAG = False
-TEST_FLAG = True
+#TEST_FLAG = True
 
 
 if __name__=='__main__':
