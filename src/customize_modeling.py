@@ -208,7 +208,7 @@ class BertVariant(PreTrainedBertModel):
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
             last_hidden_size = self.config.hidden_size*2
-        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
+        elif method in ['last_layer', 'sum_last4', 'sum_all']:
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
@@ -310,7 +310,7 @@ class BertVariant(PreTrainedBertModel):
         return best_tags_list
 
 
-class BertCWS(PreTrainedBertModel):
+class BertCWS(BertVariant):
     """BERT models with CRF for Chinese Word Segmentation.
     This module is composed of the BERT models with a linear layer on top of
     the pooled output via Conditional Random Field.
@@ -344,126 +344,11 @@ class BertCWS(PreTrainedBertModel):
     """
     def __init__(self, device, config, vocab_file, max_length, num_tags=6, batch_size=64, fclassifier='Softmax', method='fine_tune'):
         super(BertCWS, self).__init__(config)
+        BertVariant.__init__(self, config, num_tags=num_tags, method=method, fclassifier=fclassifier)
+
         self.device = device
         self.batch_size = batch_size
-        self.tokenizer = FullTokenizer(
-                vocab_file=vocab_file, do_lower_case=True)
         self.max_length = max_length
-
-        self.num_tags = num_tags
-        self.fclassifier = fclassifier
-        self.method = method
-        self.bert = BertModel(config)
-        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
-
-        if method == 'fine_tune':
-            last_hidden_size = self.config.hidden_size
-        elif method == 'cat_last4':
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
-        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
-        elif self.method == 'MHMLA':
-            self.MHMLA = MultiHeadMultiLayerAttention(config)
-
-        # Maps the output of BERT into tag space.
-        self.hidden2tag = nn.Linear(self.config.hidden_size, num_tags)
-
-        if self.fclassifier == 'CRF':
-            self.classifier = CRF(num_tags, batch_first=True)
-
-        self.apply(self.init_bert_weights)
-
-    def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
-
-        mask = attention_mask.byte()
-        if labels is None:
-            raise RuntimeError('Input: labels, is missing!')
-        else:
-            loss = self._compute_loss(logits, mask, labels)
-        return loss
-
-    def decode(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-        logits = self._compute_bert_feats(input_ids, token_type_ids, attention_mask)
-
-        loss = logits
-
-        mask = attention_mask.byte()
-        if labels is not None:
-            loss = self._compute_loss(logits, mask, labels)
-
-        if self.fclassifier == 'CRF':
-            best_tags_list = self.classifier.decode(logits, mask)
-        elif self.fclassifier == 'Softmax':
-            best_tags_list = self._decode_Softmax(logits, mask)
-
-        return loss, best_tags_list
-
-    def _compute_bert_feats(self, input_ids, token_type_ids=None, attention_mask=None):
-        if self.method in ['last_layer', 'fine_tune']:
-            output_all_encoded_layers = False
-        else: # , 'MHMLA'
-            output_all_encoded_layers = True
-
-        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=output_all_encoded_layers)
-
-        if self.method == 'sum_last4':
-            feat_used = self.dropout(sequence_output[-1])
-            for l in range(-2, -5, -1):
-                feat_used += self.dropout(sequence_output[l])
-        elif self.method == 'sum_all':
-            feat_used = self.dropout(sequence_output[-1])
-            for l in range(-2, -13, -1):
-                feat_used += self.dropout(sequence_output[l])
-        elif self.method == 'cat_last4':
-            feat_used = self.dropout(sequence_output[-4])
-            for l in range(-3, 0):
-                feat_used = torch.cat((feat_used, self.dropout(sequence_output[l])), 2)
-        elif self.method in ['last_layer', 'fine_tune']:
-            feat_used = sequence_output
-            feat_used = self.dropout(feat_used)
-        elif self.method == 'MHMLA':
-            feat_used = self.MHMLA(sequence_output)
-
-        if self.method in ['sum_last4', 'sum_all', 'cat_last4', 'last_layer']:
-            feat_used, _ = self.biLSTM(feat_used)
-
-        bert_feats = self.hidden2tag(feat_used)
-
-        return bert_feats
-
-    def _compute_loss(self, logits, mask, labels):
-        # mask is a ByteTensor
-
-        if self.fclassifier == 'Softmax':
-            loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_tags), labels.view(-1), mask.view(-1))
-        elif self.fclassifier == 'CRF':
-            loss = -self.classifier(logits, labels, mask)
-
-        return loss
-
-    def _decode_Softmax(self, logits, mask):
-        # mask is a ByteTensor
-
-        batch_size, _ = mask.shape
-
-        _, best_selected_tag = logits.max(dim=2)
-
-        best_tags_list = []
-        for n in range(batch_size):
-            selected_tag = torch.masked_select(best_selected_tag[n, :], mask[n, :])
-            best_tags_list.append(selected_tag.tolist())
-
-        return best_tags_list
 
     def _seg_wordslist(self, lword):  # ->str
         # lword: list of words (list)
@@ -623,7 +508,7 @@ class BertVariantCWSPOS(PreTrainedBertModel):
                                   num_layers=2, batch_first=True,
                                   dropout=0, bidirectional=True)
             last_hidden_size = self.config.hidden_size*2
-        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
+        elif method in ['last_layer', 'sum_last4', 'sum_all']:
             self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
                                   hidden_size=self.config.hidden_size,
                                   num_layers=2, batch_first=True,
@@ -763,46 +648,14 @@ class BertCWSPOS(BertVariantCWSPOS):
     """
     def __init__(self, device, config, vocab_file, max_length, num_CWStags=6, num_POStags=110, batch_size=64, fclassifier='Softmax', pclassifier='CRF', method='fine_tune'):
         super(BertCWSPOS, self).__init__(config)
+        BertVariantCWSPOS.__init__(self, config, num_CWStags=num_CWStags, num_POStags=num_POStags, method=method, fclassifier=fclassifier)
+
         self.device = device
         self.batch_size = batch_size
         self.tokenizer = FullTokenizer(
                 vocab_file=vocab_file, do_lower_case=True)
         self.max_length = max_length
-        self.num_CWStags = num_CWStags
-        self.num_POStags = num_POStags
-        self.method = method
-        self.fclassifier = fclassifier
-        self.pclassifier = pclassifier
 
-        self.bert = BertModel(config)
-        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
-
-        if method == 'fine_tune':
-            last_hidden_size = self.config.hidden_size
-        elif method == 'cat_last4':
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
-        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
-        elif self.method == 'MHMLA':
-            self.MHMLA = MultiHeadMultiLayerAttention(config)
-
-        # Maps the output of BERT into tag space.
-        self.hidden2CWStag = nn.Linear(last_hidden_size, num_CWStags)
-        self.hidden2POStag = nn.Linear(last_hidden_size, num_POStags)
-
-        if self.fclassifier == 'CRF':
-            self.CWSclassifier = CRF(num_CWStags, batch_first=True)
-            self.POSclassifier = CRF(num_POStags, batch_first=True)
-
-        self.apply(self.init_bert_weights)
 
     def _seg_wordslist(self, lword):  # ->str
         # lword: list of words (list)
@@ -1423,53 +1276,13 @@ class BertMLCWSPOS(BertMLVariantCWSPOS):
                  do_lower_case=False, do_mask_as_whole=False, fclassifier='Softmax', pclassifier='Softmax', \
                  method='fine_tune'):
         super(BertMLCWSPOS, self).__init__(config)
+        BertMLVariantCWSPOS.__init__(self, config, num_CWStags=num_CWStags, num_POStags=num_POStags, method=method,
+                 fclassifier=fclassifier, pclassifier=pclassifier, do_mask_as_whole=do_mask_as_whole)
         self.device = device
         self.batch_size = batch_size
         self.tokenizer = BertTokenizer(
                 vocab_file=vocab_file, do_lower_case=do_lower_case)
         self.max_length = max_length
-        self.num_CWStags = num_CWStags
-        self.num_POStags = num_POStags
-        self.do_mask_as_whole = do_mask_as_whole
-
-        if self.do_mask_as_whole:
-            self.bert = BertMLModel(config)
-        else:
-            self.bert = BertModel(config)
-
-        self.method = method
-        self.fclassifier = fclassifier  # cws classifier
-        self.pclassifier = pclassifier  # pos classifier
-        self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
-
-        if method == 'fine_tune':
-            last_hidden_size = self.config.hidden_size
-        elif method == 'cat_last4':
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size*4,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
-        elif method in ['last_layer', 'sum_last4', 'sum_all', 'cat_last4']:
-            self.biLSTM = nn.LSTM(input_size=self.config.hidden_size,
-                                  hidden_size=self.config.hidden_size,
-                                  num_layers=2, batch_first=True,
-                                  dropout=0, bidirectional=True)
-            last_hidden_size = self.config.hidden_size*2
-        elif self.method == 'MHMLA':
-            self.MHMLA = MultiHeadMultiLayerAttention(config)
-
-        # Maps the output of BERT into tag space.
-        self.hidden2CWStag = nn.Linear(last_hidden_size, num_CWStags)
-        self.hidden2POStag = nn.Linear(last_hidden_size, num_POStags)
-
-        if self.fclassifier == 'CRF':
-            self.CWSclassifier = CRF(num_CWStags, batch_first=True)
-
-        if self.pclassifier == 'CRF':
-            self.POSclassifier = CRF(num_POStags, batch_first=True)
-
-        self.apply(self.init_bert_weights)
 
     def _seg_wordslist(self, lword):  # ->str
         # lword: list of words (list)
