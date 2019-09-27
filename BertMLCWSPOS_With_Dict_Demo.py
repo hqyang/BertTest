@@ -16,7 +16,7 @@ import torch
 import time
 
 from src.BERT.modeling import BertConfig
-from src.customize_modeling import BertMLCWSPOS
+from src.customize_modeling import BertMLCWSPOS_with_Dict
 from src.utilis import save_model
 from tqdm import tqdm
 
@@ -74,9 +74,9 @@ def load_CWS_POS_model(label_list, pos_label_list, args):
         else:
             os.system("rm %s" % os.path.join(args.output_dir, '*'))
 
-    model = BertMLCWSPOS(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list),
-                       len(pos_label_list), batch_size=args.train_batch_size,
-                         do_lower_case=args.do_lower_case, do_mask_as_whole=args.do_mask_as_whole)
+    model = BertMLCWSPOS_with_Dict(device, bert_config, args.vocab_file, args.max_seq_length, len(label_list),
+                       len(pos_label_list), batch_size=args.train_batch_size, do_lower_case=args.do_lower_case,
+                       do_mask_as_whole=args.do_mask_as_whole, dict_file=args.dict_file)
 
     if args.init_checkpoint is None:
         raise RuntimeError('Evaluating a random initialized models is not supported...!')
@@ -160,15 +160,16 @@ def set_local_eval_param():
             'data_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data'
                         '4nerpos_data/valid',
             'vocab_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/vocab.txt',
+            'dict_file': './resource/dict.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/ontonotes/CWSPOS2/L6/',
-            'do_lower_case': False,
+            'do_lower_case': True,
             'do_mask_as_whole': True,
             'train_batch_size': 64,
             'max_seq_length': 128,
             'num_hidden_layers': 6,
             'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
-                          'ontonotes/CWSPOS2/uncased_l6_cws_F1_weights_epoch16.pt',
+                          'ontonotes/CWSPOS2/dict_cased_l6_cws_F1_weights_epoch13.pt',
             'init_checkpoint': '/Users/haiqinyang/Downloads/codes/pytorch-pretrained-BERT-master/models/multi_cased_L-12_H-768_A-12/',
             'override_output': True,
             }
@@ -176,6 +177,8 @@ def set_local_eval_param():
 #                          'ontonotes/CWSPOS2/uncased_l6_cws_F1_weights_epoch16.pt',
 #            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
 #                          'ontonotes/CWSPOS2/cased_cws_F1_weights_epoch17.pt',
+#            'bert_model': '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/proc_data/eval/' \
+#                          'ontonotes/CWSPOS2/uncased_l6_cws_F1_weights_epoch16.pt',
 
 
 def set_server_eval_param():
@@ -183,17 +186,20 @@ def set_server_eval_param():
             'model_type': 'sequencelabeling',
             'data_dir': '../data/ontonotes5/4ner_data/',
             'vocab_file': './src/BERT/models//multi_cased_L-12_H-768_A-12/vocab.txt',
+            'dict_file': './resource/dict.txt',
             'bert_config_file': './src/BERT/models/multi_cased_L-12_H-768_A-12/bert_config.json',
             'output_dir': './tmp/ontonotes/out/',
-            'do_lower_case': False,
+            'do_lower_case': True,
             'train_batch_size': 128,
             'max_seq_length': 128,
-            'num_hidden_layers': 3,
+            'num_hidden_layers': 6,
+            'bert_model': './tmp/ontonotes/CWSPOS2/cased/Softmax_Dict4/l6/cws_F1_weights_epoch13.pt',
             'init_checkpoint': '../models/multi_cased_L-12_H-768_A-12/',
-            'bert_model': './tmp/ontonotes/l3/cws_F1_weights_epoch16.pt',
             'no_cuda': True,
             'override_output': True
             }
+#            'bert_model': './tmp/ontonotes/l3/cws_F1_weights_epoch16.pt',
+
 
 def extract_CWSPOS(model, t1):
     outputT0 = model.cutlist_noUNK([t1])
@@ -286,30 +292,6 @@ def test_cases(model):
     # 2019-7-29 v2
     '''
     大家 / PN    加油 / VV    ( / PU    ง• / X    ̀_•́ / NR    ) / PU    ง / PU 
-    '''
-
-    tt00 = '''
-    女人保养：不仅要外养，还要内调，内外双管齐下，才能调养出好气色，主内调，副外养！。藏红花——斑的克星，妇科病的救星！。每天早晨泡3---6根，坚持服用三个月，会有你意想不到的效果！
-    '''
-    extract_CWSPOS(model, tt00)
-
-    '''
-    女人 / NN    保养 / VV    ： / PU    不仅 / X    要 / VV    外养 / VV    ， / PU    还 / AD    要 / VV    内调 / VV    
-    ， / PU    内外 / NN    双管齐下 / VV    ， / PU    才 / AD    能 / VV    调养 / VV    出 / VV    好 / JJ    气色 / NN  
-    ， / PU    主 / AD    内调 / VV    ， / PU    副 / AD    外养 / VV    ！ / PU    。 / PU    藏红花 / NR    ——斑 / NN    
-    的 / DEG    克星 / NN    ， / PU    妇科病 / NN    的 / DEG    救星 / NN    ！ / PU    。 / PU    每 / X    天 / M    
-    早晨 / NT    泡 / VV    3--- / CD    6 / CD    根 / M    ， / PU    坚持 / X    服用 / VV    三 / CD    个 / M    
-    月 / NN    ， / PU    会 / VV    有 / VE    你 / PN    意想不到 / VV    的 / DEC    效果 / NN    ！ / PU 	
-    '''
-    # 2019-7-29 v2
-    '''
-    女人 / NN    保养 / VV    ： / PU    不仅 / X    要 / VV    外养 / VV    ， / PU    还 / AD    要 / VV    内调 / NN    
-    ， / PU    内外 / NN    双 / CD    管齐 / VV    下 / VV    ， / PU    才 / AD    能 / VV    调养 / VV    出 / VV    
-    好 / NN    气色 / NN    ， / PU    主 / NN    内调 / NN    ， / PU    副 / NN    外养 / NN    ！ / PU    。 / PU    
-    藏红花 / VV    —— / PU    斑 / PU    的 / DEC    克星 / NN    ， / PU    妇科病 / NN    的 / DEG    救星 / NN    
-    ！ / PU    。 / PU    每 / DT    天 / M    早晨 / NT    泡 / VV    3 / CD    - / PU    -- / PU    6 / CD    根 / M    
-    ， / PU    坚持 / VV    服用 / VV    三 / CD    个 / M    月 / NN    ， / PU    会 / VV    有 / VE    你 / PN    
-    意想 / VV    不 / AD    到 / VV    的 / DEC    效果 / NN    ！ / PU 	
     '''
 
     tt00 = '''
@@ -564,6 +546,40 @@ def test_cases(model):
     # ， / PU    超级 / AD    好看 / VA    。 / PU    就 / AD    酱紫 / VV    啦 / SP    ！ / PU    拜拜 / VV
     # ！ / PU    # / PU    口红 / NN    安利 / NR    # / PU
 
+    tt00 = '''
+    女人保养：不仅要外养，还要内调，内外双管齐下，才能调养出好气色，主内调，副外养！。藏红花——斑的克星，妇科病的救星！。每天早晨泡3---6根，坚持服用三个月，会有你意想不到的效果！
+    '''
+    extract_CWSPOS(model, tt00)
+
+    '''
+    女人 / NN    保养 / VV    ： / PU    不仅 / X    要 / VV    外养 / VV    ， / PU    还 / AD    要 / VV    内调 / VV    
+    ， / PU    内外 / NN    双管齐下 / VV    ， / PU    才 / AD    能 / VV    调养 / VV    出 / VV    好 / JJ    气色 / NN  
+    ， / PU    主 / AD    内调 / VV    ， / PU    副 / AD    外养 / VV    ！ / PU    。 / PU    藏红花 / NR    ——斑 / NN    
+    的 / DEG    克星 / NN    ， / PU    妇科病 / NN    的 / DEG    救星 / NN    ！ / PU    。 / PU    每 / X    天 / M    
+    早晨 / NT    泡 / VV    3--- / CD    6 / CD    根 / M    ， / PU    坚持 / X    服用 / VV    三 / CD    个 / M    
+    月 / NN    ， / PU    会 / VV    有 / VE    你 / PN    意想不到 / VV    的 / DEC    效果 / NN    ！ / PU 	
+    '''
+    # 2019-7-29 v2
+    '''
+    女人 / NN    保养 / VV    ： / PU    不仅 / X    要 / VV    外养 / VV    ， / PU    还 / AD    要 / VV    内调 / NN    
+    ， / PU    内外 / NN    双 / CD    管齐 / VV    下 / VV    ， / PU    才 / AD    能 / VV    调养 / VV    出 / VV    
+    好 / NN    气色 / NN    ， / PU    主 / NN    内调 / NN    ， / PU    副 / NN    外养 / NN    ！ / PU    。 / PU    
+    藏红花 / VV    —— / PU    斑 / PU    的 / DEC    克星 / NN    ， / PU    妇科病 / NN    的 / DEG    救星 / NN    
+    ！ / PU    。 / PU    每 / DT    天 / M    早晨 / NT    泡 / VV    3 / CD    - / PU    -- / PU    6 / CD    根 / M    
+    ， / PU    坚持 / VV    服用 / VV    三 / CD    个 / M    月 / NN    ， / PU    会 / VV    有 / VE    你 / PN    
+    意想 / VV    不 / AD    到 / VV    的 / DEC    效果 / NN    ！ / PU 	
+    '''
+
+
+def test_bad_case(model):
+    tt00 = '''
+    也不怕掉“眉”-诗蒂娅眉膏。✨眉笔对于我来说是非常重要的，我现在出门肯定不能遗漏的步骤就是眉毛，而且进入夏季，没有定妆，就必须带着补眉毛的产品。。✨入手了两款不同色系的眉膏，一款是EB03，深棕色，这款眉膏是上下两层的那种，上面是填充的眉粉，下面是眉膏。深棕色很适合日常。EB04，深灰褐，灰褐色这个颜色很妙，和我本身眉毛颜色很相近，防水防汗易上色，好勾勒眉形，小小的也便于携带，最近也爱上了眉膏化眉，保持也比较久。。#逆袭小仙女#。#理发前后#。#这不是化妆是魔法#。#我怎么这么好看#
+    '''
+    extract_CWSPOS(model, tt00)
+
+    '''
+    '''
+
 
 def test_from_file(model, infile, outfile): # line 77
     with open(infile, 'r', encoding='utf8') as f:
@@ -602,7 +618,7 @@ def test_from_file(model, infile, outfile): # line 77
 
 
 LOCAL_FLAG = False
-LOCAL_FLAG = True
+#LOCAL_FLAG = True
 
 TEST_FLAG = False
 #TEST_FLAG = True
@@ -620,23 +636,23 @@ if __name__=='__main__':
         if LOCAL_FLAG:
             model = preload(args)
 
+        test_bad_case(model)
         test_cases(model)
     else:
         if not LOCAL_FLAG:
             infile = '../data/xiuxiu/fenci_all.txt'
 
-            types = {'cased': 'cws_F1_weights_epoch17.pt', 'uncased': 'cws_F1_weights_epoch16.pt'}
+            #types = {'cased': 'cws_F1_weights_epoch17.pt', 'uncased': 'cws_F1_weights_epoch16.pt'}
 
-            nhl = 6
-            for x in types.keys():
-                args.bert_model = './tmp/ontonotes/CWSPOS2/'+x+'/l'+str(nhl)+'/'+types[x]
-                args.num_hidden_layers = nhl
+            #nhl = 6
+            #for x in types.keys():
+            #    args.bert_model = './tmp/ontonotes/CWSPOS2/'+x+'/l'+str(nhl)+'/'+types[x]
+            #    args.num_hidden_layers = nhl
 
-                outfile = './tmp/ontonotes/CWSPOS2/rs/fenci_all_'+x+'_'+str(nhl)+'_'+types[x]
+            outfile = './tmp/ontonotes/CWSPOS2/rs/fenci_all_'+str(args.num_hidden_layers)
 
-                model = preload(args)
-                test_from_file(model, infile, outfile)
-
+            model = preload(args)
+            test_from_file(model, infile, outfile)
         else:
             #test_from_file(model, './Test/except.txt', './Test/except_rs.txt')
             #test_from_file(model, './Test/fenci.txt', './Test/fenci_rs.txt')

@@ -9,14 +9,18 @@ Feature:
 Scenario: 
 """
 from sklearn.preprocessing import LabelEncoder
-from src.utilis import save_model
-from src.config import args, segType
-from src.utilis import get_dataset_and_dataloader, restore_unknown_tokens_without_unused_with_pos
-from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes
+from src.config import args, segType, MAX_GRAM_LEN
+from src.utilis import save_model, restore_unknown_tokens_without_unused_with_pos, restore_unknown_tokens_with_pos, \
+    chunk_list
+from src.preprocess import CWS_BMEO, tokenize_list_with_cand_indexes, make_dict_feature_vec, \
+    read_dict, get_dataset_and_dataloader, words2dict_tuple, set1_from_tuple
 from src.BERT import BertTokenizer
 from tqdm import tqdm
 import time
 import torch
+import numpy as np
+import pandas as pd
+import re
 
 
 def test_BertCRF_constructor():
@@ -571,6 +575,211 @@ def compare_time_tokenize():
     print(t1)
 
 
+def test_word_in_dict_feature_vec():
+    sentence = '北京大学生学会很会惹事'
+    word_dict = ['北京', '北京大学']
+
+    #for max_gram in range(2, 5):
+    print(word_dict)
+    print(sentence)
+
+    max_gram = 5
+    print('word in dict vec: ')
+    print(make_dict_feature_vec(sentence, word_dict, max_gram))
+
+    print('word in dict tuple: ')
+    print(words2dict_tuple(sentence, word_dict, max_gram))
+
+
+def test_read_dict():
+    infile = '../resource/dict.txt'
+    dict_o = read_dict(infile)
+    print(dict_o)
+
+
+def gen_tuples(bEmpty=True):
+    inputs = np.random.randint(5, size=(5, 3)).tolist()
+    labels = np.random.randint(2, size=(5, 1)).tolist()
+    wd_fvs = []
+
+    if not bEmpty:
+        wd_fvs = np.random.randint(10, size=(5, 2)).tolist()
+
+    print(inputs)
+    print(labels)
+    print(wd_fvs)
+    return tuple(inputs + labels + wd_fvs)
+
+
+def test_tuples():
+    vv = gen_tuples()
+    print(vv)
+
+
+def test_torch_assignment():
+    sz0, sz1, sz2 = 2, 3, 5
+    sz_s = 2
+
+    t1 = torch.randint(1, 4, (sz0, sz1, sz2))
+    t2 = torch.randint(-3, -1, [sz0, sz1, sz_s])
+
+    print(t1)
+    print(t2)
+
+    t_mask0 = torch.zeros(sz0, sz1, sz2-sz_s)
+    t_mask1 = torch.ones(sz0, sz1, sz_s)
+    t_mask  = torch.cat((t_mask0, t_mask1), 2)
+    t_mask = t_mask.byte()
+    t3 = t1.masked_scatter(t_mask, t2)
+    #t1[:][:][sz3-2:] = t2
+    t1.masked_scatter_(t_mask, t2)
+
+    print(t3)
+    print('finished')
+
+
+def test_check_attribute_exist():
+    from src.config import langtype
+
+    print('langtype has attribution, CHINESE? ' + str(hasattr(langtype, 'CHINESE')))
+    print('langtype has attribution, OTHER? ' + str(hasattr(langtype, 'OTHER')))
+    print('langtype has attribution, OTHERS? ' + str(hasattr(langtype, 'OTHERS')))
+
+
+zeros_mat = np.zeros((100, 128), np.uint8)
+
+
+def test_np_mat_assignment():
+    print('zeros_mat')
+    print(zeros_mat)
+
+    a = zeros_mat
+    a[0][0] = 1
+
+    print('a')
+    print(a)
+
+    print('zeros_mat')
+    print(zeros_mat)
+
+    a = zeros_mat.copy()
+    a[0][0] = 2
+
+    print('a')
+    print(a)
+
+    print('zeros_mat')
+    print(zeros_mat)
+
+
+def test_process_tuple_assignment():
+    infile = '/Users/haiqinyang/Downloads/datasets/ontonotes-release-5.0/ontonote_data/' \
+             'proc_data/4nerpos_update/valid/feat_with_dict/test.tsv'
+    df = pd.read_csv(infile, sep='\t', low_memory=False)
+    #wd_tuples = df.word_in_dict_tuple
+
+    pp = re.compile(r'[(](.*?)[)]', re.S)
+
+    #for idx, wd_tuple in enumerate(wd_tuples):
+
+    for idx, data in enumerate(df.itertuples()):
+        dd = zeros_mat.copy()
+        set1_from_tuple(pp, dd, data.word_in_dict_tuple)
+
+        if idx==13:
+            print(idx)
+        print(dd)
+
+
+def test_chunk_list():
+    l = '  abc  '
+    n = 2
+    print(chunk_list(l, n))
+
+    l = '  ab  '
+    n = 2
+    print(chunk_list(l, n))
+
+    l = '  abcdefg  '
+    n = 4
+    print(chunk_list(l, n))
+
+
+def test_restore_unknown_tokens_with_pos():
+    original_str = "Eye of Evil。把守护带回这座城    •精品荟萃•。 以民族传统工艺制作的“掐丝珐琅”。    fall in love    旺铺转让 因本人工作调动，现将黄金地段琪琪馍店予以转让，本店设备齐全，清一色全新机器和蒸笼，接手即可营业，有意者请面见详谈 非诚勿扰联系电话15886939311    反正也是烂命一条，我就烂着活。。It's a rotten job anyway. I'm gonna suck."
+    #text_ls = ['Eye', 'of', 'Evil', '。', '把', '守护', '带回', '这', '座', '城', '•', '精品', '荟萃', '•', '。', '以', '民族', '传统', '工艺', '制作', '的', '[UNK]', '[UNK]', '丝[UNK]', '琅[UNK]', '。', 'fall', 'in', 'love', '旺铺', '转让', '因', '本人', '工作', '调动', '，', '现', '将', '黄金', '地段', '琪琪', '[UNK]', '店', '予以', '转让', '，', '本', '店', '设备', '齐全', '，', '清', '一色', '全新', '机器', '和', '蒸笼', '，', '接手', '即', '可', '营业', '，', '有意者', '请', '面见', '详谈', '非诚勿扰', '联系', '电话', '15886939311', '反正', '也', '是', '烂命一', '条', '，', '我', '就', '烂', '着', '活', '。', '。', 'It', "'s", 'a', 'rotten', 'job', 'anyway', '.', 'I', "'m", 'gonna', 'suck', '.']
+    #str_with_unknown_tokens = #' '.join(text_ls)
+    str_with_unknown_tokens = "Eye of Evil 。 把 守护 带回 这 座 城 • 精品 荟萃 • 。 以 民族 传统 工艺 制作 的 [UNK] [UNK] 丝[UNK] 琅[UNK] 。 fall in love 旺铺 转让 因 本人 工作 调动 ， 现 将 黄金 地段 琪琪 [UNK] 店 予以 转让 ， 本 店 设备 齐全 ， 清 一色 全新 机器 和 蒸笼 ， 接手 即 可 营业 ， 有意者 请 面见 详谈 非诚勿扰 联系 电话 15886939311 反正 也 是 烂命一 条 ， 我 就 烂 着 活 。 。 It 's a rotten job anyway . I 'm gonna suck ."
+    pos_str = 'NR NR NR PU BA NN VV DT M NN PU NN VV PU PU P NN JJ NN VV DEC PU NN NN NN PU VV VV VV NN VV P PN NN VV PU AD BA JJ NN NR PU NN VV NN PU DT NN NN VA PU JJ JJ JJ NN CC NN PU VV AD VV VV PU NN VV VV NN X NN NN PU X AD VC VV M PU PN AD VV AS VV PU PU PN VV CD JJ NN NN PU PN AD VV VV PU'
+
+    original_str = '以民族传统工艺制作的 “掐丝珐琅”'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] 丝 [UNK] 琅[UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU  NN  NN NN NN '
+    print(str_with_unknown_tokens)
+    print(pos_str.split())
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+    assert(len(text_list)==len(pos_list))
+
+    original_str = '以民族传统工艺制作的 “掐丝珐琅”'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] 丝[UNK] 琅[UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU  NN  NN  NN '
+    print(str_with_unknown_tokens)
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+    assert(len(text_list)==len(pos_list))
+
+    original_str = '以民族传统工艺制作的 “““掐丝珐琅”””'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] [UNK] [UNK] 丝[UNK] 琅[UNK][UNK][UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU PU PU NN NN  NN'
+    print(str_with_unknown_tokens)
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+
+    assert(len(text_list)==len(pos_list))
+
+    original_str = '以民族传统工艺制作的 “““掐丝珐琅”””'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] [UNK] [UNK] 丝[UNK] 琅[UNK] [UNK] [UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU PU PU NN NN  NN PU PU'
+    print(str_with_unknown_tokens)
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+
+    assert(len(text_list)==len(pos_list))
+
+    original_str = '以民族传统工艺制作的 “““掐丝珐琅”    ””'
+    str_with_unknown_tokens = '以  民族  传统  工艺  制作 的 [UNK] [UNK] [UNK] [UNK] 丝[UNK] 琅[UNK] [UNK] [UNK]'
+    pos_str = 'P NN JJ NN VV DEG PU PU PU NN NN  NN PU PU'
+    print(str_with_unknown_tokens)
+
+    text_list, pos_list = restore_unknown_tokens_with_pos(original_str, str_with_unknown_tokens, pos_str)
+    print(text_list)
+    print(pos_list)
+
+    assert(len(text_list)==len(pos_list))
+
+
+def test_words2dict_tuple():
+    infile = '../resource/dict_idioms_name.txt'
+    word_dict = read_dict(infile)
+
+    words = ['[CLS]', '女', '人', '保', '养', '：', '不', '仅', '要', '外', '养', '，', '还', '要', '内', '调', '，', '内', '外', '双', '管', '齐', '下', '，', '才', '能', '调', '养', '出', '好', '气', '色', '，', '主', '内', '调', '，', '副', '外', '养', '！', '。', '藏', '红', '花', '[UNK]', '[UNK]', '斑', '的', '克', '星', '，', '妇', '科', '病', '的', '救', '星', '！', '。', '每', '天', '早', '晨', '泡', '3', '-', '-', '-', '6', '根', '，', '坚', '持', '服', '用', '三', '个', '月', '，', '会', '有', '你', '意', '想', '不', '到', '的', '效', '果', '！', '[SEP]']
+    word_tuples = words2dict_tuple(words, word_dict, MAX_GRAM_LEN)
+    word_mat = np.zeros((128, 2*(MAX_GRAM_LEN-1)))
+
+    for word_tuple in word_tuples:
+        i, j = word_tuple[0], word_tuple[1]
+        word_mat[i][j] = 1
+
+
 if __name__ == '__main__':
     #test_BertCRF_constructor()
     #test_BasicTokenizer()
@@ -603,6 +812,23 @@ if __name__ == '__main__':
     #test_restore_unknown()
     #test_tokenize_list_with_cand_indexes()
 
-    compare_time_tokenize()
+    #compare_time_tokenize()
 
+    #test_word_in_dict_feature_vec()
 
+    #test_read_dict()
+
+    #test_tuples()
+
+    #test_torch_assignment()
+
+    #test_check_attribute_exist()
+
+    #test_np_mat_assignment()
+
+    #test_process_tuple_assignment()
+
+    # test_chunk_list()
+    # test_restore_unknown_tokens_with_pos()
+
+    test_words2dict_tuple()

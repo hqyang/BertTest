@@ -1,31 +1,29 @@
 from pprint import pprint
 
+
 class Config:
-    
     ## Required parameters
-    task_name = None  # MSR， PKU, AS, CITYU, ONTONOTES
+    task_name = None  # MSR， PKU, AS, CITYU, ontonotes_cws_pos, ontonotes_cws_pos2.0
     data_dir = None
     bert_config_file = None
     vocab_file = None
     output_dir = None
     bert_model_dir = None
+    bert_model = None  # a trained bert model
 
     ## Other parameters
     ##1.Basic tasks
     do_train = False
     do_eval = False
-    do_eval_df = False
-    append_dir = False  # evaluate the performance of training data, work when do_eval = True
-    trainBERT = True    
-    bert_model = None
 
     ##2.Preprocessing
-    do_lower_case = False
+    do_lower_case = False # do_lower_case = True is suggested
     nopunc = False
     do_mask_as_whole = True
-    
+    dict_file = './resource/dict.txt'
+
     ##3.Training configs
-    init_checkpoint = None
+    init_checkpoint = None #
     seed = 42
     max_seq_length = 128
     train_batch_size = 128
@@ -36,7 +34,8 @@ class Config:
     num_hidden_layers = 0
     projected_size = 6
     method = 'fine_tune' # 'last_layer', 'cat_last4', 'sum_last4', 'sum_all'
-    fclassifier = 'Softmax' # 'CRF'
+    fclassifier = 'Softmax' # or 'CRF', fclassifier is the classifier for word segmentation
+    pclassifier = 'CRF' # 'Softmax' is suggested, pclassifier is the classifier for part-of-speech
 
     ##4.Devices
     no_cuda = False
@@ -45,7 +44,7 @@ class Config:
     optimize_on_cpu = False
     fp16 = False
     loss_scale = 128
-    visible_device = None
+    visible_device = None # 0, 1, 2 to determine the number of GPU devices
     
     #5.Task options
     isResume = False
@@ -73,14 +72,37 @@ class Config:
         return {k: getattr(self, k) for k, _ in Config.__dict__.items() \
                 if not k.startswith('_')}
 
+
 args = Config()
+
+
+class LangType:
+    CHINESE = 'Chinese'
+    ENGLISH = 'English'
+    OTHERS = 'Others'
+
+langtype = LangType()
+
 
 class SegType:
     BMES_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'M', 4: 'E', 5: 'S'}
     BIO_idx_to_label_map = {0: '[START]', 1: '[END]', 2: 'B', 3: 'I', 4: 'O'}
     BMES_label_map = {'[START]': 0, '[END]': 1, 'B': 2, 'M': 3, 'E': 4, 'S': 5}
 
+
 segType = SegType()
+
+
+def bmes2bio(x):
+    if x=='B':
+        return x
+    elif x=='M' or x=='E':
+        return 'I'
+    elif x=='S':
+        return 'O'
+    else:
+        raise ValueError("The input is not in {B, M, E, S}")
+
 
 class POSType:
     BIO_idx_to_label_map = {
@@ -119,6 +141,7 @@ class POSType:
         'NT': 22, 'OD': 23, 'ON': 24, 'P': 25, 'PN': 26, 'PU': 27, 'SB': 28,
         'SP': 29, 'URL': 30, 'VA': 31, 'VC': 32, 'VE': 33, 'VV': 34, 'X': 35
     }
+
 
 posType = POSType()
 
@@ -160,9 +183,18 @@ posType = POSType()
     # 34 VV    情态动词、  动词、possess/拥有 ，rich/富有,具有
     # 35 X     English x
 
+
 UNK_TOKEN = "[UNK]"
+
 PUNC_TOKENS = "(＂|＃|＄|％|＆|＇|（|）|＊|＋|，|－|／|：|；|＜|＝|＞|＠|［|＼|］|＾|＿|｀|｛|｜|｝|～|｟|｠|｢|｣|､|\u3000|、|〃|〈|〉|《|》|「|」|『|』|【|】|〔|〕|〖|〗|〘|〙|〚|〛|〜|〝|〞|〟|〰|〾|〿|–|—|‘|’|‛|“|”|„|‟|…|‧|﹏|﹑|﹔|·|！|？|｡|。|')"
 
 MAX_SUBWORDS = 64 # train: 10; test: 64
 
 UNUSED_SPACE_TOKEN = '[UnUsed_!@#]'
+
+# suppose the last length is 16 for two eight-words idioms
+# however, to make the hidden size is not a multiple of the number of attention heads (12),
+# we set the default to 25
+MAX_GRAM_LEN = 13
+
+NUM_HIDDEN_SIZE = 768 # This is for generating feature in OntoNotesDataset_Stored_With_Dict in preprocess.py
