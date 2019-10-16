@@ -15,14 +15,9 @@ import pandas as pd
 import torch
 import numpy as np
 from .config import UNK_TOKEN, PUNC_TOKENS, UNUSED_SPACE_TOKEN
-<<<<<<< HEAD
-from .preprocess import dataset_to_dataloader, OntoNotesDataset
-=======
-#from .preprocess import dataset_to_dataloader, OntoNotesDataset
 from functools import reduce
 import operator
 import random
->>>>>>> cwspos2.0
 
 import logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -800,7 +795,6 @@ def restore_unknown_tokens_without_unused_with_pos(original_str, str_with_unknow
                     else:
                         pos_list.append(pos)
 
->>>>>>> cwspos2.0
                     text_list.append(original_str[ori_used_idx:ori_used_idx+len(v)])
                     pos_list.append(pos)
 
