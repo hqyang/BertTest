@@ -13,9 +13,8 @@ import os
 
 from tqdm import tqdm, trange
 from src.config import args
-from src.preprocess import CWS_POS # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
+from src.preprocess import CWS_POS, get_dataset_and_dataloader, get_eval_dataloaders # dataset_to_dataloader, randomly_mask_input, OntoNotesDataset
 import time
-from src.utilis import get_dataset_and_dataloader, get_eval_dataloaders
 from src.BERT.optimization import BertAdam
 from src.metrics import outputFscoreUsedBIO, outputPOSFscoreUsedBIO
 
