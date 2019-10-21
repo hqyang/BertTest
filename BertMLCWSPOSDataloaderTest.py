@@ -269,8 +269,9 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
         else:
             TS_WRITER.add_scalar('data/tr_loss', tr_loss)
 
+        rs = {}
+        '''
         if eval_dataloaders:
-            rs = {}
             if 'ontonotes' in args.task_name.lower():
                 parts = ['test', 'dev', 'train']
             else:
@@ -278,7 +279,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
 
             for part in parts:
                 rs[part] = do_eval(model, eval_dataloaders[part], device, args, times=tr_time, type=part, ep=ep)
-
+        
         if len(rs) != 0:
             for part in parts:
                 if part=='train':
@@ -345,6 +346,7 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 #Its state dict keys are all start with a "module."
                 state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
             torch.save(state_dict, output_weight_file)
+        '''
 
 
 def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0):
@@ -620,7 +622,7 @@ def set_server_Ontonotes_param():
 
 
 TEST_FLAG = False
-#TEST_FLAG = True
+TEST_FLAG = True
 isServer = True
 isServer = False
 
