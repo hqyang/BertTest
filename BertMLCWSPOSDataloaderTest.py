@@ -270,7 +270,6 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
             TS_WRITER.add_scalar('data/tr_loss', tr_loss)
 
         rs = {}
-        '''
         if eval_dataloaders:
             if 'ontonotes' in args.task_name.lower():
                 parts = ['test', 'dev', 'train']
@@ -346,7 +345,6 @@ def do_train(model, train_dataloader, optimizer, param_optimizer, device, args, 
                 #Its state dict keys are all start with a "module."
                 state_dict = OrderedDict({k[len('module.'):]:v for k,v in state_dict.items()})
             torch.save(state_dict, output_weight_file)
-        '''
 
 
 def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0):
@@ -377,12 +375,13 @@ def do_eval(model, eval_dataloader, device, args, times=None, type='test', ep=0)
                 if n_gpu > 1: # multiple gpus
                     # models.module.decode to replace original models() since forward cannot output multiple outputs in multiple gpus
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
+                        = model.decode(input_ids, segment_ids, input_mask, cand_indexes, token_ids, label_ids, pos_label_ids)
                     loss_cws = loss_cws.mean()
                     loss_pos = loss_pos.mean()
                 else:
                     loss_cws, loss_pos, best_cws_tags_list, best_pos_tags_list \
-                        = model.decode(input_ids, segment_ids, input_mask, label_ids, pos_label_ids, cand_indexes, token_ids)
+                        = model.decode(input_ids, segment_ids, input_mask, cand_indexes, token_ids, label_ids, pos_label_ids)
+
 
             if args.no_cuda: # fix bug for can't convert CUDA tensor to numpy. Use Tensor.cpu() to copy the tensor to host memory first.
                 label_array = label_ids.data
